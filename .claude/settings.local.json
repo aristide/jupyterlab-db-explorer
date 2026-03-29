@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "MultiEdit",
+      "Glob",
+      "Grep",
+      "LS",
+      "Task",
+      "WebFetch",
+      "WebSearch",
+      "TodoWrite",
+      "Bash(*)",
+      "mcp__docfork__search_docs",
+      "mcp__docfork__fetch_doc"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "docfork",
+    "brave-search"
+  ]
+}
