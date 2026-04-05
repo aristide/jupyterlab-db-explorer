@@ -1,7 +1,7 @@
 {
-  "name": "jupyterlab-sql-explorer-ui-tests",
+  "name": "jupyterlab-db-explorer-ui-tests",
   "version": "1.0.0",
-  "description": "JupyterLab jupyterlab-sql-explorer Integration Tests",
+  "description": "JupyterLab jupyterlab-db-explorer Integration Tests",
   "private": true,
   "scripts": {
     "start": "jupyter lab --config jupyter_server_test_config.py",

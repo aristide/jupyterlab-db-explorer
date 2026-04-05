@@ -5,12 +5,12 @@ from . import db
 def _jupyter_labextension_paths():
     return [{
         "src": "labextension",
-        "dest": "jupyterlab-sql-explorer"
+        "dest": "jupyterlab-db-explorer"
     }]
 
 def _jupyter_server_extension_points():
     return [{
-        "module": "jupyterlab_sql_explorer"
+        "module": "jupyterlab_db_explorer"
     }]
 
 def _load_jupyter_server_extension(server_app):
@@ -22,7 +22,7 @@ def _load_jupyter_server_extension(server_app):
         JupyterLab application instance
     """
     setup_handlers(server_app.web_app)
-    name = "jupyterlab_sql_explorer"
+    name = "jupyterlab_db_explorer"
     server_app.log.info(f"Registered {name} server extension")
 
 

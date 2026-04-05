@@ -6,9 +6,9 @@ author_name: groupnotes
 has_binder: false
 has_settings: true
 kind: server
-labextension_name: jupyterlab-sql-explorer
+labextension_name: jupyterlab-db-explorer
 project_short_description: A JupyterLab extension for Database
-python_name: jupyterlab_sql_explorer
-repository: https://github.com/groupnotes/jupyterlab-sql-explorer.git
+python_name: jupyterlab_db_explorer
+repository: https://github.com/groupnotes/jupyterlab-db-explorer.git
 test: true
 

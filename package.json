@@ -1,5 +1,5 @@
 {
-    "name": "jupyterlab-sql-explorer",
+    "name": "jupyterlab-db-explorer",
     "version": "0.2.1",
     "description": "A JupyterLab extension for Database",
     "keywords": [
@@ -13,9 +13,9 @@
         "postgresql",
         "sqlite"
     ],
-    "homepage": "https://github.com/groupnotes/jupyterlab-sql-explorer",
+    "homepage": "https://github.com/groupnotes/jupyterlab-db-explorer",
     "bugs": {
-        "url": "https://github.com/groupnotes/jupyterlab-sql-explorer/issues"
+        "url": "https://github.com/groupnotes/jupyterlab-db-explorer/issues"
     },
     "license": "BSD-3-Clause",
     "author": {
@@ -32,7 +32,7 @@
     "style": "style/index.css",
     "repository": {
         "type": "git",
-        "url": "https://github.com/groupnotes/jupyterlab-sql-explorer.git"
+        "url": "https://github.com/groupnotes/jupyterlab-db-explorer.git"
     },
     "scripts": {
         "build": "jlpm build:lib && jlpm build:labextension:dev",
@@ -43,7 +43,7 @@
         "build:prod": "jlpm clean && jlpm build:lib:prod && jlpm build:labextension",
         "clean": "jlpm clean:lib",
         "clean:all": "jlpm clean:lib && jlpm clean:labextension && jlpm clean:lintcache",
-        "clean:labextension": "rimraf jupyterlab_sql_explorer/labextension jupyterlab_sql_explorer/_version.py",
+        "clean:labextension": "rimraf jupyterlab_db_explorer/labextension jupyterlab_db_explorer/_version.py",
         "clean:lib": "rimraf lib tsconfig.tsbuildinfo",
         "clean:lintcache": "rimraf .eslintcache .stylelintcache",
         "eslint": "jlpm eslint:check --fix",
@@ -120,12 +120,12 @@
                     "pip"
                 ],
                 "base": {
-                    "name": "jupyterlab_sql_explorer"
+                    "name": "jupyterlab_db_explorer"
                 }
             }
         },
         "extension": true,
-        "outputDir": "jupyterlab_sql_explorer/labextension",
+        "outputDir": "jupyterlab_db_explorer/labextension",
         "schemaDir": "schema",
         "sharedPackages": {
             "codemirror": {

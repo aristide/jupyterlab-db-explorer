@@ -1,0 +1,62 @@
+{
+  "name": "Jupyterlab Extension",
+  "remoteUser": "jupyter",
+  "forwardPorts": [8888, 9999, 9000, 9001, 5432, 8080, 9030, 8030],
+  "portsAttributes": {
+    "8888": {
+      "label": "Jupyter Lab",
+      "onAutoForward": "openBrowser",
+      "protocol": "http",
+      "url": "http://localhost:8888/lab"
+    },
+    "9001": {
+      "label": "MinIO Console",
+      "onAutoForward": "notify"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "notify"
+    },
+    "8080": {
+      "label": "Trino",
+      "onAutoForward": "notify"
+    },
+    "9030": {
+      "label": "StarRocks",
+      "onAutoForward": "notify"
+    },
+    "8030": {
+      "label": "StarRocks FE HTTP",
+      "onAutoForward": "notify"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "openExternal": true,
+      "defaultUrl": "/lab",
+      "extensions": [
+        "ms-python.python",
+        "ms-vscode.live-server",
+        "visualstudioexptteam.vscodeintellicode",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "terminal.integrated.profiles.linux": {
+          "jupyter bash": {
+            "path": "/bin/bash"
+          }
+        },
+        "terminal.integrated.defaultProfile.linux": "jupyter bash",
+        "debug.node.autoAttach": "disabled"
+      }
+    }
+  },
+  "dockerComposeFile": "./docker-compose.yaml",
+  "service": "jupyter-minio",
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
+  "mounts": [
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/jupyter/.ssh,type=bind,consistency=cached"
+  ],
+  "postCreateCommand": "pip install -e '.[pgsql,trino,starrocks]' && jupyter labextension develop . --overwrite && jupyter server extension enable jupyterlab-env-sync && jlpm build"
+}

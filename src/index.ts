@@ -33,10 +33,10 @@ import {
 } from './sqlConsole';
 
 /**
- * Initialization data for the jupyterlab-sql-explorer extension.
+ * Initialization data for the jupyterlab-db-explorer extension.
  */
 const plugin: JupyterFrontEndPlugin<void> = {
-  id: 'jupyterlab-sql-explorer:plugin',
+  id: 'jupyterlab-db-explorer:plugin',
   autoStart: true,
   requires: [ILayoutRestorer, IEditorServices, IDocumentManager],
   optional: [IMainMenu, ISettingRegistry, IThemeManager, ITranslator],
@@ -54,7 +54,7 @@ function activate(
   translator: ITranslator | null
 ): void {
   translator = translator ?? nullTranslator;
-  const trans = translator.load('jupyterlab_sql_explorer');
+  const trans = translator.load('jupyterlab_db_explorer');
 
   const jp_services: IJpServices = {
     app,
@@ -69,20 +69,20 @@ function activate(
       .load(plugin.id)
       .then(settings => {
         console.log(
-          trans.__('jupyterlab-sql-explorer settings loaded:'),
+          trans.__('jupyterlab-db-explorer settings loaded:'),
           settings.composite
         );
       })
       .catch(reason => {
         console.error(
-          trans.__('Failed to load settings for jupyterlab-sql-explorer.'),
+          trans.__('Failed to load settings for jupyterlab-db-explorer.'),
           reason
         );
       });
   }
 
   const tracker = new WidgetTracker<IDocumentWidget<SqlConsoleWidget>>({
-    namespace: 'jupyterlab_sql_explorer'
+    namespace: 'jupyterlab_db_explorer'
   });
 
   setup_sql_console(jp_services, tracker);
@@ -144,7 +144,7 @@ function activate(
     themeManager.themeChanged.connect(updateThemes);
   }
 
-  console.log('JupyterLab extension jupyterlab-sql-explorer is activated!');
+  console.log('JupyterLab extension jupyterlab-db-explorer is activated!');
 }
 
 export default plugin;

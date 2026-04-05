@@ -17,7 +17,7 @@ test('should emit an activation console message', async ({ page }) => {
 
   expect(
     logs.filter(
-      s => s === 'JupyterLab extension jupyterlab-sql-explorer is activated!'
+      s => s === 'JupyterLab extension jupyterlab-db-explorer is activated!'
     )
   ).toHaveLength(1);
 });
