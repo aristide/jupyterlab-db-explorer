@@ -25,7 +25,7 @@ module.exports = {
   coverageReporters: ['lcov', 'text'],
   modulePathIgnorePatterns: [
     '<rootDir>/build',
-    '<rootDir>/jupyterlab_sql_explorer',
+    '<rootDir>/jupyterlab_db_explorer',
     '<rootDir>/jupyter-config',
     '<rootDir>/ui-tests',
     '<rootDir>/_temp_extension'

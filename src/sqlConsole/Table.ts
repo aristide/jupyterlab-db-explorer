@@ -31,7 +31,7 @@ namespace Table {
 export class Table implements IDisposable {
   constructor(model: TableDataModel, options?: Table.IOptions) {
     const translator = options?.translator || nullTranslator;
-    const trans = translator?.load('jupyterlab_sql_explorer');
+    const trans = translator?.load('jupyterlab_db_explorer');
 
     this._grid = new DataGrid({
       defaultSizes: {

@@ -1,0 +1,103 @@
+version: '3.7'
+
+# Database services are controlled via Docker Compose profiles.
+# Enable/disable them in .env by editing COMPOSE_PROFILES.
+# Example: COMPOSE_PROFILES=postgres,trino,starrocks
+
+services:
+  minio:
+    image: quay.io/minio/minio:RELEASE.2024-08-29T01-40-52Z
+    command: server --console-address ":9001"  /data
+    ports:
+      - 0.0.0.0:9000:9000
+      - 0.0.0.0:9001:9001
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - data:/data
+
+  postgres:
+    image: postgres:16
+    ports:
+      - 0.0.0.0:5432:5432
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: testdb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser -d testdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-postgres:/docker-entrypoint-initdb.d
+    profiles:
+      - postgres
+
+  trino:
+    image: trinodb/trino:latest
+    ports:
+      - 0.0.0.0:8080:8080
+    volumes:
+      - ./trino-catalog:/etc/trino/catalog
+    healthcheck:
+      test: ["CMD", "trino", "--execute", "SELECT 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    profiles:
+      - trino
+
+  starrocks:
+    image: starrocks/allin1-ubuntu:latest
+    ports:
+      - 0.0.0.0:9030:9030
+      - 0.0.0.0:8030:8030
+    healthcheck:
+      test: ["CMD", "mysql", "-u", "root", "-h", "127.0.0.1", "-P", "9030", "-e", "SELECT 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+    volumes:
+      - srdata:/opt/starrocks/fe/meta
+    profiles:
+      - starrocks
+
+  starrocks-init:
+    image: mariadb:latest
+    depends_on:
+      starrocks:
+        condition: service_healthy
+    volumes:
+      - ./init-starrocks:/init
+    entrypoint: ["sh", "-c", "mariadb -h starrocks -P 9030 -u root < /init/01-sample-data.sql"]
+    restart: "no"
+    profiles:
+      - starrocks
+
+  jupyter-minio:
+    image: aristidetm/labextension-dev
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace
+    ports:
+      - 0.0.0.0:8888:8888
+      - 0.0.0.0:9999:9999
+    command: sleep infinity
+    depends_on:
+      minio:
+        condition: service_healthy
+
+volumes:
+  data:
+  pgdata:
+  srdata:

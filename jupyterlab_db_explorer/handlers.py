@@ -158,7 +158,7 @@ class QueryHandler(APIHandler):
             self.finish(json.dumps({'error': str(err)}))
 
 def handler_url(base_url, act):
-    return url_path_join(base_url, "jupyterlab-sql-explorer", act)
+    return url_path_join(base_url, "jupyterlab-db-explorer", act)
 
 def setup_handlers(web_app):
     host_pattern=".*$"

@@ -25,7 +25,7 @@ export async function requestAPI<T>(
   const settings = ServerConnection.makeSettings();
   const requestUrl = URLExt.join(
     settings.baseUrl,
-    'jupyterlab-sql-explorer', // API Namespace
+    'jupyterlab-db-explorer', // API Namespace
     endPoint
   );
 
@@ -82,7 +82,7 @@ export async function GET<T>(
     );
   } catch (reason) {
     console.error(
-      `The jupyterlab-sql-explorer server extension appears to be missing.\n${reason}`
+      `The jupyterlab-db-explorer server extension appears to be missing.\n${reason}`
     );
   }
   return rc;
@@ -103,7 +103,7 @@ export async function POST<T>(
     });
   } catch (reason) {
     console.error(
-      `The jupyterlab-sql-explorer server extension appears to be missing.\n${reason}`
+      `The jupyterlab-db-explorer server extension appears to be missing.\n${reason}`
     );
   }
   return rc;
@@ -121,7 +121,7 @@ export async function DELETE<T>(
     );
   } catch (reason) {
     console.error(
-      `The jupyterlab-sql-explorer server extension appears to be missing.\n${reason}`
+      `The jupyterlab-db-explorer server extension appears to be missing.\n${reason}`
     );
   }
   return rc;
