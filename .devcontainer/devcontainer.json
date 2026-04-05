@@ -1,17 +1,13 @@
 {
   "name": "Jupyterlab Extension",
   "remoteUser": "jupyter",
-  "forwardPorts": [8888, 9999, 9000, 9001, 5432, 8080, 9030, 8030],
+  "forwardPorts": [8888, 9999, 5432, 8080, 9030, 8030],
   "portsAttributes": {
     "8888": {
       "label": "Jupyter Lab",
       "onAutoForward": "openBrowser",
       "protocol": "http",
       "url": "http://localhost:8888/lab"
-    },
-    "9001": {
-      "label": "MinIO Console",
-      "onAutoForward": "notify"
     },
     "5432": {
       "label": "PostgreSQL",
@@ -52,7 +48,7 @@
     }
   },
   "dockerComposeFile": "./docker-compose.yaml",
-  "service": "jupyter-minio",
+  "service": "jupyter",
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
   "mounts": [

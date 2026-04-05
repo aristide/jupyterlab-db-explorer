@@ -6,8 +6,7 @@ Development environment with all services needed to build and test the extension
 
 | Service        | Image                        | Ports      | Profile    | Purpose                       |
 |----------------|------------------------------|------------|------------|-------------------------------|
-| jupyter-minio  | aristidetm/labextension-dev  | 8888, 9999 | (always on)| JupyterLab dev container      |
-| minio          | minio                        | 9000, 9001 | (always on)| S3-compatible object storage  |
+| jupyter        | aristidetm/labextension-dev  | 8888, 9999 | (always on)| JupyterLab dev container      |
 | postgres       | postgres:16                  | 5432       | postgres   | PostgreSQL for testing        |
 | trino          | trinodb/trino:latest         | 8080       | trino      | Trino query engine            |
 | starrocks      | starrocks/allin1-ubuntu      | 9030, 8030 | starrocks  | StarRocks OLAP database       |
@@ -37,7 +36,6 @@ After changing, rebuild the devcontainer.
 | PostgreSQL | postgres   | 5432 | testuser | testpass | testdb               |
 | Trino      | trino      | 8080 | any      | —        | postgresql / tpch / tpcds |
 | StarRocks  | starrocks  | 9030 | root     | (empty)  | testdb               |
-| MinIO      | minio      | 9000 | minioadmin | minioadmin | —                 |
 
 ## Trino Catalogs
 
