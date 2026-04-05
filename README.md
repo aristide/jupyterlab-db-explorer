@@ -1,5 +1,5 @@
-[![Github Actions Status](https://github.com/groupnotes/jupyterlab-db-explorer/actions/workflows/build.yml/badge.svg)](https://github.com/groupnotes/jupyterlab-db-explorer/actions/workflows/build.yml)
-[![PyPI version](https://img.shields.io/pypi/v/jupyterlab-db-explorer.svg)](https://pypi.org/project/jupyterlab-db-explorer/)
+[![Build](https://github.com/groupnotes/jupyterlab-db-explorer/actions/workflows/build.yml/badge.svg)](https://github.com/groupnotes/jupyterlab-db-explorer/actions/workflows/build.yml)
+[![PyPI](https://img.shields.io/pypi/v/jupyterlab-db-explorer.svg)](https://pypi.org/project/jupyterlab-db-explorer/)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/groupnotes/jupyterlab-db-explorer/main?urlpath=lab)
 
 # jupyterlab-db-explorer

@@ -5,23 +5,6 @@ version: '3.7'
 # Example: COMPOSE_PROFILES=postgres,trino,starrocks
 
 services:
-  minio:
-    image: quay.io/minio/minio:RELEASE.2024-08-29T01-40-52Z
-    command: server --console-address ":9001"  /data
-    ports:
-      - 0.0.0.0:9000:9000
-      - 0.0.0.0:9001:9001
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    volumes:
-      - data:/data
-
   postgres:
     image: postgres:16
     ports:
@@ -84,7 +67,7 @@ services:
     profiles:
       - starrocks
 
-  jupyter-minio:
+  jupyter:
     image: aristidetm/labextension-dev
     volumes:
       - ..:/workspace
@@ -93,11 +76,7 @@ services:
       - 0.0.0.0:8888:8888
       - 0.0.0.0:9999:9999
     command: sleep infinity
-    depends_on:
-      minio:
-        condition: service_healthy
 
 volumes:
-  data:
   pgdata:
   srdata:
