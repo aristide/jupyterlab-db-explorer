@@ -1,3 +1,7 @@
+[![Github Actions Status](https://github.com/groupnotes/jupyterlab-db-explorer/actions/workflows/build.yml/badge.svg)](https://github.com/groupnotes/jupyterlab-db-explorer/actions/workflows/build.yml)
+[![PyPI version](https://img.shields.io/pypi/v/jupyterlab-db-explorer.svg)](https://pypi.org/project/jupyterlab-db-explorer/)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/groupnotes/jupyterlab-db-explorer/main?urlpath=lab)
+
 # jupyterlab-db-explorer
 
 A JupyterLab extension for browsing database objects and running SQL queries. Supports multiple database engines including MySQL, PostgreSQL, Hive, Trino, SQLite, Oracle, and StarRocks.
