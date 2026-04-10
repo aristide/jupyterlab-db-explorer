@@ -93,7 +93,7 @@ pip install -e ".[test,pgsql,trino]"
 # Link your development version of the extension with JupyterLab
 jupyter labextension develop . --overwrite
 # Enable server extension
-jupyter server extension enable jupyterlab-db-explorer
+jupyter server extension enable jupyterlab_db_explorer
 # Build extension
 jlpm build
 ```
@@ -110,7 +110,7 @@ jupyter lab
 ### Development Uninstall
 
 ```bash
-jupyter server extension disable jupyterlab-db-explorer
+jupyter server extension disable jupyterlab_db_explorer
 pip uninstall jupyterlab-db-explorer
 ```
 

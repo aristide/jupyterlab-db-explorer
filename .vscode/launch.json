@@ -1,0 +1,56 @@
+{
+  // To debug jupyterlab running in a venv or conda env:
+  //   - set up Python env in your workspace as per https://code.visualstudio.com/docs/python/environments
+  //   - add an "envFile" prop to each backend config pointing to .vscode/debug.env
+  //   - configure the .vscode/debug.env file as needed
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "jlpm watch",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "jlpm watch"
+    },
+    {
+      "name": "jlab backend",
+      "type": "python",
+      "python": "/home/jupyter/.pyenv/versions/3.12.7/bin/python",
+      "request": "launch",
+      "args": [
+        "--notebook-dir=notebooks",
+        "--no-browser",
+        "--NotebookApp.token=''",
+        "--port=9999",
+        "--ip=0.0.0.0",
+        "--log-level=ERROR"
+      ],
+      "justMyCode": false,
+      "module": "jupyterlab.labapp",
+      "presentation": {
+        "hidden": true
+      }
+    },
+    {
+      "name": "jlab frontend",
+      "type": "chrome",
+      "request": "launch",
+      "timeout": 180000,
+      "url": "http://localhost:9999/lab",
+      // set webroot to the parent dir of your project's top level package.json
+      "webRoot": "${workspaceFolder}",
+      "presentation": {
+        "hidden": true
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "jlab debug",
+      "configurations": ["jlab backend", "jlab frontend"]
+    },
+    {
+      "name": "jlab debug (watch)",
+      "configurations": ["jlpm watch", "jlab backend", "jlab frontend"]
+    }
+  ]
+}
