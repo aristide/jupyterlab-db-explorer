@@ -80,8 +80,6 @@ export class ConnList extends React.Component<
     const del = 'del';
     const clear_pass = 'clean-pass';
     const open_console = 'open-console';
-    const edit = 'edit';
-
     commands.addCommand(open_console, {
       label: trans.__('Open Sql Console'),
       icon: queryIcon.bindprops({ stylesheet: 'menuItem' }),

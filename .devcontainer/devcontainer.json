@@ -33,7 +33,6 @@
       "extensions": [
         "ms-python.python",
         "ms-vscode.live-server",
-        "visualstudioexptteam.vscodeintellicode",
         "esbenp.prettier-vscode"
       ],
       "settings": {
@@ -53,6 +52,5 @@
   "shutdownAction": "stopCompose",
   "mounts": [
     "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/jupyter/.ssh,type=bind,consistency=cached"
-  ],
-  "postCreateCommand": "pip install -e '.[pgsql,trino,starrocks]' && jupyter labextension develop . --overwrite && jupyter server extension enable jupyterlab-env-sync && jlpm build"
+  ]
 }
