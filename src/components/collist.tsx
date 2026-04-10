@@ -179,7 +179,7 @@ export class ColList extends React.Component<TColProps, TColState> {
 
   private _sql_query = (ev: any) => {
     const { checked } = this.state;
-    const { dbid, schema, table, list } = this.props;
+    const { dbid, schema, table } = this.props;
 
     let sql = 'SELECT ';
     if (checked.size === 0) {
