@@ -1,44 +1,32 @@
 import * as React from 'react';
 import { Menu, ContextMenu } from '@lumino/widgets';
 import { Clipboard } from '@jupyterlab/apputils';
-import { showDialog, Dialog } from '@jupyterlab/apputils';
 import { CommandRegistry } from '@lumino/commands';
 import { TranslationBundle } from '@jupyterlab/translation';
 import {
   refreshIcon,
-  clearIcon,
   copyIcon
 } from '@jupyterlab/ui-components';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
 import { Loading } from './loading';
-import { IDbItem, ConnType } from '../interfaces';
+import { IDbItem } from '../interfaces';
 import { IJpServices } from '../JpServices';
 import {
   queryIcon,
-  oracleIcon,
   sqlIcon,
   tabIcon,
-  viewIcon,
-  connAddIcon,
-  hiveIcon,
-  pgsqlIcon,
-  mysqlIcon,
-  sqliteIcon,
-  trinoIcon,
-  starrocksIcon,
-  deleteIcon
+  viewIcon
 } from '../icons';
 import {
   tbStyle,
-  listStyle,
   hrStyle,
   divListStyle,
   activeStyle
 } from './styles';
 import { ActionBtn } from './ActionBtn';
-import { getSqlModel, QueryModel } from '../model';
+import { QueryModel } from '../model';
 import { newSqlConsole } from '../sqlConsole';
 
 type SelectFunc = (
@@ -53,165 +41,10 @@ type ListProps = {
   onRefresh: () => any;
   filter: string;
   wait?: boolean;
-  dbid?: string;
   schema?: string;
   jp_services?: IJpServices;
   trans: TranslationBundle;
 };
-
-type ConnListProps = ListProps & { onAddConn: () => any };
-
-/**
- * React component for rendering a panel for performing Table operations.
- */
-export class ConnList extends React.Component<
-  ConnListProps,
-  { sel_name?: string }
-> {
-  constructor(props: ConnListProps) {
-    super(props);
-    this._contextMenu = this._createContextMenu();
-    this.state = {};
-  }
-
-  private _createContextMenu(): Menu {
-    const { trans } = this.props.jp_services as IJpServices;
-    const commands = new CommandRegistry();
-    const del = 'del';
-    const clear_pass = 'clean-pass';
-    const open_console = 'open-console';
-    commands.addCommand(open_console, {
-      label: trans.__('Open Sql Console'),
-      icon: queryIcon.bindprops({ stylesheet: 'menuItem' }),
-      execute: this._open_console
-    });
-
-    commands.addCommand(del, {
-      label: trans.__('Del Connection'),
-      icon: deleteIcon.bindprops({ stylesheet: 'menuItem' }),
-      execute: this._del_conn
-    });
-
-    commands.addCommand(clear_pass, {
-      label: trans.__('Clear Passwd'),
-      icon: clearIcon.bindprops({ stylesheet: 'menuItem' }),
-      execute: this._clear_pass
-    });
-
-    const menu = new Menu({ commands });
-    menu.addItem({ command: open_console });
-    menu.addItem({ command: del });
-    menu.addItem({ command: clear_pass });
-    return menu;
-  }
-
-  render(): React.ReactElement {
-    const { onSelect, list, onAddConn, onRefresh, filter, jp_services } =
-      this.props;
-    const { trans } = jp_services as IJpServices;
-    const { sel_name } = this.state;
-    return (
-      <>
-        <div className={tbStyle}>
-          <div style={{ textAlign: 'right' }}>
-            <ActionBtn
-              msg={trans.__('Add new database connection')}
-              icon={connAddIcon}
-              onClick={onAddConn}
-            />
-            <ActionBtn
-              msg={trans.__('refresh')}
-              icon={refreshIcon}
-              onClick={onRefresh}
-            />
-          </div>
-          <hr className={hrStyle} />
-        </div>
-        <ul className={listStyle}>
-          {list
-            .filter(
-              p =>
-                p.name.toLowerCase().includes(filter) ||
-                (p.desc && p.desc.toLowerCase().includes(filter))
-            )
-            .map((p, idx) => (
-              <li
-                key={idx}
-                className={sel_name === p.name ? activeStyle : ''}
-                onClick={onSelect(p)}
-                title={p.name + '\n' + p.desc}
-                onContextMenu={event => this._handleContextMenu(event, p)}
-              >
-                {(p.subtype as ConnType) === ConnType.DB_MYSQL && (
-                  <mysqlIcon.react tag="span" width="16px" height="16px" />
-                )}
-                {(p.subtype as ConnType) === ConnType.DB_PGSQL && (
-                  <pgsqlIcon.react tag="span" width="16px" height="16px" />
-                )}
-                {((p.subtype as ConnType) === ConnType.DB_HIVE_LDAP ||
-                  (p.subtype as ConnType) === ConnType.DB_HIVE_KERBEROS) && (
-                  <hiveIcon.react tag="span" width="16px" height="16px" />
-                )}
-                {(p.subtype as ConnType) === ConnType.DB_SQLITE && (
-                  <sqliteIcon.react tag="span" width="16px" height="16px" />
-                )}
-                {(p.subtype as ConnType) === ConnType.DB_ORACLE && (
-                  <oracleIcon.react tag="span" width="16px" height="16px" />
-                )}
-                {(p.subtype as ConnType) === ConnType.DB_TRINO && (
-                  <trinoIcon.react tag="span" width="16px" height="16px" />
-                )}
-                {(p.subtype as ConnType) === ConnType.DB_STARROCKS && (
-                  <starrocksIcon.react tag="span" width="16px" height="16px" />
-                )}
-                <span className="name">{p.name}</span>
-                <span className="memo">{p.desc}</span>
-              </li>
-            ))}
-        </ul>
-      </>
-    );
-  }
-
-  private _handleContextMenu = (
-    event: React.MouseEvent<any>,
-    item: IDbItem
-  ) => {
-    this._sel_item = item;
-    this._contextMenu.open(event.clientX, event.clientY);
-    event.preventDefault();
-    this.setState({ sel_name: item.name });
-  };
-
-  private _del_conn = async () => {
-    const { trans } = this.props.jp_services as IJpServices;
-    const { name } = this._sel_item;
-    showDialog({
-      title: trans.__('Are You Sure?'),
-      body: trans.__('Delete Database Connection：') + name,
-      buttons: [Dialog.cancelButton(), Dialog.okButton()]
-    }).then(result => {
-      if (result.button.accept) {
-        getSqlModel().del_conn(name);
-      }
-    });
-  };
-
-  private _clear_pass = () => {
-    getSqlModel().clear_pass(this._sel_item.name);
-  };
-
-  private _open_console = () => {
-    const qmodel = new QueryModel({
-      dbid: this._sel_item.name,
-      conn_readonly: true
-    });
-    newSqlConsole(qmodel, '', this.props.jp_services as IJpServices);
-  };
-
-  private readonly _contextMenu: Menu;
-  private _sel_item!: IDbItem;
-}
 
 export class SchemaList extends React.Component<
   ListProps,
@@ -351,7 +184,7 @@ export class SchemaList extends React.Component<
     event.preventDefault();
     this._sel_item = item;
     this.setState({ sel_name: item.name });
-    this._contextMenu.open(event.nativeEvent); //event.clientX, event.clientY);
+    this._contextMenu.open(event.nativeEvent);
   };
 
   private _copyToClipboard = () => {
@@ -361,7 +194,6 @@ export class SchemaList extends React.Component<
 
   private _open_console = () => {
     const qmodel = new QueryModel({
-      dbid: this.props.dbid as string,
       conn_readonly: true
     });
     newSqlConsole(qmodel, '', this.props.jp_services as IJpServices);
@@ -507,7 +339,6 @@ export class TbList extends React.Component<ListProps, { sel_name?: string }> {
 
   private _open_console = () => {
     const qmodel = new QueryModel({
-      dbid: this.props.dbid as string,
       conn_readonly: true
     });
     newSqlConsole(qmodel, '', this.props.jp_services as IJpServices);

@@ -127,6 +127,43 @@ export async function DELETE<T>(
   return rc;
 }
 
+// --- Single connection API ---
+
+export const get_conn_status = async (): Promise<IApiRes<IDBConn | null>> => {
+  try {
+    return await GET('conns', {});
+  } catch (reason) {
+    return { status: 'ERR', data: null } as IApiRes<IDBConn | null>;
+  }
+};
+
+export const save_conn = async (conn: IDBConn): Promise<IApiRes<any>> => {
+  const newObj: { [key: string]: string } = Object.entries(conn).reduce(
+    (obj, [key, value]) =>
+      value !== undefined ? { ...obj, [key]: value } : obj,
+    {}
+  );
+  return await POST('conns', newObj);
+};
+
+export const reset_conn = async (): Promise<IApiRes<any>> => {
+  return await POST('reset', {});
+};
+
+export const get_reset_allowed = async (): Promise<
+  IApiRes<{ allow_reset: boolean }>
+> => {
+  try {
+    return await GET('reset', {});
+  } catch (reason) {
+    return { status: 'ERR', data: { allow_reset: true } } as IApiRes<{
+      allow_reset: boolean;
+    }>;
+  }
+};
+
+// --- Tree loading (no dbid needed) ---
+
 export const load_db_tree = async (
   act: string,
   params: { [key: string]: string }
@@ -138,58 +175,41 @@ export const load_db_tree = async (
   }
 };
 
-export const load_tree_root = async (): Promise<ITreeCmdRes> => {
-  return await load_db_tree('conns', {});
-};
-
-export const load_tree_db_node = async (dbid: string): Promise<ITreeCmdRes> => {
-  return await load_db_tree('dbtables', { dbid });
+export const load_tree_db_node = async (): Promise<ITreeCmdRes> => {
+  return await load_db_tree('dbtables', {});
 };
 
 export const load_tree_table_node = async (
-  dbid: string,
   db: string
 ): Promise<ITreeCmdRes> => {
-  return await load_db_tree('dbtables', { dbid, db });
+  return await load_db_tree('dbtables', { db });
 };
 
 export const load_tree_col_node = async (
-  dbid: string,
   db: string,
   tbl: string
 ): Promise<ITreeCmdRes> => {
-  return await load_db_tree('columns', { dbid, db, tbl });
+  return await load_db_tree('columns', { db, tbl });
 };
 
-export const edit_conn = async (conn: IDBConn): Promise<IApiRes<any>> => {
-  const newObj: { [key: string]: string } = Object.entries(conn).reduce(
-    (obj, [key, value]) =>
-      value !== undefined ? { ...obj, [key]: value } : obj,
-    {}
-  );
-  return await POST('conns', newObj);
-};
-
-export const del_conn = async (dbid: string): Promise<IApiRes<any>> => {
-  return await DELETE('conns', { dbid });
-};
+// --- Password ---
 
 export const set_pass = async (pass_info: IPass): Promise<IApiRes<any>> => {
-  const { db_id, db_user, db_pass } = pass_info;
-  return await POST('pass', { db_id, db_user, db_pass });
+  const { db_user, db_pass } = pass_info;
+  return await POST('pass', { db_user, db_pass });
 };
 
-export const clear_pass = async (dbid?: string): Promise<IApiRes<any>> => {
-  return await DELETE('pass', { dbid: dbid || '' });
+export const clear_pass = async (): Promise<IApiRes<any>> => {
+  return await DELETE('pass', {});
 };
+
+// --- Query ---
 
 export const query = async (
   sql: string,
-  dbid: string,
-  schema?: string,
   options?: RequestInit
 ): Promise<IQueryRes> => {
-  return await POST('query', { sql, dbid }, options);
+  return await POST('query', { sql }, options);
 };
 
 export const get_query = async (
@@ -202,4 +222,3 @@ export const get_query = async (
 export const stop_query = async (taskid: string): Promise<IQueryRes> => {
   return await DELETE('query', { taskid });
 };
-
