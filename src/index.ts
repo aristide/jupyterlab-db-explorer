@@ -19,7 +19,7 @@ import { sqlIcon } from './icons';
 import { getSqlModel } from './model';
 import { IJpServices } from './JpServices';
 import { askPasswd } from './components/ask_pass';
-import { IPass } from './interfaces';
+import { IPass, IDBConn } from './interfaces';
 
 import { addCommands, createMenu } from './cmd_menu';
 import {
@@ -29,9 +29,6 @@ import {
   get_theme
 } from './sqlConsole';
 
-/**
- * Initialization data for the jupyterlab-db-explorer extension.
- */
 const plugin: JupyterFrontEndPlugin<void> = {
   id: 'jupyterlab-db-explorer:plugin',
   autoStart: true,
@@ -88,6 +85,11 @@ function activate(
   const model = getSqlModel();
   model.need_passwd.connect((_, pass_info: IPass) => {
     askPasswd(pass_info, model, trans);
+  });
+
+  model.create_conn.connect((_, data: IDBConn) => {
+    // The create_conn signal with errmsg set means a failed add_conn.
+    // The ConnForm in the panel handles showing the error.
   });
 
   addCommands(app, model, trans);

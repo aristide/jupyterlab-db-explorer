@@ -1,37 +1,78 @@
 import * as React from 'react';
 import { TranslationBundle } from '@jupyterlab/translation';
+import { Notification } from '@jupyterlab/apputils';
 import { IDBConn } from '../interfaces';
+import { sqlIcon } from '../icons';
 import {
   connFormStyle,
-  formTitleStyle,
+  connFormHeader,
+  connFormBody,
   formGroupStyle,
   formFieldStyle,
   formRowStyle,
-  submitBtnStyle,
-  errStyle
+  errStyle,
+  formSectionTitle,
+  formHeaderStyle,
+  formHeaderIconStyle,
+  formHeaderTextStyle,
+  formDivider,
+  dbTypePicker,
+  dbTypeOption,
+  dbTypeOptionSelected,
+  formBottomBar,
+  formBtnOutline,
+  formBtnPrimary,
+  formBtnTest,
+  formOptionalLabel,
+  formTestSuccess
 } from './styles';
+
+const DB_TYPES = [
+  { value: '2', label: 'PostgreSQL' },
+  { value: '1', label: 'MySQL' },
+  { value: '6', label: 'SQLite' },
+  { value: '3', label: 'Oracle' },
+  { value: '4', label: 'Hive' },
+  { value: '7', label: 'Trino' },
+  { value: '8', label: 'StarRocks' }
+];
+
+const DEFAULT_PORTS: { [key: string]: string } = {
+  '1': '3306',
+  '2': '5432',
+  '3': '1521',
+  '4': '10000',
+  '5': '10000',
+  '7': '8080',
+  '8': '9030'
+};
 
 interface IConnFormProps {
   trans: TranslationBundle;
   conn?: Partial<IDBConn>;
   onSubmit: (conn: IDBConn) => void;
+  onCancel?: () => void;
+  onTest?: (conn: IDBConn) => Promise<IDBConn>;
 }
 
 interface IConnFormState extends Partial<IDBConn> {
   submitting?: boolean;
+  testing?: boolean;
+  testResult?: 'success' | 'error' | null;
+  testMsg?: string;
 }
 
-/**
- * Inline connection form component for the sidebar panel.
- */
 export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
   constructor(props: IConnFormProps) {
     super(props);
     this.state = {
       db_type: '2',
-      db_id: 'default',
+      db_id: '',
       ...this.props.conn,
-      submitting: false
+      submitting: false,
+      testing: false,
+      testResult: null,
+      testMsg: ''
     };
   }
 
@@ -46,124 +87,218 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
       db_pass,
       name,
       errmsg,
-      submitting
+      submitting,
+      testing,
+      testResult,
+      testMsg
     } = this.state;
-    const { trans } = this.props;
+    const { trans, onCancel, onTest } = this.props;
     const isSqlite = db_type === '6';
+    const defaultPort = DEFAULT_PORTS[db_type || '2'] || '';
 
     return (
       <div className={connFormStyle}>
-        <h3 className={formTitleStyle}>
-          {trans.__('Database Connection')}
-        </h3>
+        {/* ---- Fixed Header ---- */}
+        <div className={connFormHeader}>
+          <div className={formHeaderStyle}>
+            <div className={formHeaderIconStyle}>
+              <sqlIcon.react tag="span" width="28px" height="28px" />
+            </div>
+            <div className={formHeaderTextStyle}>
+              <div className="title">{trans.__('New connection')}</div>
+              <div className="subtitle">
+                {trans.__('Configure database credentials')}
+              </div>
+            </div>
+          </div>
+          <hr className={formDivider} />
+        </div>
 
-        {errmsg && <div className={errStyle}>{errmsg}</div>}
+        {/* ---- Scrollable Body ---- */}
+        <div className={connFormBody}>
+          {/* Error / Test result */}
+          {errmsg && <div className={errStyle}>{errmsg}</div>}
+          {testResult === 'success' && (
+            <div className={formTestSuccess}>{testMsg}</div>
+          )}
+          {testResult === 'error' && <div className={errStyle}>{testMsg}</div>}
 
-        <div className={formGroupStyle}>
-          {/* Connection Name & ID */}
-          <div className={formFieldStyle}>
-            <label>{trans.__('Connection Name')}</label>
-            <input
-              placeholder={trans.__('e.g. My Database')}
-              value={name || ''}
-              onChange={this._onChange('name')}
-            />
+          {/* Name & Identifier */}
+          <div className={formGroupStyle}>
+            <div className={formRowStyle}>
+              <div className={formFieldStyle}>
+                <label>{trans.__('Connection name')}</label>
+                <input
+                  placeholder={trans.__('production-db')}
+                  value={name || ''}
+                  onChange={this._onChange('name')}
+                />
+              </div>
+              <div className={formFieldStyle}>
+                <label>{trans.__('Identifier')}</label>
+                <input
+                  placeholder={trans.__('Auto-generated')}
+                  value={db_id || ''}
+                  onChange={this._onChange('db_id')}
+                />
+              </div>
+            </div>
+
+            {/* Database Type */}
+            <div className={formFieldStyle}>
+              <label>{trans.__('Database type')}</label>
+              <div className={dbTypePicker}>
+                {DB_TYPES.map(t => (
+                  <button
+                    key={t.value}
+                    className={
+                      db_type === t.value ? dbTypeOptionSelected : dbTypeOption
+                    }
+                    onClick={() =>
+                      this.setState({
+                        db_type: t.value,
+                        errmsg: undefined,
+                        testResult: null
+                      })
+                    }
+                    type="button"
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className={formFieldStyle}>
-            <label>{trans.__('Connection ID')}</label>
-            <input
-              placeholder={trans.__('Unique identifier')}
-              value={db_id || ''}
-              onChange={this._onChange('db_id')}
-            />
-          </div>
-
-          {/* Database Type */}
-          <div className={formFieldStyle}>
-            <label>{trans.__('Database Type')}</label>
-            <select value={db_type} onChange={this._onChange('db_type')}>
-              <option value="1">MySQL</option>
-              <option value="2">PostgreSQL</option>
-              <option value="3">Oracle</option>
-              <option value="4">Hive (LDAP)</option>
-              <option value="5">Hive (Kerberos)</option>
-              <option value="6">SQLite</option>
-              <option value="7">Trino</option>
-              <option value="8">StarRocks</option>
-            </select>
-          </div>
-
-          {/* Server fields (hidden for SQLite) */}
+          {/* SERVER section */}
           {!isSqlite && (
             <>
-              <div className={formRowStyle}>
-                <div className={formFieldStyle}>
-                  <label>{trans.__('Host')}</label>
-                  <input
-                    placeholder={trans.__('e.g. localhost')}
-                    value={db_host || ''}
-                    onChange={this._onChange('db_host')}
-                  />
-                </div>
-                <div className={formFieldStyle}>
-                  <label>{trans.__('Port')}</label>
-                  <input
-                    placeholder={trans.__('Default')}
-                    value={db_port || ''}
-                    onChange={this._onChange('db_port')}
-                  />
-                </div>
-              </div>
-
-              <div className={formRowStyle}>
-                <div className={formFieldStyle}>
-                  <label>{trans.__('Username')}</label>
-                  <input
-                    placeholder={trans.__('Optional')}
-                    value={db_user || ''}
-                    onChange={this._onChange('db_user')}
-                  />
-                </div>
-                <div className={formFieldStyle}>
-                  <label>{trans.__('Password')}</label>
-                  <input
-                    type="password"
-                    placeholder={trans.__('Optional')}
-                    value={db_pass || ''}
-                    onChange={this._onChange('db_pass')}
-                  />
+              <hr className={formDivider} />
+              <div className={formSectionTitle}>{trans.__('SERVER')}</div>
+              <div className={formGroupStyle}>
+                <div className={formRowStyle}>
+                  <div className={formFieldStyle} style={{ flex: 2 }}>
+                    <label>{trans.__('Host')}</label>
+                    <input
+                      placeholder={trans.__('e.g. db.example.com')}
+                      value={db_host || ''}
+                      onChange={this._onChange('db_host')}
+                    />
+                  </div>
+                  <div className={formFieldStyle} style={{ flex: 1 }}>
+                    <label>
+                      {trans.__('Port')}{' '}
+                      <span className={formOptionalLabel}>
+                        {trans.__('optional')}
+                      </span>
+                    </label>
+                    <input
+                      placeholder={defaultPort}
+                      value={db_port || ''}
+                      onChange={this._onChange('db_port')}
+                    />
+                  </div>
                 </div>
               </div>
             </>
           )}
 
-          {/* Database name */}
-          <div className={formFieldStyle}>
-            <label>
-              {isSqlite
-                ? trans.__('Database File')
-                : trans.__('Database / Schema')}
-            </label>
-            <input
-              placeholder={
-                isSqlite
-                  ? trans.__('Path to .db file')
-                  : trans.__('Default database to connect to')
-              }
-              value={db_name || ''}
-              onChange={this._onChange('db_name')}
-            />
+          {/* Database / Schema */}
+          <div className={formGroupStyle}>
+            <div className={formFieldStyle}>
+              <label>
+                {isSqlite
+                  ? trans.__('Database file')
+                  : trans.__('Database / schema')}
+              </label>
+              <input
+                placeholder={
+                  isSqlite
+                    ? trans.__('Path to .db file')
+                    : trans.__('Default database to connect to')
+                }
+                value={db_name || ''}
+                onChange={this._onChange('db_name')}
+              />
+            </div>
           </div>
+
+          {/* AUTHENTICATION section */}
+          {!isSqlite && (
+            <>
+              <hr className={formDivider} />
+              <div className={formSectionTitle}>
+                {trans.__('AUTHENTICATION')}
+              </div>
+              <div className={formGroupStyle}>
+                <div className={formRowStyle}>
+                  <div className={formFieldStyle}>
+                    <label>
+                      {trans.__('Username')}{' '}
+                      <span className={formOptionalLabel}>
+                        {trans.__('optional')}
+                      </span>
+                    </label>
+                    <input
+                      placeholder={trans.__('Leave blank for prompt')}
+                      value={db_user || ''}
+                      onChange={this._onChange('db_user')}
+                    />
+                  </div>
+                  <div className={formFieldStyle}>
+                    <label>
+                      {trans.__('Password')}{' '}
+                      <span className={formOptionalLabel}>
+                        {trans.__('optional')}
+                      </span>
+                    </label>
+                    <input
+                      type="password"
+                      placeholder={trans.__('Leave blank for prompt')}
+                      value={db_pass || ''}
+                      onChange={this._onChange('db_pass')}
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
-        <button
-          className={submitBtnStyle}
-          onClick={this._onSubmit}
-          disabled={submitting}
-        >
-          {submitting ? trans.__('Connecting...') : trans.__('Connect')}
-        </button>
+        {/* ---- Fixed Bottom Bar ---- */}
+        <div className={formBottomBar}>
+          {onTest && (
+            <button
+              className={formBtnTest}
+              onClick={this._onTest}
+              disabled={testing || submitting}
+              type="button"
+            >
+              {testing
+                ? trans.__('Testing...')
+                : trans.__('Test connection')}
+            </button>
+          )}
+          <div style={{ flex: 1 }} />
+          {onCancel && (
+            <button
+              className={formBtnOutline}
+              onClick={onCancel}
+              disabled={submitting}
+              type="button"
+            >
+              {trans.__('Cancel')}
+            </button>
+          )}
+          <button
+            className={formBtnPrimary}
+            onClick={this._onSubmit}
+            disabled={submitting || testing}
+            type="button"
+          >
+            {submitting ? trans.__('Creating...') : trans.__('Create')}
+          </button>
+        </div>
       </div>
     );
   }
@@ -175,35 +310,46 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
         | React.ChangeEvent<HTMLInputElement>
         | React.ChangeEvent<HTMLSelectElement>
     ) => {
-      this.setState({ [key]: event.target.value, errmsg: undefined });
+      this.setState({
+        [key]: event.target.value,
+        errmsg: undefined,
+        testResult: null
+      });
     };
 
-  private _onSubmit = () => {
-    const { db_type, db_host, db_name, db_id } = this.state;
+  private _buildConn(): IDBConn | null {
+    const { db_type, db_host, db_name, db_id, name: connName } = this.state;
     const { trans } = this.props;
 
-    // Basic client-side validation
     if (!db_type) {
       this.setState({ errmsg: trans.__('Please select a database type.') });
-      return;
+      return null;
     }
     if (db_type !== '6' && !db_host) {
       this.setState({ errmsg: trans.__('Please enter the host address.') });
-      return;
+      return null;
     }
     if (db_type === '6' && !db_name) {
-      this.setState({ errmsg: trans.__('Please enter the database file path.') });
-      return;
+      this.setState({
+        errmsg: trans.__('Please enter the database file path.')
+      });
+      return null;
     }
 
-    this.setState({ submitting: true, errmsg: undefined });
+    // Auto-generate ID from name if not provided
+    let id = db_id || '';
+    if (!id && connName) {
+      id = connName.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+    }
+    if (!id) {
+      id = 'conn_' + Date.now().toString(36);
+    }
 
     const conn: IDBConn = {
-      db_id: db_id || 'default',
+      db_id: id,
       db_type: db_type || '2'
     };
 
-    // Copy non-empty fields
     const fields: (keyof IDBConn)[] = [
       'name',
       'db_host',
@@ -219,12 +365,45 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
       }
     }
 
+    return conn;
+  }
+
+  private _onSubmit = () => {
+    const conn = this._buildConn();
+    if (!conn) {
+      return;
+    }
+    this.setState({ submitting: true, errmsg: undefined, testResult: null });
     this.props.onSubmit(conn);
   };
 
-  /**
-   * Called by parent when connection attempt fails, to re-enable the form.
-   */
+  private _onTest = async () => {
+    const conn = this._buildConn();
+    if (!conn || !this.props.onTest) {
+      return;
+    }
+    const { trans } = this.props;
+    this.setState({ testing: true, testResult: null, testMsg: '' });
+    const result = await this.props.onTest(conn);
+    if (!result.errmsg) {
+      this.setState({
+        testing: false,
+        testResult: 'success',
+        testMsg: trans.__('Connection successful!')
+      });
+      Notification.success(trans.__('Connection successful!'), {
+        autoClose: 5000
+      });
+    } else {
+      this.setState({
+        testing: false,
+        testResult: 'error',
+        testMsg: result.errmsg
+      });
+      Notification.error(result.errmsg, { autoClose: 8000 });
+    }
+  };
+
   setError(msg: string): void {
     this.setState({ submitting: false, errmsg: msg });
   }

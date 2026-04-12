@@ -6,23 +6,25 @@ import { SqlModel } from './model';
 
 export enum CommandIDs {
   sqlConsole = 'sql:console',
-  sqlClearPass = 'sql:clearpass',
-  sqlReset = 'sql:reset'
+  sqlNewConn = 'sql:newconn',
+  sqlClearPass = 'sql:clearpass'
 }
 
-/**
- * Adds commands
- *
- * @param app  - Jupyter App
- * @param model - SqlModel
- * @param trans - language translator
- */
 export function addCommands(
   app: JupyterFrontEnd,
   model: SqlModel,
   trans: TranslationBundle
 ): void {
   const { commands } = app;
+
+  commands.addCommand(CommandIDs.sqlNewConn, {
+    label: trans.__('New Connection'),
+    caption: trans.__('Create New Database Connection'),
+    execute: async () => {
+      // This is now handled by the panel UI showing the ConnForm
+      model.create_conn.emit({} as any);
+    }
+  });
 
   commands.addCommand(CommandIDs.sqlClearPass, {
     label: trans.__('Clear Passwd'),
@@ -31,32 +33,15 @@ export function addCommands(
       model.clear_pass();
     }
   });
-
-  commands.addCommand(CommandIDs.sqlReset, {
-    label: trans.__('Reset Connection'),
-    caption: trans.__('Reset the database connection'),
-    execute: async () => {
-      if (model.allow_reset) {
-        model.reset();
-      }
-    }
-  });
 }
 
-/**
- * Adds commands and menu items.
- *
- * @param commands - Jupyter App commands registry
- * @param trans - language translator
- * @returns menu
- */
 export function createMenu(
   commands: CommandRegistry,
   trans: TranslationBundle
 ): Menu {
   const menu = new Menu({ commands });
   menu.title.label = trans.__('Database');
-  [CommandIDs.sqlClearPass, CommandIDs.sqlReset].forEach(command => {
+  [CommandIDs.sqlNewConn, CommandIDs.sqlClearPass].forEach(command => {
     menu.addItem({ command });
   });
 

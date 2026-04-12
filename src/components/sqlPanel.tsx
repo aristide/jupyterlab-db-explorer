@@ -6,24 +6,10 @@ import { SqlModel } from '../model';
 import { IDbItem, IDBConn } from '../interfaces';
 import { IJpServices } from '../JpServices';
 import { rootIcon } from '../icons';
-import {
-  mysqlIcon,
-  pgsqlIcon,
-  hiveIcon,
-  sqliteIcon,
-  oracleIcon,
-  trinoIcon,
-  starrocksIcon
-} from '../icons';
-import { SchemaList, TbList } from './dblist';
+import { ConnList, SchemaList, TbList } from './dblist';
 import { ColList } from './collist';
 import { ConnForm } from './new_conn';
-import {
-  hrStyle,
-  toolbarStyle,
-  toolbarInfoStyle,
-  resetBtnStyle
-} from './styles';
+import { hrStyle } from './styles';
 
 const panelMain = style({
   padding: 10,
@@ -74,106 +60,47 @@ const inputIconStyle = style({
   right: 5
 });
 
-/**
- * Interface describing component properties.
- */
 export interface ISqlPanelProps {
   model: SqlModel;
   jp_services: IJpServices;
 }
 
-/**
- * Interface describing component state.
- */
 export interface ISqlPanelState {
   filter: string;
   path: Array<IDbItem>;
   list_type: string;
   wait: boolean;
-  connected: boolean;
-  allow_reset: boolean;
-  connection: IDBConn | null;
+  showNewConn: boolean;
 }
 
-/**
- * Get the database type icon for a connection
- */
-function getConnTypeIcon(
-  dbType: string | undefined
-): React.ReactElement | null {
-  const iconProps = { tag: 'span' as const, width: '16px', height: '16px' };
-  switch (dbType) {
-    case '1':
-      return <mysqlIcon.react {...iconProps} />;
-    case '2':
-      return <pgsqlIcon.react {...iconProps} />;
-    case '3':
-      return <oracleIcon.react {...iconProps} />;
-    case '4':
-    case '5':
-      return <hiveIcon.react {...iconProps} />;
-    case '6':
-      return <sqliteIcon.react {...iconProps} />;
-    case '7':
-      return <trinoIcon.react {...iconProps} />;
-    case '8':
-      return <starrocksIcon.react {...iconProps} />;
-    default:
-      return null;
-  }
-}
-
-/**
- * React component for rendering a panel for performing Sql operations.
- */
 export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
   constructor(props: ISqlPanelProps) {
     super(props);
     this.state = {
       filter: '',
       path: [],
-      list_type: 'db',
+      list_type: 'root',
       wait: false,
-      connected: props.model.connected,
-      allow_reset: props.model.allow_reset,
-      connection: props.model.connection
+      showNewConn: false
     };
   }
 
   async componentDidMount(): Promise<void> {
-    const { model } = this.props;
-
-    model.passwd_settled.connect((_, _db_id) => {
+    this.props.model.passwd_settled.connect((_, _db_id) => {
       this._refresh();
     }, this);
 
-    model.connection_changed.connect((_, connected) => {
-      this.setState({
-        connected,
-        connection: model.connection,
-        allow_reset: model.allow_reset,
-        path: [],
-        list_type: 'db',
-        filter: '',
-        wait: false
-      });
-      if (connected) {
-        this._loadRoot();
-      }
+    this.props.model.conn_changed.connect(() => {
+      this.setState({ showNewConn: false });
+      this.forceUpdate();
     }, this);
 
-    // Initialize model
-    await model.init();
-
-    // If already connected, load the tree
-    if (model.connected) {
-      this.setState({
-        connected: true,
-        connection: model.connection,
-        allow_reset: model.allow_reset
-      });
-      this._loadRoot();
+    const { path } = this.state;
+    const rc = await this.props.model.load_path(path);
+    if (!rc) {
+      return;
     }
+    this.setState({ path });
   }
 
   componentWillUnmount(): void {
@@ -181,64 +108,33 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
   }
 
   render(): React.ReactElement {
-    const { connected } = this.state;
+    const { showNewConn } = this.state;
 
-    if (!connected) {
-      return this._renderConnForm();
+    if (showNewConn) {
+      return this._renderNewConnForm();
     }
-    return this._renderConnected();
+    return this._renderTree();
   }
 
-  private _renderConnForm(): React.ReactElement {
+  private _renderNewConnForm(): React.ReactElement {
     const { trans } = this.props.jp_services;
     return (
       <ConnForm
-        ref={r => {
-          this._connFormRef = r;
-        }}
         trans={trans}
-        onSubmit={this._onConnect}
+        onSubmit={this._onCreateConn}
+        onCancel={() => this.setState({ showNewConn: false })}
+        onTest={this._onTestConn}
       />
     );
   }
 
-  private _renderConnected(): React.ReactElement {
-    const { filter, path, list_type, wait, connection, allow_reset } =
-      this.state;
+  private _renderTree(): React.ReactElement {
+    const { filter, path, list_type, wait } = this.state;
     const { model, jp_services } = this.props;
     const { trans } = jp_services;
     const filter_l = filter.toLowerCase();
-
     return (
       <>
-        {/* Reset Toolbar */}
-        <div className={toolbarStyle}>
-          <div className={toolbarInfoStyle}>
-            {getConnTypeIcon(connection?.db_type)}
-            <div>
-              <div className="conn-name">
-                {connection?.name || connection?.db_id || 'Database'}
-              </div>
-              {connection?.db_host && (
-                <div className="conn-host">{connection.db_host}</div>
-              )}
-            </div>
-          </div>
-          <button
-            className={resetBtnStyle}
-            disabled={!allow_reset}
-            onClick={this._onReset}
-            title={
-              allow_reset
-                ? trans.__('Reset connection')
-                : trans.__('Reset is disabled')
-            }
-          >
-            {trans.__('Reset')}
-          </button>
-        </div>
-
-        {/* Filter + Breadcrumb */}
         <div className={panelMain}>
           <div className="jp-InputGroup bp3-input-group">
             <input
@@ -250,7 +146,7 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
             <searchIcon.react tag="span" className={inputIconStyle} />
           </div>
           <ul className={navStyle}>
-            <li onClick={this._go(0, 'db')}>
+            <li onClick={this._go(0, 'root')}>
               <rootIcon.react
                 tag="span"
                 width="16px"
@@ -266,9 +162,19 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
           </ul>
           <hr className={hrStyle} />
         </div>
-
-        {/* Schema / Table / Column lists */}
-        {list_type === 'db' && (
+        {list_type === 'root' && (
+          <ConnList
+            onSelect={this._select}
+            trans={trans}
+            jp_services={jp_services}
+            list={model.get_list(path)}
+            filter={filter_l}
+            wait={wait}
+            onAddConn={this._add}
+            onRefresh={this._refresh}
+          />
+        )}
+        {list_type === 'conn' && (
           <SchemaList
             onSelect={this._select}
             trans={trans}
@@ -276,10 +182,11 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
             list={model.get_list(path)}
             filter={filter_l}
             wait={wait}
+            dbid={path[0].name}
             onRefresh={this._refresh}
           />
         )}
-        {list_type === 'table' && (
+        {list_type === 'db' && (
           <TbList
             onSelect={this._select}
             trans={trans}
@@ -287,34 +194,26 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
             list={model.get_list(path)}
             filter={filter_l}
             wait={wait}
-            schema={path.length > 0 ? path[path.length - 1].name : ''}
+            dbid={path[0].name}
+            schema={path[1].name}
             onRefresh={this._refresh}
           />
         )}
-        {list_type === 'col' && (
+        {list_type === 'table' && (
           <ColList
             list={model.get_list(path)}
             jp_services={jp_services}
             filter={filter_l}
             onRefresh={this._refresh}
             wait={wait}
-            dbid={this.props.model.connection?.db_id || 'default'}
-            schema={path.length >= 1 && path[0].type === 'db' ? path[0].name : ''}
+            dbid={path[0].name}
+            schema={path.length < 3 ? '' : path[path.length - 2].name}
             table={path[path.length - 1].name}
           />
         )}
       </>
     );
   }
-
-  private _loadRoot = async () => {
-    this.setState({ wait: true });
-    const { path } = this.state;
-    const rc = await this.props.model.load_path(path);
-    if (rc) {
-      this.setState({ wait: false });
-    }
-  };
 
   private _go =
     (idx: number, list_type: string) =>
@@ -330,29 +229,24 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
     ) => {
       const { path } = this.state;
       const p = [...path, item];
-      // Determine what list type to show next
-      let nextType = item.type;
-      if (item.type === 'table') {
-        nextType = 'col';
-      }
-      this.setState({ path: p, list_type: nextType, filter: '', wait: true });
+      this.setState({ path: p, list_type: item.type, filter: '', wait: true });
       const rc = await this.props.model.load_path(p);
       if (rc) {
         this.setState({ wait: false });
       }
     };
 
-  private _onConnect = async (conn: IDBConn) => {
-    const success = await this.props.model.connect(conn);
-    if (!success && this._connFormRef) {
-      this._connFormRef.setError(
-        this.props.model.conn_error ? 'Connection failed' : 'Connection failed'
-      );
-    }
+  private _add = async () => {
+    this.setState({ showNewConn: true });
   };
 
-  private _onReset = async () => {
-    await this.props.model.reset();
+  private _onCreateConn = async (conn: IDBConn) => {
+    await this.props.model.add_conn(conn);
+    // If create_conn signal fires (error), form stays open via the signal handler
+  };
+
+  private _onTestConn = async (conn: IDBConn): Promise<IDBConn> => {
+    return await this.props.model.test_conn(conn);
   };
 
   private _refresh = async () => {
@@ -371,5 +265,4 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
     this.setState({ filter });
   };
 
-  private _connFormRef: ConnForm | null = null;
 }

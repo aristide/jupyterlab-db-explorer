@@ -7,14 +7,14 @@ def set_log(_log):
     global log
     log = _log
 
-def query(sql, **kwargs) ->list:
+def query(dbid, sql, **kwargs) ->list:
     '''
     make a query.
     '''
     usedb=None
     if 'db' in kwargs:
         usedb=kwargs['db']
-    eng = engine.getEngine(usedb)
+    eng = engine.getEngine(dbid, usedb)
     if eng:
         conn = eng.connect()
         result = conn.exec_driver_sql(sql)
@@ -65,7 +65,7 @@ def set_limit(sql: str, def_lim: int = 200, max_lim: int = 10000) -> (bool, str)
     out += f' LIMIT {use_lim}'
     return True, out
 
-def query_exec(sql, **kwargs) ->dict:
+def query_exec(dbid, sql, **kwargs) ->dict:
     '''
     make a query, return with header
     '''
@@ -76,7 +76,7 @@ def query_exec(sql, **kwargs) ->dict:
     usedb=None
     if 'db' in kwargs:
         usedb=kwargs['db']
-    eng = engine.getEngine(usedb)
+    eng = engine.getEngine(dbid, usedb)
     if eng:
         conn = eng.connect()
         transaction=conn.begin()
@@ -89,24 +89,24 @@ def query_exec(sql, **kwargs) ->dict:
             return {'columns': columns, 'data': data}
     return {}
 
-def get_column_info(db, tbl):
+def get_column_info(dbid, db, tbl):
     '''
     '''
-    dbinfo = engine.get_connection()
+    dbinfo = engine._getDbInfo(dbid)
     if dbinfo is None:
         return
 
     columns=[]
-    eng=engine.getEngine(db)
+    eng=engine.getEngine(dbid, db)
     if eng:
         if dbinfo['db_type'] ==engine.DB_SQLITE:
-            for r in query(f"PRAGMA table_info('{tbl}')"):
+            for r in query(dbid, f"PRAGMA table_info('{tbl}')"):
                 columns.append({'name': r[1], 'desc': r[2], 'type': 'col'})
         elif dbinfo['db_type'] in [engine.DB_MYSQL, engine.DB_STARROCKS]:
-            for r in query(f"SELECT column_name, column_comment FROM information_schema.columns WHERE table_name = '{tbl}' AND table_schema = '{db}'"):
+            for r in query(dbid, f"SELECT column_name, column_comment FROM information_schema.columns WHERE table_name = '{tbl}' AND table_schema = '{db}'"):
                 columns.append({'name': r[0], 'desc': r[1], 'type': 'col'})
         elif dbinfo['db_type'] ==engine.DB_PGSQL:
-            for r in query('''
+            for r in query(dbid, '''
                 SELECT column_name, data_type, description as comment, table_name
                 FROM information_schema.columns
                 LEFT JOIN pg_catalog.pg_description
@@ -117,13 +117,13 @@ def get_column_info(db, tbl):
             ''' %(db, tbl)):
                 columns.append({'name': r[0], 'desc': r[2], 'type': 'col'})
         elif dbinfo['db_type'] ==engine.DB_ORACLE:
-            for r in query(f"SELECT column_name, comments FROM all_col_comments WHERE table_name = '${tbl}'"):
+            for r in query(dbid, f"SELECT column_name, comments FROM all_col_comments WHERE table_name = '${tbl}'"):
                 print(r)
                 columns.append({'name': r[0], 'desc': '', 'type': 'col'})
         elif dbinfo['db_type'] ==engine.DB_HIVE_LDAP or dbinfo['db_type'] ==engine.DB_HIVE_KERBEROS:
             cols={}
             pk=False
-            for r in query(f"DESCRIBE {tbl}", db=db):
+            for r in query(dbid, f"DESCRIBE {tbl}", db=db):
                 if r['col_name']=='':
                     continue
                 if r['col_name'][0]=='#':
@@ -136,25 +136,25 @@ def get_column_info(db, tbl):
                     cols[r['col_name']]={'name': r['col_name'], 'desc': r['comment'], 'type': 'col', 'stype': 'parkey'}
             columns=list(cols.values())
         elif dbinfo['db_type'] ==engine.DB_TRINO:
-            for r in query(f"SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = '{db}' AND table_name = '{tbl}' ORDER BY ordinal_position"):
+            for r in query(dbid, f"SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = '{db}' AND table_name = '{tbl}' ORDER BY ordinal_position"):
                 columns.append({'name': r[0], 'desc': r[1], 'type': 'col'})
         elif dbinfo['db_type'] ==engine.DB_STARROCKS:
-            for r in query(f"SELECT column_name, column_comment FROM information_schema.columns WHERE table_name = '{tbl}' AND table_schema = '{db}'"):
+            for r in query(dbid, f"SELECT column_name, column_comment FROM information_schema.columns WHERE table_name = '{tbl}' AND table_schema = '{db}'"):
                 columns.append({'name': r[0], 'desc': r[1], 'type': 'col'})
     return columns
 
-def get_schema_or_table(schema):
+def get_schema_or_table(dbid, schema):
     '''
     Obtain the schema or table (if there is no schema layer) of a specified database
     connection
     '''
-    dbinfo = engine.get_connection()
+    dbinfo = engine._getDbInfo(dbid)
     if dbinfo is None:
         return None
 
     if dbinfo['db_type'] ==engine.DB_SQLITE:
         tables=[]
-        for r in query('''
+        for r in query(dbid, '''
             SELECT
                 name,
                 CASE type
@@ -168,12 +168,12 @@ def get_schema_or_table(schema):
     elif dbinfo['db_type'] ==engine.DB_PGSQL:
         if schema is None:
             schemas=[]
-            for r in query("select schema_name from information_schema.schemata where schema_name='public' or schema_owner!='gpadmin'"):
+            for r in query(dbid, "select schema_name from information_schema.schemata where schema_name='public' or schema_owner!='gpadmin'"):
                 schemas.append({'name': r[0], 'desc': '', 'type': 'db'})
             return schemas
         else:
             tables=[]
-            for r in query('''
+            for r in query(dbid, '''
             SELECT
                 t.table_name,
                 CASE t.table_type
@@ -190,12 +190,12 @@ def get_schema_or_table(schema):
     elif dbinfo['db_type'] in [engine.DB_MYSQL, engine.DB_STARROCKS]:
         if schema is None:
             schemas=[]
-            for r in query("show databases"):
+            for r in query(dbid, "show databases"):
                 schemas.append({'name': r[0], 'desc': '', 'type': 'db'})
             return schemas
         else:
             tables=[]
-            for r in query('''
+            for r in query(dbid, '''
                 SELECT
                     table_name,
                     table_comment,
@@ -212,23 +212,23 @@ def get_schema_or_table(schema):
     elif dbinfo['db_type'] ==engine.DB_TRINO:
         if schema is None:
             schemas=[]
-            for r in query("SHOW SCHEMAS"):
+            for r in query(dbid, "SHOW SCHEMAS"):
                 schemas.append({'name': r[0], 'desc': '', 'type': 'db'})
             return schemas
         else:
             tables=[]
-            for r in query(f"SHOW TABLES FROM {schema}"):
+            for r in query(dbid, f"SHOW TABLES FROM {schema}"):
                 tables.append({'name': r[0], 'desc': '', 'type': 'table', 'subtype': 'T'})
             return tables
 
     else:
         if schema is None:
             schemas=[]
-            for r in query("show databases"):
+            for r in query(dbid, "show databases"):
                 schemas.append({'name': r[0], 'desc': '', 'type': 'db'})
             return schemas
         else:
             tables=[]
-            for r in query("show tables", db=schema):
+            for r in query(dbid, "show tables", db=schema):
                 tables.append({'name': r[0], 'desc': '', 'type': 'table'})
             return tables
