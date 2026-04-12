@@ -68,3 +68,9 @@ export interface IQueryRes {
   pass_info?: IPass; // if status if NEED_PASS,
 }
 
+export interface IConnectionStatus {
+  connected: boolean;
+  connection: IDBConn | null;
+  allow_reset: boolean;
+}
+

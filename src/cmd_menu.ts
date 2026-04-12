@@ -1,17 +1,13 @@
 import { JupyterFrontEnd } from '@jupyterlab/application';
 import { CommandRegistry } from '@lumino/commands';
-//import { ContextMenu, DockPanel, Menu, Panel, Widget } from '@lumino/widgets';
 import { Menu } from '@lumino/widgets';
 import { TranslationBundle } from '@jupyterlab/translation';
-import { IDBConn } from './interfaces';
 import { SqlModel } from './model';
-import { createNewConn } from './components/new_conn';
 
-// add command add menu
 export enum CommandIDs {
   sqlConsole = 'sql:console',
-  sqlNewConn = 'sql:newconn',
-  sqlClearPass = 'sql:clearpass'
+  sqlClearPass = 'sql:clearpass',
+  sqlReset = 'sql:reset'
 }
 
 /**
@@ -20,7 +16,6 @@ export enum CommandIDs {
  * @param app  - Jupyter App
  * @param model - SqlModel
  * @param trans - language translator
- * @returns menu
  */
 export function addCommands(
   app: JupyterFrontEnd,
@@ -29,21 +24,21 @@ export function addCommands(
 ): void {
   const { commands } = app;
 
-  // add create new connection command
-  commands.addCommand(CommandIDs.sqlNewConn, {
-    label: trans.__('New Connection'),
-    caption: trans.__('Create New Database Connection'),
-    execute: async (data?: Partial<IDBConn>) => {
-      createNewConn(data || {}, model, trans);
-    }
-  });
-
-  // add create new connection command
   commands.addCommand(CommandIDs.sqlClearPass, {
     label: trans.__('Clear Passwd'),
     caption: trans.__('Clear temporary stored password'),
     execute: async () => {
       model.clear_pass();
+    }
+  });
+
+  commands.addCommand(CommandIDs.sqlReset, {
+    label: trans.__('Reset Connection'),
+    caption: trans.__('Reset the database connection'),
+    execute: async () => {
+      if (model.allow_reset) {
+        model.reset();
+      }
     }
   });
 }
@@ -61,7 +56,7 @@ export function createMenu(
 ): Menu {
   const menu = new Menu({ commands });
   menu.title.label = trans.__('Database');
-  [CommandIDs.sqlNewConn, CommandIDs.sqlClearPass].forEach(command => {
+  [CommandIDs.sqlClearPass, CommandIDs.sqlReset].forEach(command => {
     menu.addItem({ command });
   });
 

@@ -151,3 +151,152 @@ export const loadingStyle = style({
 export const errStyle = style({
   color: 'red'
 });
+
+// --- Reset Toolbar ---
+export const toolbarStyle = style({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '8px 12px',
+  borderBottom: '1px solid var(--jp-border-color2)',
+  background: 'var(--jp-layout-color1)',
+  gap: '8px',
+  flexShrink: 0
+});
+
+export const toolbarInfoStyle = style({
+  display: 'flex',
+  alignItems: 'center',
+  gap: '6px',
+  overflow: 'hidden',
+  $nest: {
+    '& .conn-name': {
+      fontWeight: 600,
+      fontSize: 'var(--jp-ui-font-size1)',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    },
+    '& .conn-host': {
+      fontSize: 'var(--jp-ui-font-size0)',
+      color: 'var(--jp-ui-font-color2)',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }
+});
+
+export const resetBtnStyle = style({
+  padding: '4px 12px',
+  fontSize: 'var(--jp-ui-font-size1)',
+  border: '1px solid var(--jp-border-color1)',
+  borderRadius: '3px',
+  background: 'var(--jp-layout-color2)',
+  color: 'var(--jp-ui-font-color1)',
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+  flexShrink: 0,
+  $nest: {
+    '&:hover:not(:disabled)': {
+      background: 'var(--jp-layout-color3)',
+      borderColor: 'var(--jp-brand-color1)'
+    },
+    '&:disabled': {
+      opacity: 0.5,
+      cursor: 'not-allowed'
+    }
+  }
+});
+
+// --- Inline Connection Form ---
+export const connFormStyle = style({
+  padding: '16px 12px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '12px',
+  overflow: 'auto',
+  height: '100%',
+  boxSizing: 'border-box'
+});
+
+export const formTitleStyle = style({
+  fontSize: '14px',
+  fontWeight: 600,
+  color: 'var(--jp-ui-font-color0)',
+  margin: 0,
+  paddingBottom: '4px',
+  borderBottom: '1px solid var(--jp-border-color2)'
+});
+
+export const formGroupStyle = style({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '10px'
+});
+
+export const formFieldStyle = style({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '3px',
+  $nest: {
+    '& label': {
+      fontSize: 'var(--jp-ui-font-size0)',
+      fontWeight: 500,
+      color: 'var(--jp-ui-font-color1)',
+      textTransform: 'uppercase',
+      letterSpacing: '0.5px'
+    },
+    '& input, & select': {
+      width: '100%',
+      padding: '6px 8px',
+      fontSize: 'var(--jp-ui-font-size1)',
+      border: '1px solid var(--jp-border-color1)',
+      borderRadius: '3px',
+      background: 'var(--jp-layout-color0)',
+      color: 'var(--jp-ui-font-color0)',
+      boxSizing: 'border-box',
+      outline: 'none'
+    },
+    '& input:focus, & select:focus': {
+      borderColor: 'var(--jp-brand-color1)',
+      boxShadow: '0 0 0 1px var(--jp-brand-color1)'
+    },
+    '& input::placeholder': {
+      color: 'var(--jp-ui-font-color3)'
+    }
+  }
+});
+
+export const formRowStyle = style({
+  display: 'flex',
+  gap: '8px',
+  $nest: {
+    '& > *': {
+      flex: 1,
+      minWidth: 0
+    }
+  }
+});
+
+export const submitBtnStyle = style({
+  padding: '8px 16px',
+  fontSize: 'var(--jp-ui-font-size1)',
+  fontWeight: 600,
+  border: 'none',
+  borderRadius: '3px',
+  background: 'var(--jp-brand-color1)',
+  color: '#fff',
+  cursor: 'pointer',
+  width: '100%',
+  marginTop: '4px',
+  $nest: {
+    '&:hover:not(:disabled)': {
+      background: 'var(--jp-brand-color0)'
+    },
+    '&:disabled': {
+      opacity: 0.6,
+      cursor: 'not-allowed'
+    }
+  }
+});

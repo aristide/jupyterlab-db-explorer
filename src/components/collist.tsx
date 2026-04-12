@@ -179,7 +179,7 @@ export class ColList extends React.Component<TColProps, TColState> {
 
   private _sql_query = (ev: any) => {
     const { checked } = this.state;
-    const { dbid, schema, table } = this.props;
+    const { schema, table } = this.props;
 
     let sql = 'SELECT ';
     if (checked.size === 0) {
@@ -193,7 +193,7 @@ export class ColList extends React.Component<TColProps, TColState> {
     }
     sql +=
       '\nFROM ' + (schema !== '' ? schema + '.' : '') + table + ' t LIMIT 200';
-    const qmodel = new QueryModel({ dbid, conn_readonly: true });
+    const qmodel = new QueryModel({ conn_readonly: true });
     newSqlConsole(qmodel, sql, this.props.jp_services);
   };
 

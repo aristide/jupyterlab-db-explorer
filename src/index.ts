@@ -13,16 +13,13 @@ import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { IEditorServices } from '@jupyterlab/codeeditor';
 import { IMainMenu } from '@jupyterlab/mainmenu';
 import { IDocumentManager } from '@jupyterlab/docmanager';
-//import { DocumentRegistry } from '@jupyterlab/docregistry';
-//import { IStatusBar } from '@jupyterlab/statusbar';
 
 import { SqlWidget } from './SqlWidget';
 import { sqlIcon } from './icons';
 import { getSqlModel } from './model';
 import { IJpServices } from './JpServices';
 import { askPasswd } from './components/ask_pass';
-import { createNewConn } from './components/new_conn';
-import { IPass, IDBConn } from './interfaces';
+import { IPass } from './interfaces';
 
 import { addCommands, createMenu } from './cmd_menu';
 import {
@@ -93,15 +90,10 @@ function activate(
     askPasswd(pass_info, model, trans);
   });
 
-  model.create_conn.connect((_, data: IDBConn) => {
-    createNewConn(data, model, trans);
-  });
-
   addCommands(app, model, trans);
 
   // Add a menu for the plugin
   if (mainMenu && app.version.split('.').slice(0, 2).join('.') < '3.7') {
-    // Support JLab 3.0
     mainMenu.addMenu(createMenu(app.commands, trans));
   }
 
@@ -111,15 +103,10 @@ function activate(
   sqlPlugin.title.icon = sqlIcon;
   sqlPlugin.title.caption = 'SQL explorer';
 
-  // Let the application restorer track the running panel for restoration of
-  // application state (e.g. setting the running panel as the current side bar
-  // widget).
   if (restorer) {
     restorer.add(sqlPlugin, 'sql-explorer-sessions');
   }
 
-  // Rank has been chosen somewhat arbitrarily to give priority to the running
-  // sessions widget in the sidebar.
   app.shell.add(sqlPlugin, 'left', { rank: 200 });
 
   if (restorer) {
