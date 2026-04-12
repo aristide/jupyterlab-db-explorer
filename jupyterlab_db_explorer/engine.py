@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import base64
 import sqlalchemy
 import gettext
 from urllib.parse import quote_plus
@@ -24,7 +25,6 @@ DB_SQLITE = '6'
 DB_TRINO = '7'
 DB_STARROCKS = '8'
 
-_CONN_KEY = 'default'
 _temp_pass_store = dict()
 
 
@@ -36,11 +36,33 @@ def open_dbfile(dbfile):
 
 
 # ---------------------------------------------------------------------------
-# Single-connection config: load / save / reset
+# Environment variable helpers
 # ---------------------------------------------------------------------------
 
-def load_from_env():
-    """Read connection info from individual environment variables.
+def _getDBlist_from_env():
+    """Scan environment for DB_<name> base64-encoded connection vars."""
+    dbs = []
+    for e in os.environ:
+        if e[0:3] == 'DB_' and e not in (
+            ENV_DB_TYPE, ENV_DB_HOST, ENV_DB_PORT,
+            ENV_DB_USER, ENV_DB_PASS, ENV_DB_NAME, ENV_DB_ID,
+            ENV_ALLOW_RESET, 'DB_EXPLORER_ALLOW_RESET'
+        ):
+            dbs.append(e[3:])
+    return dbs
+
+
+def _getEnvDbInfo(name):
+    """Get connection info from DB_<name> base64 env var."""
+    var_name = 'DB_' + name
+    db_str = os.getenv(var_name)
+    if db_str is not None:
+        return json.loads(base64.b64decode(db_str.encode()))
+    return None
+
+
+def load_from_env_single():
+    """Read connection info from individual environment variables (DB_TYPE, etc.).
     Returns a dict if at least DB_TYPE is set, else None.
     """
     db_type = os.environ.get(ENV_DB_TYPE)
@@ -67,67 +89,95 @@ def load_from_env():
     return info
 
 
-def load_from_config(dbfile=DB_CFG):
-    """Read the single connection from the config file.
-    Returns a dict or None.
-    """
-    path = os.path.expanduser(dbfile)
-    if not os.path.exists(path):
-        return None
-    try:
-        with open(path, 'rt') as f:
-            data = json.load(f)
-    except Exception:
-        return None
+# ---------------------------------------------------------------------------
+# Config file: multi-connection store  {dbid: {connection_info}, ...}
+# ---------------------------------------------------------------------------
 
-    if not isinstance(data, dict):
-        return None
-
-    # Detect old multi-connection format (top-level keys are connection IDs,
-    # not db_type etc.)
-    if 'db_type' not in data:
-        return None
-
-    return data
+def _getCfgEntryList(passfile=DB_CFG):
+    passfile = os.path.expanduser(passfile)
+    if os.path.exists(passfile):
+        with open(passfile, mode='rt') as f:
+            try:
+                dblst = json.load(f)
+            except Exception:
+                dblst = {}
+    else:
+        dblst = {}
+    # Handle old single-connection format: if top-level has 'db_type', skip
+    if isinstance(dblst, dict) and 'db_type' in dblst:
+        return {}
+    return dblst
 
 
-def save_to_config(dbinfo, dbfile=DB_CFG):
-    """Write a single connection dict to the config file."""
-    cfg = json.dumps(dbinfo, indent=4)
+def _getCfgEntry(name, passfile=DB_CFG):
+    dblst = _getCfgEntryList(passfile)
+    if name in dblst:
+        return dblst[name]
+    return None
+
+
+def _saveCfgEntryList(dbcfg, dbfile=DB_CFG):
+    cfg = json.dumps(dbcfg, indent=4)
     with open_dbfile(dbfile) as f:
         f.write(cfg)
 
 
-def get_connection(dbfile=DB_CFG):
-    """Get the single connection info. Priority:
-    1. Config file
-    2. Environment variables (also persisted to config)
-    Returns dict or None.
+# ---------------------------------------------------------------------------
+# Multi-connection: list / get / add / del
+# ---------------------------------------------------------------------------
+
+def getDBlist():
+    """Return list of all connections (env vars + config file).
+    On first call, if env single-connection vars are set but no config entry exists,
+    auto-populate the config file with them.
     """
-    info = load_from_config(dbfile)
+    # Auto-populate from single env vars if config is empty
+    cfg = _getCfgEntryList()
+    if len(cfg) == 0:
+        env_info = load_from_env_single()
+        if env_info is not None:
+            dbid = env_info.get('db_id', 'default')
+            cfg[dbid] = env_info
+            _saveCfgEntryList(cfg)
+
+    lst = []
+
+    # Connections from DB_<NAME> base64 env vars
+    for dbid in _getDBlist_from_env():
+        info = _getEnvDbInfo(dbid)
+        if info:
+            subtype = int(info['db_type'])
+            lst.append({'name': dbid, 'desc': '', 'type': 'conn', 'subtype': subtype, 'fix': 1})
+
+    # Connections from config file
+    for dbid, e in _getCfgEntryList().items():
+        lst.append({'name': dbid, 'desc': e.get('name', ''), 'type': 'conn', 'subtype': int(e['db_type'])})
+
+    return lst
+
+
+def _getDbInfo(name):
+    """Get connection info by name. Checks env vars first, then config."""
+    # Check DB_<name> base64 env var
+    info = _getEnvDbInfo(name)
     if info is not None:
         return info
-
-    info = load_from_env()
-    if info is not None:
-        save_to_config(info, dbfile)
-        return info
-
-    return None
+    # Check config file
+    return _getCfgEntry(name)
 
 
-def get_connection_info(dbfile=DB_CFG):
-    """Public version of get_connection() that strips db_pass."""
-    info = get_connection(dbfile)
-    if info is None:
+def getDbInfo(name):
+    """Public version - strips db_pass."""
+    i = _getDbInfo(name)
+    if i is None:
         return None
-    result = dict(info)
+    result = dict(i)
     result.pop('db_pass', None)
     return result
 
 
-def set_connection(dbinfo, dbfile=DB_CFG):
-    """Validate and save a new connection."""
+def addEntry(dbinfo, dbfile=DB_CFG):
+    dbid = dbinfo['db_id']
     err = ''
 
     if 'db_type' not in dbinfo:
@@ -148,8 +198,10 @@ def set_connection(dbinfo, dbfile=DB_CFG):
         if not re.match(r'^[a-zA-Z0-9_]+$', dbinfo['db_name']):
             err = 'db name can only contain letters, numbers, and underscores.'
 
-    if 'db_id' not in dbinfo:
-        dbinfo['db_id'] = 'default'
+    fix_dbs = _getDBlist_from_env()
+    dbcfg = _getCfgEntryList(dbfile)
+    if dbid in fix_dbs or dbid in dbcfg:
+        err = f'db_id {dbid} already exists.'
 
     if 'name' not in dbinfo:
         dbinfo['name'] = ''
@@ -157,12 +209,20 @@ def set_connection(dbinfo, dbfile=DB_CFG):
     if err != '':
         raise Exception(err)
 
-    save_to_config(dbinfo, dbfile)
+    dbcfg[dbid] = dbinfo
+    _saveCfgEntryList(dbcfg, dbfile)
     return dbinfo
 
 
+def delEntry(dbid, dbfile=DB_CFG):
+    dbcfg = _getCfgEntryList(dbfile)
+    if dbid in dbcfg:
+        del dbcfg[dbid]
+        _saveCfgEntryList(dbcfg, dbfile)
+
+
 def reset_connection(dbfile=DB_CFG):
-    """Clear the stored connection config and temp passwords."""
+    """Clear all stored connections in config and temp passwords."""
     path = os.path.expanduser(dbfile)
     if os.path.exists(path):
         os.remove(path)
@@ -179,14 +239,12 @@ def is_reset_allowed():
 # Engine creation
 # ---------------------------------------------------------------------------
 
-def _getSQL_engine(db, usedb=None):
+def _getSQL_engine(dbid, db, usedb=None):
     db_host = db.get('db_host', '')
     db_name = db.get('db_name', '')
 
     if usedb is not None and db['db_type'] in [DB_MYSQL, DB_STARROCKS, DB_HIVE_LDAP, DB_HIVE_KERBEROS]:
         db_name = usedb
-
-    dbid = db.get('db_id', 'default')
 
     if db['db_type'] == DB_HIVE_KERBEROS:
         db_port = db.get('db_port', 10000)
@@ -198,13 +256,13 @@ def _getSQL_engine(db, usedb=None):
     # set user/pass for db (exclude SQLite)
     if db['db_type'] != DB_SQLITE:
         if 'db_user' not in db or 'db_pass' not in db:
-            if _CONN_KEY not in _temp_pass_store:
+            if dbid not in _temp_pass_store:
                 db_user = db.get('db_user', None)
-                input_passwd(db_user)
+                input_passwd(dbid, db_user)
                 return
             else:
-                db_user = _temp_pass_store[_CONN_KEY]['user']
-                db_pass = _temp_pass_store[_CONN_KEY]['pwd']
+                db_user = _temp_pass_store[dbid]['user']
+                db_pass = _temp_pass_store[dbid]['pwd']
         else:
             db_user = db['db_user']
             db_pass = db['db_pass']
@@ -228,10 +286,13 @@ def _getSQL_engine(db, usedb=None):
         return sqlalchemy.create_engine(sqlstr, connect_args={'auth': 'LDAP'})
 
     elif db['db_type'] == DB_SQLITE:
-        if db_name[0] != '/' and db_name != ':memory:':
+        if db_name == ':memory:':
+            sqlstr = "sqlite+pysqlite:///:memory:"
+            return sqlalchemy.create_engine(sqlstr)
+        if db_name[0] != '/':
             db_name = os.path.expanduser(DB_ROOT + db_name)
         dir_name = os.path.dirname(db_name)
-        if not os.path.isdir(dir_name):
+        if dir_name and not os.path.isdir(dir_name):
             os.makedirs(dir_name, exist_ok=True)
         sqlstr = f"sqlite+pysqlite:///{db_name}"
         return sqlalchemy.create_engine(sqlstr)
@@ -263,29 +324,58 @@ def __gen_krb5_conf(db):
             f.write("  }\n")
 
 
-def getEngine(usedb=None):
-    """Get SQLAlchemy engine for the single configured connection."""
-    dbinfo = get_connection()
+def getEngine(dbid, usedb=None):
+    dbinfo = _getDbInfo(dbid)
 
     if dbinfo is None:
         if os.environ.get('BATCH'):
-            print("Can't Access DB: no connection configured")
+            print("Can't Access DB: %s" % dbid)
             return False
         return None
 
     __gen_krb5_conf(dbinfo)
-    return _getSQL_engine(dbinfo, usedb)
+    return _getSQL_engine(dbid, dbinfo, usedb)
 
 
 # ---------------------------------------------------------------------------
-# Password handling (single connection)
+# Test connection
 # ---------------------------------------------------------------------------
 
-def check_pass():
-    """Check if password is available for the single connection."""
-    dbinfo = get_connection()
+def test_connection(dbinfo):
+    """Test a database connection without saving it.
+    Returns (True, None) on success, (False, error_message) on failure.
+    """
+    try:
+        db = dict(dbinfo)
+        dbid = db.get('db_id', 'test')
+
+        # For types that need user/pass, check they are provided
+        if db.get('db_type') not in (DB_SQLITE, DB_HIVE_KERBEROS):
+            if 'db_user' not in db or 'db_pass' not in db:
+                if not db.get('db_user') or not db.get('db_pass'):
+                    return False, 'username and password required for test'
+
+        eng = _getSQL_engine(dbid, db)
+        if eng is None:
+            return False, 'could not create engine'
+
+        conn = eng.connect()
+        conn.close()
+        eng.dispose()
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+
+# ---------------------------------------------------------------------------
+# Password handling (per-connection)
+# ---------------------------------------------------------------------------
+
+def check_pass(dbid):
+    """Check if password is available for a given connection."""
+    dbinfo = _getDbInfo(dbid)
     if dbinfo is None or 'db_type' not in dbinfo:
-        raise Exception('no connection configured')
+        raise Exception('conn not exists or error')
 
     if dbinfo['db_type'] in (DB_HIVE_KERBEROS, DB_SQLITE):
         return (True, None)
@@ -293,32 +383,33 @@ def check_pass():
     if 'db_user' in dbinfo and 'db_pass' in dbinfo:
         return (True, None)
 
-    if _CONN_KEY in _temp_pass_store:
+    if dbid in _temp_pass_store:
         return (True, None)
 
     db_user = dbinfo.get('db_user', '')
     return (False, db_user)
 
 
-def set_pass(user, pwd):
-    """Store temporary password and validate connection."""
-    _temp_pass_store[_CONN_KEY] = {'user': user, 'pwd': pwd}
+def set_pass(dbid, user, pwd):
+    _temp_pass_store[dbid] = {'user': user, 'pwd': pwd}
 
-    eng = getEngine()
+    eng = getEngine(dbid)
     if eng:
         try:
             conn = eng.connect()
             conn.close()
             return True, None
         except Exception:
-            del _temp_pass_store[_CONN_KEY]
+            del _temp_pass_store[dbid]
             return False, "user or passwd error"
     else:
-        del _temp_pass_store[_CONN_KEY]
+        del _temp_pass_store[dbid]
         return False, "user or passwd error"
 
 
-def clear_pass():
-    """Clear temporary stored password."""
+def clear_pass(dbid=None):
     global _temp_pass_store
-    _temp_pass_store = dict()
+    if dbid is None or dbid == '':
+        _temp_pass_store = dict()
+    elif dbid in _temp_pass_store:
+        del _temp_pass_store[dbid]

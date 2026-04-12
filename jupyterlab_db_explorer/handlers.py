@@ -8,27 +8,32 @@ from . import task
 
 class ConnHandler(APIHandler):
     '''
-    Single database connection handler
+    Multi-connection handler
     '''
     @tornado.web.authenticated
     def get(self):
-        info = engine.get_connection_info()
-        self.finish(json.dumps({'data': info}))
+        self.finish(json.dumps({'data': engine.getDBlist()}))
 
     @tornado.web.authenticated
     def post(self):
         try:
             data = self.get_json_body()
-            engine.set_connection(data)
-            self.finish(json.dumps({'data': engine.get_connection_info()}))
+            engine.addEntry(data)
+            self.finish(json.dumps({'data': engine.getDBlist()}))
         except Exception as err:
             self.log.error(err)
             traceback.print_exc()
             self.finish(json.dumps({'error': str(err)}))
 
+    @tornado.web.authenticated
+    def delete(self):
+        dbid = self.get_argument('dbid')
+        engine.delEntry(dbid)
+        self.finish(json.dumps({'data': engine.getDBlist()}))
+
 class ResetHandler(APIHandler):
     '''
-    Reset connection handler
+    Reset all connections handler
     '''
     @tornado.web.authenticated
     def get(self):
@@ -44,44 +49,53 @@ class ResetHandler(APIHandler):
             traceback.print_exc()
             self.finish(json.dumps({'error': str(err)}))
 
-class DbTableHandler(APIHandler):
+class TestConnHandler(APIHandler):
     '''
-    Obtain the database or table (if there is no database layer) of the
-    configured database connection
+    Test a database connection without saving it
     '''
     @tornado.web.authenticated
+    def post(self):
+        try:
+            data = self.get_json_body()
+            ok, msg = engine.test_connection(data)
+            if ok:
+                self.finish(json.dumps({'data': 'connection successful'}))
+            else:
+                self.finish(json.dumps({'error': msg}))
+        except Exception as err:
+            self.log.error(err)
+            traceback.print_exc()
+            self.finish(json.dumps({'error': str(err)}))
+
+class DbTableHandler(APIHandler):
+    @tornado.web.authenticated
     def get(self):
+        dbid = self.get_argument('dbid')
         database = self.get_argument('db', None)
         try:
-            st, db_user = engine.check_pass()
+            st, db_user = engine.check_pass(dbid)
             if not st:
-                conn_info = engine.get_connection()
-                db_id = conn_info.get('db_id', 'default') if conn_info else 'default'
-                self.finish(json.dumps({'error': 'NEED-PASS', 'pass_info': {'db_id': db_id, 'db_user': db_user}}))
+                self.finish(json.dumps({'error': 'NEED-PASS', 'pass_info': {'db_id': dbid, 'db_user': db_user}}))
             else:
-                data = db.get_schema_or_table(database)
+                data = db.get_schema_or_table(dbid, database)
                 self.finish(json.dumps({'data': data}))
         except Exception as err:
             self.log.error(err)
             traceback.print_exc()
-            self.finish(json.dumps({'error': "can't get db/table list"}))
+            self.finish(json.dumps({'error': "can't get db/table list of " + dbid}))
 
 class TabColumnHandler(APIHandler):
-    '''
-    Retrieve the schema of a database table.
-    '''
     @tornado.web.authenticated
     def get(self):
+        dbid = self.get_argument('dbid')
         database = self.get_argument('db', None)
         tbl = self.get_argument('tbl')
         try:
-            st, db_user = engine.check_pass()
+            st, db_user = engine.check_pass(dbid)
             if not st:
-                conn_info = engine.get_connection()
-                db_id = conn_info.get('db_id', 'default') if conn_info else 'default'
-                self.finish(json.dumps({'error': 'NEED-PASS', 'pass_info': {'db_id': db_id, 'db_user': db_user}}))
+                self.finish(json.dumps({'error': 'NEED-PASS', 'pass_info': {'db_id': dbid, 'db_user': db_user}}))
             else:
-                data = db.get_column_info(database, tbl)
+                data = db.get_column_info(dbid, database, tbl)
                 self.finish(json.dumps({'data': data}))
         except Exception as err:
             self.log.error(err)
@@ -89,42 +103,35 @@ class TabColumnHandler(APIHandler):
             self.finish(json.dumps({'error': f"can't get table columns of {tbl}, reason: {str(err)}"}))
 
 class PasswdHandler(APIHandler):
-    '''
-    Handle temporary password storage.
-    '''
     @tornado.web.authenticated
     def post(self):
         data = self.get_json_body()
         try:
-            st, msg = engine.set_pass(data['db_user'], data['db_pass'])
+            st, msg = engine.set_pass(data['db_id'], data['db_user'], data['db_pass'])
             if st:
                 self.finish(json.dumps({'data': 'set passwd ok'}))
             else:
                 self.finish(json.dumps({'error': msg}))
         except Exception as err:
             self.log.error(err)
-            self.finish(json.dumps({'error': "set passwd error"}))
+            self.finish(json.dumps({'error': "set passwd error : " + data['db_id']}))
 
     @tornado.web.authenticated
     def delete(self):
-        engine.clear_pass()
+        dbid = self.get_argument('dbid', None)
+        engine.clear_pass(dbid)
         self.finish(json.dumps({'data': 'delete pass ok'}))
 
 class QueryHandler(APIHandler):
-    '''
-    create/get/del query task
-    '''
     @tornado.web.authenticated
     async def post(self):
         qdata = self.get_json_body()
         try:
-            st, db_user = engine.check_pass()
+            st, db_user = engine.check_pass(qdata['dbid'])
             if not st:
-                conn_info = engine.get_connection()
-                db_id = conn_info.get('db_id', 'default') if conn_info else 'default'
-                self.finish(json.dumps({'error': 'NEED-PASS', 'pass_info': {'db_id': db_id, 'db_user': db_user}}))
+                self.finish(json.dumps({'error': 'NEED-PASS', 'pass_info': {'db_id': qdata['dbid'], 'db_user': db_user}}))
             else:
-                taskid = await task.create_query_task(db.query_exec, qdata['sql'])
+                taskid = await task.create_query_task(db.query_exec, qdata['dbid'], qdata['sql'])
                 self.finish(json.dumps({'error': 'RETRY', 'data': taskid}))
         except Exception as err:
             self.log.error(err)
@@ -163,6 +170,7 @@ def setup_handlers(web_app):
     handlers=[
         (handler_url(base_url, "conns"), ConnHandler),
         (handler_url(base_url, "reset"), ResetHandler),
+        (handler_url(base_url, "testconn"), TestConnHandler),
         (handler_url(base_url, "dbtables"), DbTableHandler),
         (handler_url(base_url, "columns"), TabColumnHandler),
         (handler_url(base_url, "pass"), PasswdHandler),

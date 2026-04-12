@@ -50,7 +50,8 @@ class RunStatusComponent extends React.Component<
     model.query_begin.connect(this._start_query, this);
     model.query_finish.connect(this._finish_query, this);
     const m = getSqlModel();
-    m.connection_changed.connect(() => {
+    await m.get_list([]);
+    m.conn_changed.connect(() => {
       this.setState({ dbid: model.dbid });
     }, this);
   };
@@ -70,10 +71,21 @@ class RunStatusComponent extends React.Component<
    */
   render(): React.ReactElement {
     const { dbid, running, time, errmsg } = this.state;
-    const { trans } = this.props;
+    const { trans, model } = this.props;
     return (
       <>
-        <span className="jp-sql-exp-toolbar-text">{dbid}</span>
+        {model.isConnReadOnly ? (
+          <span className="jp-sql-exp-toolbar-text">{dbid}</span>
+        ) : (
+          <div className="jp-HTMLSelect jp-DefaultStyle jp-Notebook-toolbarCellTypeDropdown">
+            <select onChange={this._onChangeDB} value={dbid}>
+              <option value="">{trans.__('NO SELECT')}</option>
+              {model.conns.map(n => (
+                <option key={n}>{n}</option>
+              ))}
+            </select>
+          </div>
+        )}
         {running === 1 && <Loading />}
         {running === 2 && (
           <errorIcon.react
@@ -161,6 +173,16 @@ class RunStatusComponent extends React.Component<
     let { time } = this.state;
     time += 1000;
     this.setState({ time });
+  };
+
+  private _onChangeDB = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { running } = this.state;
+    if (running === 1) {
+      return;
+    }
+    const dbid = e.target.value;
+    this.setState({ dbid });
+    this.props.onChange(dbid);
   };
 
   private _showDetail = () => {

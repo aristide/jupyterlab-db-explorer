@@ -85,8 +85,9 @@ export class SqlConsoleWidget extends SplitPanel {
     super.dispose();
   }
 
-  setDbid = (_dbid: string): void => {
-    // Single connection mode - no connection switching needed
+  setDbid = (dbid: string): void => {
+    this.queryModel.dbid = dbid;
+    this.editor.updateConn(dbid);
   };
 
   set theme(theme: string) {
