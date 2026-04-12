@@ -13,6 +13,7 @@ import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { IEditorServices } from '@jupyterlab/codeeditor';
 import { IMainMenu } from '@jupyterlab/mainmenu';
 import { IDocumentManager } from '@jupyterlab/docmanager';
+import { IDefaultFileBrowser } from '@jupyterlab/filebrowser';
 
 import { SqlWidget } from './SqlWidget';
 import { sqlIcon } from './icons';
@@ -33,7 +34,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
   id: 'jupyterlab-db-explorer:plugin',
   autoStart: true,
   requires: [ILayoutRestorer, IEditorServices, IDocumentManager],
-  optional: [IMainMenu, ISettingRegistry, IThemeManager, ITranslator],
+  optional: [IMainMenu, ISettingRegistry, IThemeManager, ITranslator, IDefaultFileBrowser],
   activate
 };
 
@@ -45,7 +46,8 @@ function activate(
   mainMenu: IMainMenu | null,
   settingRegistry: ISettingRegistry | null,
   themeManager: IThemeManager | null,
-  translator: ITranslator | null
+  translator: ITranslator | null,
+  fileBrowser: IDefaultFileBrowser | null
 ): void {
   translator = translator ?? nullTranslator;
   const trans = translator.load('jupyterlab_db_explorer');
@@ -55,7 +57,8 @@ function activate(
     editorService,
     trans,
     docManager,
-    themeManager
+    themeManager,
+    fileBrowser
   };
 
   if (settingRegistry) {

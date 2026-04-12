@@ -3,6 +3,7 @@ import { IEditorServices } from '@jupyterlab/codeeditor';
 import { TranslationBundle } from '@jupyterlab/translation';
 import { IDocumentManager } from '@jupyterlab/docmanager';
 import { IThemeManager } from '@jupyterlab/apputils';
+import { FileBrowser } from '@jupyterlab/filebrowser';
 
 export interface IJpServices {
   app: JupyterFrontEnd;
@@ -10,4 +11,5 @@ export interface IJpServices {
   trans: TranslationBundle;
   docManager: IDocumentManager;
   themeManager: IThemeManager | null;
+  fileBrowser: FileBrowser | null;
 }

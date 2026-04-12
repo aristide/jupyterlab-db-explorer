@@ -108,9 +108,13 @@ export class SqlConsoleWidget extends SplitPanel {
       return;
     }
 
+    const browserPath = this._jp_services.fileBrowser?.model.path || '';
+    const defaultPath = browserPath
+      ? browserPath + '/untitled.sql'
+      : 'untitled.sql';
     const result = await InputDialog.getText({
       title: trans.__('Please input sql file name'),
-      text: 'work/untitled.sql'
+      text: defaultPath
     });
 
     if (result.button.accept) {
