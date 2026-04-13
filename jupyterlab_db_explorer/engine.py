@@ -302,8 +302,8 @@ def _getSQL_engine(dbid, db, usedb=None):
             input_passwd(dbid, db_user_hint)
             return
     elif db['db_type'] == DB_TRINO:
-        # Trino: use credentials if provided, otherwise connect without auth
-        db_user = db.get('db_user', '')
+        # Trino requires at least a username; default to 'trino' if not provided
+        db_user = db.get('db_user') or 'trino'
         db_pass_encoded = quote_plus(db['db_pass']) if db.get('db_pass') else ''
 
     if db['db_type'] == DB_MYSQL:
@@ -337,11 +337,8 @@ def _getSQL_engine(dbid, db, usedb=None):
 
     elif db['db_type'] == DB_TRINO:
         db_port = db.get('db_port', 8080)
-        if db_user:
-            auth_part = f"{db_user}:{db_pass_encoded}@" if db_pass_encoded else f"{db_user}@"
-            sqlstr = f"trino://{auth_part}{db_host}:{db_port}/{db_name}"
-        else:
-            sqlstr = f"trino://{db_host}:{db_port}/{db_name}"
+        auth_part = f"{db_user}:{db_pass_encoded}@" if db_pass_encoded else f"{db_user}@"
+        sqlstr = f"trino://{auth_part}{db_host}:{db_port}/{db_name}"
 
     elif db['db_type'] == DB_STARROCKS:
         db_port = db.get('db_port', 9030)
