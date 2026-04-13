@@ -284,36 +284,43 @@ def _getSQL_engine(dbid, db, usedb=None):
         sqlstr = f"hive://{db_host}:{db_port}/{db_name}"
         return sqlalchemy.create_engine(sqlstr, connect_args={'auth': 'KERBEROS', 'kerberos_service_name': 'hive'})
 
-    # set user/pass for db (exclude SQLite)
-    if db['db_type'] != DB_SQLITE:
-        if 'db_user' not in db or 'db_pass' not in db:
-            if dbid not in _temp_pass_store:
-                db_user = db.get('db_user', None)
-                input_passwd(dbid, db_user)
-                return
-            else:
-                db_user = _temp_pass_store[dbid]['user']
-                db_pass = _temp_pass_store[dbid]['pwd']
-        else:
+    # Types that can connect without any credentials at all
+    _NO_AUTH_TYPES = (DB_SQLITE, DB_HIVE_KERBEROS, DB_TRINO)
+
+    # Resolve user/pass
+    db_user = None
+    db_pass_encoded = None
+    if db['db_type'] not in _NO_AUTH_TYPES:
+        if db.get('db_user'):
             db_user = db['db_user']
-            db_pass = db['db_pass']
-        db_pass = quote_plus(db_pass)
+            db_pass_encoded = quote_plus(db.get('db_pass', ''))
+        elif dbid in _temp_pass_store:
+            db_user = _temp_pass_store[dbid]['user']
+            db_pass_encoded = quote_plus(_temp_pass_store[dbid]['pwd'])
+        else:
+            db_user_hint = db.get('db_user', None)
+            input_passwd(dbid, db_user_hint)
+            return
+    elif db['db_type'] == DB_TRINO:
+        # Trino: use credentials if provided, otherwise connect without auth
+        db_user = db.get('db_user', '')
+        db_pass_encoded = quote_plus(db['db_pass']) if db.get('db_pass') else ''
 
     if db['db_type'] == DB_MYSQL:
         db_port = db.get('db_port', 3306)
-        sqlstr = f"mysql+pymysql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+        sqlstr = f"mysql+pymysql://{db_user}:{db_pass_encoded}@{db_host}:{db_port}/{db_name}"
 
     elif db['db_type'] == DB_PGSQL:
         db_port = db.get('db_port', 5432)
-        sqlstr = f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+        sqlstr = f"postgresql://{db_user}:{db_pass_encoded}@{db_host}:{db_port}/{db_name}"
 
     elif db['db_type'] == DB_ORACLE:
         db_port = db.get('db_port', 1521)
-        sqlstr = f"oracle+cx_Oracle://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+        sqlstr = f"oracle+cx_Oracle://{db_user}:{db_pass_encoded}@{db_host}:{db_port}/{db_name}"
 
     elif db['db_type'] == DB_HIVE_LDAP:
         db_port = db.get('db_port', 10000)
-        sqlstr = f"hive://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+        sqlstr = f"hive://{db_user}:{db_pass_encoded}@{db_host}:{db_port}/{db_name}"
         return sqlalchemy.create_engine(sqlstr, connect_args={'auth': 'LDAP'})
 
     elif db['db_type'] == DB_SQLITE:
@@ -330,11 +337,24 @@ def _getSQL_engine(dbid, db, usedb=None):
 
     elif db['db_type'] == DB_TRINO:
         db_port = db.get('db_port', 8080)
-        sqlstr = f"trino://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+        if db_user:
+            auth_part = f"{db_user}:{db_pass_encoded}@" if db_pass_encoded else f"{db_user}@"
+            sqlstr = f"trino://{auth_part}{db_host}:{db_port}/{db_name}"
+        else:
+            sqlstr = f"trino://{db_host}:{db_port}/{db_name}"
 
     elif db['db_type'] == DB_STARROCKS:
         db_port = db.get('db_port', 9030)
-        sqlstr = f"mysql+pymysql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+        if db_user is None:
+            # StarRocks: try temp_pass_store or prompt
+            if dbid not in _temp_pass_store:
+                db_user_hint = db.get('db_user', None)
+                input_passwd(dbid, db_user_hint)
+                return
+            else:
+                db_user = _temp_pass_store[dbid]['user']
+                db_pass_encoded = quote_plus(_temp_pass_store[dbid]['pwd'])
+        sqlstr = f"mysql+pymysql://{db_user}:{db_pass_encoded}@{db_host}:{db_port}/{db_name}"
 
     else:
         raise ValueError("unsupported database type")
@@ -380,11 +400,13 @@ def test_connection(dbinfo):
         db = dict(dbinfo)
         dbid = db.get('db_id', 'test')
 
-        # For types that need user/pass, check they are provided
-        if db.get('db_type') not in (DB_SQLITE, DB_HIVE_KERBEROS):
-            if 'db_user' not in db or 'db_pass' not in db:
-                if not db.get('db_user') or not db.get('db_pass'):
-                    return False, 'username and password required for test'
+        # Types that can connect without credentials
+        no_auth_types = (DB_SQLITE, DB_HIVE_KERBEROS, DB_TRINO)
+
+        # For types that require user/pass, check they are provided
+        if db.get('db_type') not in no_auth_types:
+            if not db.get('db_user'):
+                return False, 'username is required for test'
 
         eng = _getSQL_engine(dbid, db)
         if eng is None:
@@ -408,7 +430,7 @@ def check_pass(dbid):
     if dbinfo is None or 'db_type' not in dbinfo:
         raise Exception('conn not exists or error')
 
-    if dbinfo['db_type'] in (DB_HIVE_KERBEROS, DB_SQLITE):
+    if dbinfo['db_type'] in (DB_HIVE_KERBEROS, DB_SQLITE, DB_TRINO):
         return (True, None)
 
     if 'db_user' in dbinfo and 'db_pass' in dbinfo:
