@@ -53,6 +53,7 @@ interface IConnFormProps {
   onSubmit: (conn: IDBConn) => void;
   onCancel?: () => void;
   onTest?: (conn: IDBConn) => Promise<IDBConn>;
+  allowedTypes?: string[] | null;
 }
 
 interface IConnFormState extends Partial<IDBConn> {
@@ -92,9 +93,13 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
       testResult,
       testMsg
     } = this.state;
-    const { trans, onCancel, onTest } = this.props;
+    const { trans, onCancel, onTest, allowedTypes } = this.props;
     const isSqlite = db_type === '6';
     const defaultPort = DEFAULT_PORTS[db_type || '2'] || '';
+    const visibleTypes =
+      allowedTypes && allowedTypes.length > 0
+        ? DB_TYPES.filter(t => allowedTypes.includes(t.value))
+        : DB_TYPES;
 
     return (
       <div className={connFormStyle}>
@@ -148,7 +153,7 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
             <div className={formFieldStyle}>
               <label>{trans.__('Database type')}</label>
               <div className={dbTypePicker}>
-                {DB_TYPES.map(t => (
+                {visibleTypes.map(t => (
                   <button
                     key={t.value}
                     className={

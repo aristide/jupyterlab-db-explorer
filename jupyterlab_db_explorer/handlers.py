@@ -37,7 +37,11 @@ class ResetHandler(APIHandler):
     '''
     @tornado.web.authenticated
     def get(self):
-        self.finish(json.dumps({'data': {'allow_reset': engine.is_reset_allowed()}}))
+        data = {
+            'allow_reset': engine.is_reset_allowed(),
+            'allowed_types': engine.get_allowed_types()
+        }
+        self.finish(json.dumps({'data': data}))
 
     @tornado.web.authenticated
     def post(self):

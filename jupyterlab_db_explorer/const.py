@@ -11,3 +11,7 @@ ENV_DB_ID = 'DB_ID'
 
 # Environment variable to control reset functionality (default: enabled)
 ENV_ALLOW_RESET = 'DB_EXPLORER_ALLOW_RESET'
+
+# Environment variable to restrict allowed database types (comma-separated codes or names)
+# e.g. "2,7" or "pgsql,trino"
+ENV_ALLOWED_TYPES = 'DB_EXPLORER_ALLOWED_TYPES'

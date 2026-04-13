@@ -95,6 +95,8 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
       this.forceUpdate();
     }, this);
 
+    await this.props.model.init();
+
     const { path } = this.state;
     const rc = await this.props.model.load_path(path);
     if (!rc) {
@@ -124,6 +126,7 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
         onSubmit={this._onCreateConn}
         onCancel={() => this.setState({ showNewConn: false })}
         onTest={this._onTestConn}
+        allowedTypes={this.props.model.allowed_types}
       />
     );
   }
