@@ -11,7 +11,8 @@ import {
   stop_query,
   edit_conn,
   del_conn,
-  test_conn
+  test_conn,
+  get_reset_allowed
 } from './handler';
 import {
   IDbItem,
@@ -36,6 +37,20 @@ export class SqlModel {
     if (init) {
       this._item_list = init;
     }
+  }
+
+  async init(): Promise<void> {
+    const res = await get_reset_allowed();
+    if (res && res.status === 'OK' && res.data) {
+      const data = res.data as any;
+      if (data.allowed_types) {
+        this._allowed_types = data.allowed_types;
+      }
+    }
+  }
+
+  get allowed_types(): string[] | null {
+    return this._allowed_types;
   }
 
   refresh(path: IDbItem[]): void {
@@ -230,6 +245,7 @@ export class SqlModel {
   }
 
   private _item_list: IDbItem[] = [];
+  private _allowed_types: string[] | null = null;
   private _need_passwd = new Signal<SqlModel, IPass>(this);
   private _passwd_settled = new Signal<SqlModel, string>(this);
   private _conn_changed = new Signal<SqlModel, string>(this);

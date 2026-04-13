@@ -11,7 +11,7 @@ from .const import (
     DB_ROOT,
     ENV_DB_TYPE, ENV_DB_HOST, ENV_DB_PORT,
     ENV_DB_USER, ENV_DB_PASS, ENV_DB_NAME, ENV_DB_ID,
-    ENV_ALLOW_RESET
+    ENV_ALLOW_RESET, ENV_ALLOWED_TYPES
 )
 
 DB_CFG = DB_ROOT + 'db_conf.json'
@@ -46,7 +46,8 @@ def _getDBlist_from_env():
         if e[0:3] == 'DB_' and e not in (
             ENV_DB_TYPE, ENV_DB_HOST, ENV_DB_PORT,
             ENV_DB_USER, ENV_DB_PASS, ENV_DB_NAME, ENV_DB_ID,
-            ENV_ALLOW_RESET, 'DB_EXPLORER_ALLOW_RESET'
+            ENV_ALLOW_RESET, ENV_ALLOWED_TYPES, 'DB_EXPLORER_ALLOW_RESET',
+            'DB_EXPLORER_ALLOWED_TYPES'
         ):
             dbs.append(e[3:])
     return dbs
@@ -233,6 +234,36 @@ def is_reset_allowed():
     """Check DB_EXPLORER_ALLOW_RESET env var. Default: True."""
     val = os.environ.get(ENV_ALLOW_RESET, '1').lower()
     return val in ('1', 'true', 'yes')
+
+
+# Name-to-code mapping for allowed types
+_TYPE_NAME_MAP = {
+    'mysql': DB_MYSQL, 'pgsql': DB_PGSQL, 'postgresql': DB_PGSQL,
+    'postgres': DB_PGSQL, 'oracle': DB_ORACLE, 'hive': DB_HIVE_LDAP,
+    'hive-ldap': DB_HIVE_LDAP, 'hive-kerberos': DB_HIVE_KERBEROS,
+    'sqlite': DB_SQLITE, 'trino': DB_TRINO, 'starrocks': DB_STARROCKS,
+}
+
+
+def get_allowed_types():
+    """Read DB_EXPLORER_ALLOWED_TYPES env var.
+    Accepts comma-separated type codes (e.g. '2,7') or names (e.g. 'pgsql,trino').
+    Returns a list of type code strings, or None if not set (all types allowed).
+    """
+    val = os.environ.get(ENV_ALLOWED_TYPES)
+    if not val:
+        return None
+
+    codes = []
+    for part in val.split(','):
+        part = part.strip().lower()
+        if not part:
+            continue
+        if part in _TYPE_NAME_MAP:
+            codes.append(_TYPE_NAME_MAP[part])
+        elif part.isdigit() and 1 <= int(part) <= 8:
+            codes.append(part)
+    return codes if codes else None
 
 
 # ---------------------------------------------------------------------------
