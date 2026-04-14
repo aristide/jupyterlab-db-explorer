@@ -75,6 +75,7 @@ RUN apt-get update \
     tk-dev \
     liblzma-dev \
     file \
+    zstd \
     && rm -rf /var/lib/apt/lists/*
 
 # Create new user with home directory, improve docker compatibility with UID/GID 1000,
