@@ -137,6 +137,9 @@ RUN pip install --no-cache-dir \
 # Install Claude Code CLI
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
+# Install Ollama
+RUN curl -fsSL https://ollama.com/install.sh | sh
+
 EXPOSE 8888 9999
 
 ENV PATH=/home/jupyter/.pyenv/versions/$PYTHON_VERSION/bin:$PATH
