@@ -46,11 +46,16 @@ export class SqlModel {
       if (data.allowed_types) {
         this._allowed_types = data.allowed_types;
       }
+      this._vault_enabled = !!data.vault_enabled;
     }
   }
 
   get allowed_types(): string[] | null {
     return this._allowed_types;
+  }
+
+  get vault_enabled(): boolean {
+    return this._vault_enabled;
   }
 
   refresh(path: IDbItem[]): void {
@@ -246,6 +251,7 @@ export class SqlModel {
 
   private _item_list: IDbItem[] = [];
   private _allowed_types: string[] | null = null;
+  private _vault_enabled = false;
   private _need_passwd = new Signal<SqlModel, IPass>(this);
   private _passwd_settled = new Signal<SqlModel, string>(this);
   private _conn_changed = new Signal<SqlModel, string>(this);

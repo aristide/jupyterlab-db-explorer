@@ -39,7 +39,8 @@ class ResetHandler(APIHandler):
     def get(self):
         data = {
             'allow_reset': engine.is_reset_allowed(),
-            'allowed_types': engine.get_allowed_types()
+            'allowed_types': engine.get_allowed_types(),
+            'vault_enabled': engine.is_vault_enabled()
         }
         self.finish(json.dumps({'data': data}))
 

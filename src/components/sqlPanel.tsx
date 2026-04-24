@@ -127,6 +127,7 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
         onCancel={() => this.setState({ showNewConn: false })}
         onTest={this._onTestConn}
         allowedTypes={this.props.model.allowed_types}
+        vaultEnabled={this.props.model.vault_enabled}
       />
     );
   }

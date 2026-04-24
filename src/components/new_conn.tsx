@@ -54,26 +54,36 @@ interface IConnFormProps {
   onCancel?: () => void;
   onTest?: (conn: IDBConn) => Promise<IDBConn>;
   allowedTypes?: string[] | null;
+  vaultEnabled?: boolean;
 }
+
+type TAuthMode = 'direct' | 'vault';
 
 interface IConnFormState extends Partial<IDBConn> {
   submitting?: boolean;
   testing?: boolean;
   testResult?: 'success' | 'error' | null;
   testMsg?: string;
+  authMode?: TAuthMode;
 }
 
 export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
   constructor(props: IConnFormProps) {
     super(props);
+    const initial = { db_type: '2', db_id: '', ...this.props.conn };
+    const initialAuth: TAuthMode =
+      props.vaultEnabled &&
+      typeof initial.db_user === 'string' &&
+      initial.db_user.startsWith('vault://')
+        ? 'vault'
+        : 'direct';
     this.state = {
-      db_type: '2',
-      db_id: '',
-      ...this.props.conn,
+      ...initial,
       submitting: false,
       testing: false,
       testResult: null,
-      testMsg: ''
+      testMsg: '',
+      authMode: initialAuth
     };
   }
 
@@ -91,9 +101,11 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
       submitting,
       testing,
       testResult,
-      testMsg
+      testMsg,
+      authMode
     } = this.state;
-    const { trans, onCancel, onTest, allowedTypes } = this.props;
+    const { trans, onCancel, onTest, allowedTypes, vaultEnabled } = this.props;
+    const useVault = !!vaultEnabled && authMode === 'vault';
     const isSqlite = db_type === '6';
     const defaultPort = DEFAULT_PORTS[db_type || '2'] || '';
     const visibleTypes =
@@ -236,35 +248,83 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                 {trans.__('AUTHENTICATION')}
               </div>
               <div className={formGroupStyle}>
+                {vaultEnabled && (
+                  <div className={formFieldStyle}>
+                    <label>{trans.__('Credential source')}</label>
+                    <div className={dbTypePicker}>
+                      <button
+                        type="button"
+                        className={
+                          authMode === 'direct'
+                            ? dbTypeOptionSelected
+                            : dbTypeOption
+                        }
+                        onClick={() => this._setAuthMode('direct')}
+                      >
+                        {trans.__('Credentials')}
+                      </button>
+                      <button
+                        type="button"
+                        className={
+                          authMode === 'vault'
+                            ? dbTypeOptionSelected
+                            : dbTypeOption
+                        }
+                        onClick={() => this._setAuthMode('vault')}
+                      >
+                        {trans.__('Vault reference')}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className={formRowStyle}>
                   <div className={formFieldStyle}>
                     <label>
-                      {trans.__('Username')}{' '}
+                      {useVault
+                        ? trans.__('Username Vault URL')
+                        : trans.__('Username')}{' '}
                       <span className={formOptionalLabel}>
                         {trans.__('optional')}
                       </span>
                     </label>
                     <input
-                      placeholder={trans.__('Leave blank for prompt')}
+                      placeholder={
+                        useVault
+                          ? 'vault://path/to/secret#username'
+                          : trans.__('Leave blank for prompt')
+                      }
                       value={db_user || ''}
                       onChange={this._onChange('db_user')}
                     />
                   </div>
                   <div className={formFieldStyle}>
                     <label>
-                      {trans.__('Password')}{' '}
+                      {useVault
+                        ? trans.__('Password Vault URL')
+                        : trans.__('Password')}{' '}
                       <span className={formOptionalLabel}>
                         {trans.__('optional')}
                       </span>
                     </label>
                     <input
-                      type="password"
-                      placeholder={trans.__('Leave blank for prompt')}
+                      type={useVault ? 'text' : 'password'}
+                      placeholder={
+                        useVault
+                          ? 'vault://path/to/secret#password'
+                          : trans.__('Leave blank for prompt')
+                      }
                       value={db_pass || ''}
                       onChange={this._onChange('db_pass')}
                     />
                   </div>
                 </div>
+                {useVault && (
+                  <div className={formOptionalLabel}>
+                    {trans.__(
+                      'Format: vault://<path>#<field> — resolved by the server at connect time.'
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -307,6 +367,21 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
       </div>
     );
   }
+
+  private _setAuthMode = (mode: TAuthMode): void => {
+    this.setState(prev => {
+      if (prev.authMode === mode) {
+        return null as any;
+      }
+      return {
+        authMode: mode,
+        db_user: '',
+        db_pass: '',
+        errmsg: undefined,
+        testResult: null
+      } as IConnFormState;
+    });
+  };
 
   private _onChange =
     (key: keyof IDBConn) =>
