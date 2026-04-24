@@ -20,6 +20,7 @@ import {
   dbTypeOption,
   dbTypeOptionSelected,
   formBottomBar,
+  formBottomBarLead,
   formBtnOutline,
   formBtnPrimary,
   formBtnTest,
@@ -334,7 +335,7 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
         <div className={formBottomBar}>
           {onTest && (
             <button
-              className={formBtnTest}
+              className={`${formBtnTest} ${formBottomBarLead}`}
               onClick={this._onTest}
               disabled={testing || submitting}
               type="button"
@@ -344,7 +345,6 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                 : trans.__('Test connection')}
             </button>
           )}
-          <div style={{ flex: 1 }} />
           {onCancel && (
             <button
               className={formBtnOutline}

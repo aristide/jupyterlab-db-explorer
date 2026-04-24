@@ -253,17 +253,25 @@ export const formHeaderIconStyle = style({
 });
 
 export const formHeaderTextStyle = style({
+  minWidth: 0,
+  flex: 1,
   $nest: {
     '& .title': {
       fontSize: '14px',
       fontWeight: 700,
       color: 'var(--jp-ui-font-color0)',
-      lineHeight: '1.3'
+      lineHeight: '1.3',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
     },
     '& .subtitle': {
       fontSize: '11px',
       color: 'var(--jp-ui-font-color2)',
-      lineHeight: '1.3'
+      lineHeight: '1.3',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
     }
   }
 });
@@ -333,10 +341,13 @@ export const formOptionalLabel = style({
 
 export const formRowStyle = style({
   display: 'flex',
+  flexWrap: 'wrap',
   gap: '8px',
   $nest: {
     '& > *': {
-      flex: 1,
+      // grow + shrink with a 140px basis: two fields sit side-by-side when
+      // the row has room (>= ~290px), otherwise they wrap onto separate lines.
+      flex: '1 1 140px',
       minWidth: 0
     }
   }
@@ -394,11 +405,20 @@ export const dbTypeOptionSelected = style({
 export const formBottomBar = style({
   display: 'flex',
   alignItems: 'center',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
   gap: '8px',
   padding: '10px 14px',
   borderTop: '1px solid var(--jp-border-color2)',
   flexShrink: 0,
   background: 'var(--jp-layout-color1)'
+});
+
+// Pushes the leading button (Test connection) to the far left while the
+// remaining buttons stay grouped on the right; collapses cleanly when the
+// bar wraps onto multiple lines on narrow widths.
+export const formBottomBarLead = style({
+  marginRight: 'auto'
 });
 
 export const formBtnOutline = style({
