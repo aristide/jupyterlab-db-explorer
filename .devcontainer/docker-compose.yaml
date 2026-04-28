@@ -67,6 +67,18 @@ services:
     profiles:
       - starrocks
 
+  vault:
+    image: hashicorp/vault:1.17
+    ports:
+      - 0.0.0.0:8200:8200
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: devtoken
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    profiles:
+      - vault
+
   jupyter:
     image: aristidetm/labextension-dev
     volumes:
@@ -76,6 +88,16 @@ services:
       - 0.0.0.0:8888:8888
       - 0.0.0.0:9999:9999
     command: sleep infinity
+    environment:
+      VAULT_ENABLED: "true"
+      VAULT_ADDR: http://vault:8200
+      VAULT_AUTH_METHOD: token
+      VAULT_TOKEN: devtoken
+      VAULT_KV_MOUNT: secret
+    depends_on:
+      vault:
+        condition: service_started
+        required: false
 
 volumes:
   pgdata:

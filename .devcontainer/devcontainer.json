@@ -1,7 +1,7 @@
 {
   "name": "Jupyterlab Extension",
   "remoteUser": "jupyter",
-  "forwardPorts": [8888, 9999, 5432, 8080, 9030, 8030],
+  "forwardPorts": [8888, 9999, 5432, 8080, 9030, 8030, 8200],
   "portsAttributes": {
     "8888": {
       "label": "Jupyter Lab",
@@ -23,6 +23,10 @@
     },
     "8030": {
       "label": "StarRocks FE HTTP",
+      "onAutoForward": "notify"
+    },
+    "8200": {
+      "label": "Vault",
       "onAutoForward": "notify"
     }
   },

@@ -2,16 +2,27 @@ import os
 import re
 import json
 import base64
+import logging
+import time
+import threading
 import sqlalchemy
 import gettext
+from collections import OrderedDict
 from urllib.parse import quote_plus
+
+logger = logging.getLogger(__name__)
 _ = gettext.gettext
 
 from .const import (
     DB_ROOT,
     ENV_DB_TYPE, ENV_DB_HOST, ENV_DB_PORT,
     ENV_DB_USER, ENV_DB_PASS, ENV_DB_NAME, ENV_DB_ID,
-    ENV_ALLOW_RESET, ENV_ALLOWED_TYPES
+    ENV_ALLOW_RESET, ENV_ALLOWED_TYPES,
+    ENV_DB_CONN_PREFIX,
+    ENV_DB_CONN_SUFFIX_TYPE, ENV_DB_CONN_SUFFIX_HOST,
+    ENV_DB_CONN_SUFFIX_PORT, ENV_DB_CONN_SUFFIX_USER,
+    ENV_DB_CONN_SUFFIX_PASS, ENV_DB_CONN_SUFFIX_NAME,
+    ENV_DB_CONN_SUFFIX_ID,
 )
 
 DB_CFG = DB_ROOT + 'db_conf.json'
@@ -26,6 +37,167 @@ DB_TRINO = '7'
 DB_STARROCKS = '8'
 
 _temp_pass_store = dict()
+
+# ---------------------------------------------------------------------------
+# HashiCorp Vault integration
+# ---------------------------------------------------------------------------
+
+VAULT_CACHE_TTL = 300  # secret cache TTL, seconds
+VAULT_CACHE_MAX = 1024  # max entries in the secret cache
+VAULT_CLIENT_RETRY_DELAY = 30  # back off this long after a client init failure
+
+VAULT_ENABLED = os.environ.get('VAULT_ENABLED', 'true').strip().lower() not in (
+    '', '0', 'false', 'no', 'off'
+)
+VAULT_ADDR = os.environ.get('VAULT_ADDR', '')
+VAULT_TOKEN = os.environ.get('VAULT_TOKEN', '')
+VAULT_AUTH_METHOD = os.environ.get('VAULT_AUTH_METHOD', 'token').lower()
+VAULT_ROLE_ID = os.environ.get('VAULT_ROLE_ID', '')
+VAULT_SECRET_ID = os.environ.get('VAULT_SECRET_ID', '')
+VAULT_KV_MOUNT = os.environ.get('VAULT_KV_MOUNT', 'secret')
+
+_vault_client = None
+_vault_client_lock = threading.Lock()
+_vault_client_failed_at = 0.0
+_vault_cache = OrderedDict()  # LRU: {(path, field): (value, timestamp)}
+_vault_cache_lock = threading.Lock()
+
+
+def _get_vault_client():
+    """Get or create the Vault client (singleton, thread-safe).
+
+    Returns None if Vault is unconfigured or unreachable. Failures are cached
+    for VAULT_CLIENT_RETRY_DELAY seconds so a dead Vault doesn't get hammered.
+    """
+    global _vault_client, _vault_client_failed_at
+
+    with _vault_client_lock:
+        if not VAULT_ENABLED:
+            return None
+
+        if _vault_client is not None:
+            return _vault_client
+
+        if time.time() - _vault_client_failed_at < VAULT_CLIENT_RETRY_DELAY:
+            return None
+
+        if not VAULT_ADDR:
+            _vault_client_failed_at = time.time()
+            return None
+
+        try:
+            import hvac
+            client = hvac.Client(url=VAULT_ADDR)
+
+            if VAULT_AUTH_METHOD == 'token':
+                if not VAULT_TOKEN:
+                    logger.warning("VAULT_AUTH_METHOD=token but VAULT_TOKEN is not set")
+                    _vault_client_failed_at = time.time()
+                    return None
+                client.token = VAULT_TOKEN
+            elif VAULT_AUTH_METHOD == 'approle':
+                if not VAULT_ROLE_ID or not VAULT_SECRET_ID:
+                    logger.warning("VAULT_AUTH_METHOD=approle requires VAULT_ROLE_ID and VAULT_SECRET_ID")
+                    _vault_client_failed_at = time.time()
+                    return None
+                client.auth.approle.login(role_id=VAULT_ROLE_ID, secret_id=VAULT_SECRET_ID)
+            else:
+                logger.warning("Unsupported VAULT_AUTH_METHOD: %s", VAULT_AUTH_METHOD)
+                _vault_client_failed_at = time.time()
+                return None
+
+            if not client.is_authenticated():
+                logger.warning("Vault client failed to authenticate")
+                _vault_client_failed_at = time.time()
+                return None
+
+            _vault_client = client
+            return _vault_client
+        except Exception:
+            logger.warning("Vault client initialization failed", exc_info=True)
+            _vault_client_failed_at = time.time()
+            return None
+
+
+_VAULT_MISSING = object()
+
+
+def _resolve_vault_secret(url):
+    """Resolve a vault:// URL to its actual value.
+
+    Format: vault://path#field
+    - path: KV v2 secret path, relative to VAULT_KV_MOUNT (default 'secret')
+    - field: field name within that secret
+
+    Returns the secret value on success, or the original URL unchanged on any
+    failure (non-vault input, malformed URL, Vault unreachable, missing field).
+    Returning the original URL means a DB connection failure surfaces a clear
+    "auth error" rather than connecting with a silently-mangled credential.
+    """
+    if not isinstance(url, str) or not url.startswith('vault://'):
+        return url
+
+    spec = url[len('vault://'):]
+    if '#' not in spec:
+        logger.warning("Invalid vault:// URL, missing '#field': %r", url)
+        return url
+
+    path, field = spec.rsplit('#', 1)
+    if not path or not field:
+        logger.warning("Invalid vault:// URL, empty path or field: %r", url)
+        return url
+
+    cache_key = (path, field)
+    now = time.time()
+
+    with _vault_cache_lock:
+        entry = _vault_cache.get(cache_key)
+        if entry is not None:
+            value, ts = entry
+            if now - ts < VAULT_CACHE_TTL:
+                _vault_cache.move_to_end(cache_key)
+                return value
+
+    client = _get_vault_client()
+    if client is None:
+        return url
+
+    try:
+        response = client.secrets.kv.v2.read_secret_version(
+            path=path,
+            mount_point=VAULT_KV_MOUNT,
+        )
+        value = response['data']['data'].get(field, _VAULT_MISSING)
+        if value is _VAULT_MISSING:
+            logger.warning("Vault secret at path %r has no field %r", path, field)
+            return url
+
+        with _vault_cache_lock:
+            _vault_cache[cache_key] = (value, now)
+            _vault_cache.move_to_end(cache_key)
+            while len(_vault_cache) > VAULT_CACHE_MAX:
+                _vault_cache.popitem(last=False)
+
+        return value
+    except Exception:
+        logger.warning("Failed to fetch Vault secret at path %r", path, exc_info=True)
+        return url
+
+
+def clear_vault_cache():
+    """Clear the Vault secret cache."""
+    with _vault_cache_lock:
+        _vault_cache.clear()
+
+
+def is_vault_enabled():
+    """Report whether Vault integration is enabled by the admin.
+
+    Only reflects the VAULT_ENABLED toggle — does not probe connectivity.
+    The form uses this to decide whether to offer "vault reference" as an
+    auth input mode; an unreachable Vault is surfaced at connect time.
+    """
+    return bool(VAULT_ENABLED)
 
 
 def open_dbfile(dbfile):
@@ -48,7 +220,7 @@ def _getDBlist_from_env():
             ENV_DB_USER, ENV_DB_PASS, ENV_DB_NAME, ENV_DB_ID,
             ENV_ALLOW_RESET, ENV_ALLOWED_TYPES, 'DB_EXPLORER_ALLOW_RESET',
             'DB_EXPLORER_ALLOWED_TYPES'
-        ):
+        ) and not e.startswith(ENV_DB_CONN_PREFIX):
             dbs.append(e[3:])
     return dbs
 
@@ -60,6 +232,53 @@ def _getEnvDbInfo(name):
     if db_str is not None:
         return json.loads(base64.b64decode(db_str.encode()))
     return None
+
+
+def _getConns_from_env():
+    """Scan environment for DB_CONN_<name>_<field> human-readable multi-connection vars.
+    Returns a dict: {conn_name: {db_type, db_host, ...}}
+    """
+    conns = {}
+    prefix = ENV_DB_CONN_PREFIX
+    plen = len(prefix)
+
+    # Field suffix string -> info key mapping
+    suffix_to_key = {
+        ENV_DB_CONN_SUFFIX_TYPE: 'db_type',
+        ENV_DB_CONN_SUFFIX_HOST: 'db_host',
+        ENV_DB_CONN_SUFFIX_PORT: 'db_port',
+        ENV_DB_CONN_SUFFIX_USER: 'db_user',
+        ENV_DB_CONN_SUFFIX_PASS: 'db_pass',
+        ENV_DB_CONN_SUFFIX_NAME: 'db_name',
+        ENV_DB_CONN_SUFFIX_ID: 'db_id',
+    }
+    suffix_lengths = {k: len(k) for k in suffix_to_key.keys()}
+
+    for e in os.environ:
+        if not e.startswith(prefix):
+            continue
+        rest = e[plen:]  # e.g., "PRODUCTION_TYPE"
+
+        # Find which suffix this ends with
+        matched_suffix = None
+        info_key = None
+        for suff, slen in suffix_lengths.items():
+            if rest.endswith(suff):
+                matched_suffix = suff
+                info_key = suffix_to_key[suff]
+                break
+        if matched_suffix is None:
+            continue
+
+        conn_name = rest[:-len(matched_suffix)]
+        if not conn_name:
+            continue
+
+        if conn_name not in conns:
+            conns[conn_name] = {}
+        conns[conn_name][info_key] = os.environ[e]
+
+    return conns
 
 
 def load_from_env_single():
@@ -150,6 +369,12 @@ def getDBlist():
             subtype = int(info['db_type'])
             lst.append({'name': dbid, 'desc': '', 'type': 'conn', 'subtype': subtype, 'fix': 1})
 
+    # Connections from DB_CONN_<NAME>_<FIELD> human-readable env vars
+    for dbid, info in _getConns_from_env().items():
+        if 'db_type' in info:
+            subtype = int(info['db_type'])
+            lst.append({'name': dbid, 'desc': '', 'type': 'conn', 'subtype': subtype, 'fix': 1})
+
     # Connections from config file
     for dbid, e in _getCfgEntryList().items():
         lst.append({'name': dbid, 'desc': e.get('name', ''), 'type': 'conn', 'subtype': int(e['db_type'])})
@@ -163,6 +388,10 @@ def _getDbInfo(name):
     info = _getEnvDbInfo(name)
     if info is not None:
         return info
+    # Check DB_CONN_<NAME>_<FIELD> human-readable env vars
+    conns = _getConns_from_env()
+    if name in conns:
+        return conns[name]
     # Check config file
     return _getCfgEntry(name)
 
@@ -274,6 +503,10 @@ def _getSQL_engine(dbid, db, usedb=None):
     db_host = db.get('db_host', '')
     db_name = db.get('db_name', '')
 
+    # Resolve vault:// URLs in user and pass (no-op for non-vault values).
+    db_user_raw = _resolve_vault_secret(db.get('db_user', ''))
+    db_pass_raw = _resolve_vault_secret(db.get('db_pass', ''))
+
     if usedb is not None and db['db_type'] in [DB_MYSQL, DB_STARROCKS, DB_HIVE_LDAP, DB_HIVE_KERBEROS]:
         db_name = usedb
 
@@ -291,9 +524,9 @@ def _getSQL_engine(dbid, db, usedb=None):
     db_user = None
     db_pass_encoded = None
     if db['db_type'] not in _NO_AUTH_TYPES:
-        if db.get('db_user'):
-            db_user = db['db_user']
-            db_pass_encoded = quote_plus(db.get('db_pass', ''))
+        if db_user_raw:
+            db_user = db_user_raw
+            db_pass_encoded = quote_plus(db_pass_raw)
         elif dbid in _temp_pass_store:
             db_user = _temp_pass_store[dbid]['user']
             db_pass_encoded = quote_plus(_temp_pass_store[dbid]['pwd'])
@@ -303,8 +536,8 @@ def _getSQL_engine(dbid, db, usedb=None):
             return
     elif db['db_type'] == DB_TRINO:
         # Trino requires at least a username; default to 'trino' if not provided
-        db_user = db.get('db_user') or 'trino'
-        db_pass_encoded = quote_plus(db['db_pass']) if db.get('db_pass') else ''
+        db_user = db_user_raw or 'trino'
+        db_pass_encoded = quote_plus(db_pass_raw) if db_pass_raw else ''
 
     if db['db_type'] == DB_MYSQL:
         db_port = db.get('db_port', 3306)
@@ -400,9 +633,13 @@ def test_connection(dbinfo):
         # Types that can connect without credentials
         no_auth_types = (DB_SQLITE, DB_HIVE_KERBEROS, DB_TRINO)
 
-        # For types that require user/pass, check they are provided
+        # For types that require user/pass, check they are provided.
+        # Resolve vault:// first so an unresolved placeholder isn't accepted.
         if db.get('db_type') not in no_auth_types:
-            if not db.get('db_user'):
+            resolved_user = _resolve_vault_secret(db.get('db_user', ''))
+            if not resolved_user or (
+                isinstance(resolved_user, str) and resolved_user.startswith('vault://')
+            ):
                 return False, 'username is required for test'
 
         eng = _getSQL_engine(dbid, db)
@@ -461,5 +698,6 @@ def clear_pass(dbid=None):
     global _temp_pass_store
     if dbid is None or dbid == '':
         _temp_pass_store = dict()
+        clear_vault_cache()
     elif dbid in _temp_pass_store:
         del _temp_pass_store[dbid]

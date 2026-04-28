@@ -21,6 +21,7 @@ import {
   dbTypeOptionSelected,
   formBottomBar,
   formBottomBarLead,
+  formBottomBarActions,
   formBtnOutline,
   formBtnPrimary,
   formBtnTest,
@@ -195,7 +196,7 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
               <div className={formSectionTitle}>{trans.__('SERVER')}</div>
               <div className={formGroupStyle}>
                 <div className={formRowStyle}>
-                  <div className={formFieldStyle} style={{ flex: 2 }}>
+                  <div className={formFieldStyle}>
                     <label>{trans.__('Host')}</label>
                     <input
                       placeholder={trans.__('e.g. db.example.com')}
@@ -203,7 +204,7 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                       onChange={this._onChange('db_host')}
                     />
                   </div>
-                  <div className={formFieldStyle} style={{ flex: 1 }}>
+                  <div className={formFieldStyle}>
                     <label>
                       {trans.__('Port')}{' '}
                       <span className={formOptionalLabel}>
@@ -345,24 +346,26 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                 : trans.__('Test connection')}
             </button>
           )}
-          {onCancel && (
+          <div className={formBottomBarActions}>
+            {onCancel && (
+              <button
+                className={formBtnOutline}
+                onClick={onCancel}
+                disabled={submitting}
+                type="button"
+              >
+                {trans.__('Cancel')}
+              </button>
+            )}
             <button
-              className={formBtnOutline}
-              onClick={onCancel}
-              disabled={submitting}
+              className={formBtnPrimary}
+              onClick={this._onSubmit}
+              disabled={submitting || testing}
               type="button"
             >
-              {trans.__('Cancel')}
+              {submitting ? trans.__('Creating...') : trans.__('Create')}
             </button>
-          )}
-          <button
-            className={formBtnPrimary}
-            onClick={this._onSubmit}
-            disabled={submitting || testing}
-            type="button"
-          >
-            {submitting ? trans.__('Creating...') : trans.__('Create')}
-          </button>
+          </div>
         </div>
       </div>
     );

@@ -11,6 +11,7 @@ Development environment with all services needed to build and test the extension
 | trino          | trinodb/trino:latest         | 8080       | trino      | Trino query engine            |
 | starrocks      | starrocks/allin1-ubuntu      | 9030, 8030 | starrocks  | StarRocks OLAP database       |
 | starrocks-init | mariadb:latest               | —          | starrocks  | Seeds StarRocks sample data   |
+| vault          | hashicorp/vault:1.17         | 8200       | vault      | HashiCorp Vault for secrets   |
 
 ## Enable / Disable Services
 
@@ -18,13 +19,13 @@ Database services are controlled via Docker Compose **profiles**. Edit `.devcont
 
 ```env
 # Remove a profile name to disable that service.
-COMPOSE_PROFILES=postgres,trino,starrocks
+COMPOSE_PROFILES=postgres,trino,starrocks,vault
 ```
 
 For example, to run only PostgreSQL and Trino:
 
 ```env
-COMPOSE_PROFILES=postgres,trino
+COMPOSE_PROFILES=postgres,trino,vault
 ```
 
 After changing, rebuild the devcontainer.
@@ -36,6 +37,7 @@ After changing, rebuild the devcontainer.
 | PostgreSQL | postgres   | 5432 | testuser | testpass | testdb               |
 | Trino      | trino      | 8080 | any      | —        | postgresql / tpch / tpcds |
 | StarRocks  | starrocks  | 9030 | root     | (empty)  | testdb               |
+| Vault      | vault      | 8200 | (token)  | devtoken | —                    |
 
 ## Trino Catalogs
 
@@ -82,6 +84,11 @@ trino --server trino:8080 --execute "SELECT * FROM tpch.tiny.orders LIMIT 5"
 
 # StarRocks
 mariadb -h starrocks -P 9030 -u root -e "SELECT * FROM testdb.countries"
+
+# Vault (dev mode)
+vault login token=devtoken
+vault kv put secret/database/production password="test123" username="admin"
+vault kv get secret/database/production
 ```
 
 ## Build Image

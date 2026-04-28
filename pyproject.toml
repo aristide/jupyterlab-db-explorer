@@ -44,6 +44,7 @@ pgsql = ["psycopg2"]
 hive  = ["pyhive[hive]>=0.6.5"]
 trino = ["trino"]
 starrocks = ["pymysql"]
+vault = ["hvac"]
 
 [tool.hatch.version]
 source = "nodejs"

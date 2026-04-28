@@ -15,3 +15,15 @@ ENV_ALLOW_RESET = 'DB_EXPLORER_ALLOW_RESET'
 # Environment variable to restrict allowed database types (comma-separated codes or names)
 # e.g. "2,7" or "pgsql,trino"
 ENV_ALLOWED_TYPES = 'DB_EXPLORER_ALLOWED_TYPES'
+
+# Prefix for human-readable multi-connection env vars: DB_CONN_<NAME>_<FIELD>
+ENV_DB_CONN_PREFIX = 'DB_CONN_'
+
+# Field suffixes for DB_CONN_<NAME>_<FIELD>
+ENV_DB_CONN_SUFFIX_TYPE = '_TYPE'
+ENV_DB_CONN_SUFFIX_HOST = '_HOST'
+ENV_DB_CONN_SUFFIX_PORT = '_PORT'
+ENV_DB_CONN_SUFFIX_USER = '_USER'
+ENV_DB_CONN_SUFFIX_PASS = '_PASS'
+ENV_DB_CONN_SUFFIX_NAME = '_NAME'
+ENV_DB_CONN_SUFFIX_ID = '_ID'

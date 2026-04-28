@@ -402,23 +402,56 @@ export const dbTypeOptionSelected = style({
   }
 });
 
+// `container-type: inline-size` lets the @container rules below stack the
+// buttons full-width when the bar itself is narrow, regardless of the
+// surrounding panel. (Cast: the bundled csstype is older than container
+// query support.)
 export const formBottomBar = style({
   display: 'flex',
   alignItems: 'center',
   flexWrap: 'wrap',
-  justifyContent: 'flex-end',
   gap: '8px',
   padding: '10px 14px',
   borderTop: '1px solid var(--jp-border-color2)',
   flexShrink: 0,
-  background: 'var(--jp-layout-color1)'
+  background: 'var(--jp-layout-color1)',
+  ...({ containerType: 'inline-size' } as any)
 });
 
-// Pushes the leading button (Test connection) to the far left while the
-// remaining buttons stay grouped on the right; collapses cleanly when the
-// bar wraps onto multiple lines on narrow widths.
+// Pushes the leading button (Test connection) to the far left at wide
+// widths; below the breakpoint it spans the full row so subsequent buttons
+// stack underneath it.
 export const formBottomBarLead = style({
-  marginRight: 'auto'
+  marginRight: 'auto',
+  $nest: {
+    '@container (max-width: 290px)': {
+      marginRight: 0,
+      width: '100%'
+    }
+  }
+});
+
+// Groups Cancel + Create so the bottom bar has two flex children. At wide
+// widths the group sits right-aligned next to Test connection; below the
+// breakpoint it spans the full row and stacks its buttons vertically, so
+// Test, Cancel, and Create each occupy their own full-width line.
+export const formBottomBarActions = style({
+  display: 'flex',
+  gap: '8px',
+  marginLeft: 'auto',
+  flex: '0 1 auto',
+  $nest: {
+    '@container (max-width: 290px)': {
+      marginLeft: 0,
+      width: '100%',
+      flexDirection: 'column',
+      $nest: {
+        '& > *': {
+          width: '100%'
+        }
+      }
+    }
+  }
 });
 
 export const formBtnOutline = style({
