@@ -462,61 +462,6 @@ class ResultSession:
             self._close_cursor_locked()
             self._open_cursor(self._effective_sql())
 
-    def chart_data(self, spec: Dict[str, Any]) -> Dict[str, Any]:
-        """Run a server-side aggregation for chart specs of the shape
-        {x: col, y: col, color?: col, aggregate: 'sum'|'avg'|'count'|'min'|'max'}.
-
-        Returns {rows: [{x, y, color?}, ...]} pre-aggregated so the browser
-        doesn't have to ship the full result set just to render a bar chart.
-        For aggregate='count', the y field is COUNT(*) and ignores any y_col.
-        """
-        x_col = spec.get('x')
-        y_col = spec.get('y')
-        color_col = spec.get('color')
-        agg = (spec.get('aggregate') or 'count').lower()
-        if agg not in ('sum', 'avg', 'count', 'min', 'max'):
-            raise ValueError(f"unknown aggregate {agg!r}")
-        if not x_col or x_col not in self.columns:
-            raise ValueError(f"x column missing or unknown: {x_col!r}")
-        if agg != 'count' and (not y_col or y_col not in self.columns):
-            raise ValueError(f"y column missing or unknown: {y_col!r}")
-        if color_col and color_col not in self.columns:
-            raise ValueError(f"color column unknown: {color_col!r}")
-        if self._engine is None:
-            return {'rows': []}
-
-        qx = self._quote_ident(x_col)
-        select_parts: List[str] = [f"{qx} AS x"]
-        group_parts: List[str] = ['x']
-        if color_col:
-            qc = self._quote_ident(color_col)
-            select_parts.append(f"{qc} AS color")
-            group_parts.append('color')
-        if agg == 'count':
-            select_parts.append('COUNT(*) AS y')
-        else:
-            qy = self._quote_ident(y_col)
-            agg_fn = {'sum': 'SUM', 'avg': 'AVG', 'min': 'MIN', 'max': 'MAX'}[agg]
-            select_parts.append(f"{agg_fn}({qy}) AS y")
-        sql = (
-            f"SELECT {', '.join(select_parts)} "
-            f"FROM ({self.sql}) user_q "
-            f"GROUP BY {', '.join(group_parts)} "
-            f"ORDER BY x "
-            f"LIMIT 5000"
-        )
-        rows: List[Dict[str, Any]] = []
-        with self._engine.connect() as conn:
-            result = conn.exec_driver_sql(sql)
-            keys = list(result.keys())
-            for r in result.fetchall():
-                serial = list(make_row_serializable(r))
-                obj: Dict[str, Any] = {}
-                for k, v in zip(keys, serial):
-                    obj[k] = v
-                rows.append(obj)
-        return {'rows': rows, 'x_column': x_col, 'y_column': y_col, 'color_column': color_col, 'aggregate': agg}
-
     def top_n_values(self, column: str, n: int = 10) -> List[Dict[str, Any]]:
         """Independent aggregation query — doesn't touch the cursor."""
         if column not in self.columns:

@@ -8,8 +8,6 @@ import { Signal } from '@lumino/signaling';
 import { LazyTableModel } from '../sqlConsole/lazyTableModel';
 import { IPageData, IStatsData, ITableData, IQueryRes } from '../interfaces';
 import {
-  IChartData,
-  IChartSpec,
   IFilterSpec,
   IQueryModel,
   IQueryStatus,
@@ -51,9 +49,6 @@ class FakeQueryModel implements IQueryModel {
   }
   async topN(_column: string, _n?: number): Promise<ITopValue[]> {
     return [];
-  }
-  async chartData(_spec: IChartSpec): Promise<IChartData | null> {
-    return null;
   }
   stop = (): void => {};
   private _begin: Signal<IQueryModel, void> = new Signal<IQueryModel, void>(

@@ -288,35 +288,6 @@ class QueryTopNHandler(APIHandler):
             self.finish(json.dumps({'error': str(err)}))
 
 
-class QueryChartHandler(APIHandler):
-    """POST /query/chart  body={taskid, spec:{x, y, color?, aggregate}}.
-
-    Runs a server-side GROUP BY so the browser doesn't have to ship all
-    rows to Vega-Lite just to render an aggregate chart.
-    """
-
-    @tornado.web.authenticated
-    async def post(self):
-        body = self.get_json_body() or {}
-        taskid = body.get('taskid')
-        spec = body.get('spec') or {}
-        if not taskid:
-            self.finish(json.dumps({'error': 'taskid required'}))
-            return
-        try:
-            loop = asyncio.get_event_loop()
-            rc, payload = await loop.run_in_executor(
-                None, task.chart_data, taskid, spec
-            )
-            if rc:
-                self.finish(json.dumps({'data': payload}))
-            else:
-                self.finish(json.dumps(payload))
-        except Exception as err:
-            self.log.error(err)
-            self.finish(json.dumps({'error': str(err)}))
-
-
 class QueryStatsHandler(APIHandler):
     """GET /query/stats?taskid=…
 
@@ -357,6 +328,5 @@ def setup_handlers(web_app):
         (handler_url(base_url, "query/sort"), QuerySortHandler),
         (handler_url(base_url, "query/filter"), QueryFilterHandler),
         (handler_url(base_url, "query/topn"), QueryTopNHandler),
-        (handler_url(base_url, "query/chart"), QueryChartHandler),
     ]
     web_app.add_handlers(host_pattern, handlers)

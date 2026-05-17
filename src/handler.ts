@@ -276,24 +276,3 @@ export const get_query_topn = async (
     n: String(n)
   })) as any;
 };
-
-export const post_query_chart = async (
-  taskid: string,
-  spec: {
-    x: string;
-    y?: string;
-    color?: string;
-    aggregate: 'sum' | 'avg' | 'count' | 'min' | 'max';
-  }
-): Promise<{
-  status: string;
-  data?: {
-    rows: Array<{ x: any; y: number; color?: any }>;
-    x_column: string;
-    y_column?: string;
-    color_column?: string;
-    aggregate: string;
-  };
-}> => {
-  return (await POST('query/chart', { taskid, spec })) as any;
-};

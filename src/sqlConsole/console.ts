@@ -18,7 +18,7 @@ import {
 
 import { CodeEditor } from '@jupyterlab/codeeditor';
 
-import { SplitPanel, TabPanel } from '@lumino/widgets';
+import { SplitPanel } from '@lumino/widgets';
 import { toArray } from '@lumino/algorithm';
 
 import { Signal } from '@lumino/signaling';
@@ -30,7 +30,6 @@ import { QueryModel, IQueryModel } from '../model';
 import { ITableData } from '../interfaces';
 
 import { ResultsTable } from './ResultsTable';
-import { ChartPane } from './chartPane';
 import { Editor, IEditor } from './editor';
 import { RunStatus } from './toolbar';
 
@@ -54,19 +53,9 @@ export class SqlConsoleWidget extends SplitPanel {
 
     this.editor = new Editor(model, jp_services.editorService.factoryService);
     this.resultsTable = new ResultsTable();
-    this.chartPane = new ChartPane();
-    this._resultTabs = new TabPanel({
-      tabPlacement: 'top',
-      tabsMovable: false
-    });
-    this._resultTabs.addClass('d4n-rt__tabs');
-    this.resultsTable.widget.title.label = 'Table';
-    this.chartPane.title.label = 'Chart';
-    this._resultTabs.addWidget(this.resultsTable.widget);
-    this._resultTabs.addWidget(this.chartPane);
 
     this.addWidget(this.editor.widget);
-    this.addWidget(this._resultTabs);
+    this.addWidget(this.resultsTable.widget);
     this.setRelativeSizes([2, 1]);
 
     this.editor.execute.connect(this.run, this);
@@ -93,7 +82,6 @@ export class SqlConsoleWidget extends SplitPanel {
     Signal.clearData(this);
     this.editor.dispose();
     this.resultsTable.dispose();
-    this.chartPane.dispose();
     super.dispose();
   }
 
@@ -167,21 +155,17 @@ export class SqlConsoleWidget extends SplitPanel {
     }
     this._is_running = true;
     this.resultsTable.clear();
-    this.chartPane.clear();
     const rc = await this.queryModel.query(sql);
     this._is_running = false;
     if (rc.status === 'OK' && rc.data !== undefined) {
       const data = rc.data as ITableData;
       this.resultsTable.setData(data, this.queryModel);
-      this.chartPane.bind(this.resultsTable.model, this.queryModel);
     }
   };
 
   readonly editor: IEditor;
   readonly queryModel: IQueryModel;
   private readonly resultsTable: ResultsTable;
-  private readonly chartPane: ChartPane;
-  private readonly _resultTabs: TabPanel;
   private _is_running = false;
   private readonly _jp_services: IJpServices;
   private _context?: DocumentRegistry.CodeContext;

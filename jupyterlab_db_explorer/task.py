@@ -193,12 +193,6 @@ def top_n(taskid: str, column: str, n: int = 10):
     return True, {'values': rows}
 
 
-def chart_data(taskid: str, spec: Dict[str, Any]):
-    entry = _touch(taskid)
-    if entry is None or entry.session is None:
-        return False, {'error': 'task not exists'}
-    payload = entry.session.chart_data(spec)
-    return True, payload
 
 
 def _session_payload(session, taskid: str) -> Dict[str, Any]:
