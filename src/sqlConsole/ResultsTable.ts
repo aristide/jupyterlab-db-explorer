@@ -15,6 +15,12 @@ export class ResultsTable implements IDisposable {
     return this._table.widget;
   }
 
+  /** Exposed so the chart pane can read columns/dtypes without round-tripping
+   *  to the backend on every render. */
+  get model(): LazyTableModel {
+    return this._model;
+  }
+
   set theme(theme: string) {
     this._table.theme = theme;
   }

@@ -14,6 +14,7 @@ import {
   post_query_sort,
   post_query_filter,
   get_query_topn,
+  post_query_chart,
   edit_conn,
   del_conn,
   test_conn,
@@ -47,6 +48,23 @@ export interface IFilterSpec {
 export interface ITopValue {
   value: any;
   count: number;
+}
+
+export type ChartAggregate = 'sum' | 'avg' | 'count' | 'min' | 'max';
+
+export interface IChartSpec {
+  x: string;
+  y?: string;
+  color?: string;
+  aggregate: ChartAggregate;
+}
+
+export interface IChartData {
+  rows: Array<{ x: any; y: number; color?: any }>;
+  x_column: string;
+  y_column?: string;
+  color_column?: string;
+  aggregate: string;
 }
 
 let sqlModelInst: SqlModel;
@@ -313,6 +331,8 @@ export interface IQueryModel {
   setFilter: (filters: IFilterSpec[]) => Promise<ITableData | null>;
   /** Independent aggregation query — top-N value counts for one column. */
   topN: (column: string, n?: number) => Promise<ITopValue[]>;
+  /** Run a chart-shelf groupby on the server side. */
+  chartData: (spec: IChartSpec) => Promise<IChartData | null>;
   conns: Array<string>;
   isConnReadOnly: boolean;
   stop: () => void;
@@ -443,6 +463,17 @@ export class QueryModel implements IQueryModel {
       return [];
     }
     return rc.data.values || [];
+  }
+
+  async chartData(spec: IChartSpec): Promise<IChartData | null> {
+    if (!this._taskid) {
+      return null;
+    }
+    const rc = await post_query_chart(this._taskid, spec);
+    if (rc.status !== 'OK' || !rc.data) {
+      return null;
+    }
+    return rc.data as IChartData;
   }
 
   get dbid(): string {

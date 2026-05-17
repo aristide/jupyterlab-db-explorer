@@ -279,3 +279,162 @@
   font-size: 11px;
   color: var(--cp-fg-muted);
 }
+
+/* ============================================================================
+   Result-area tab strip (Table | Chart). Sits on top of the result region of
+   the SQL Console. Inherits Lumino's TabPanel structure but skins it d4n.
+   ========================================================================== */
+
+.d4n-rt__tabs {
+  --rt-bg: var(--jp-layout-color1, #fff);
+  --rt-fg: var(--jp-ui-font-color1, #0b1f38);
+  --rt-fg-muted: var(--jp-ui-font-color2, #5a6b82);
+  --rt-border: var(--jp-border-color2, #e4e9f0);
+  --rt-accent: var(--jp-brand-color1, #0f3d6e);
+  --rt-accent-2: #1fa0a0;
+}
+
+.d4n-rt__tabs .lm-TabBar {
+  background: var(--rt-bg);
+  border-bottom: 1px solid var(--rt-border);
+  min-height: 30px;
+}
+
+.d4n-rt__tabs .lm-TabBar-tab {
+  padding: 4px 14px;
+  color: var(--rt-fg-muted);
+  font:
+    500 12px/1 'Montserrat',
+    var(--jp-ui-font-family, system-ui),
+    sans-serif;
+  border: 0;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+}
+
+.d4n-rt__tabs .lm-TabBar-tab.lm-mod-current {
+  color: var(--rt-accent);
+  border-bottom-color: var(--rt-accent);
+  background: transparent;
+}
+
+/* ============================================================================
+   Chart pane — column shelf + vega-embed host.
+   ========================================================================== */
+
+.d4n-ch {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  width: 100%;
+  background: var(--jp-layout-color1, #fff);
+  color: var(--jp-ui-font-color1, #0b1f38);
+}
+
+.d4n-ch__shelf {
+  flex: 0 0 200px;
+  border-right: 1px solid var(--jp-border-color2, #e4e9f0);
+  padding: 10px 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.d4n-ch__shelf-title {
+  margin: 0 0 8px;
+  font:
+    600 13px/1.2 'Montserrat',
+    system-ui,
+    sans-serif;
+  color: var(--jp-ui-font-color1, #0b1f38);
+  letter-spacing: -0.01em;
+}
+
+.d4n-ch__slot-label {
+  font:
+    600 10px/1 'Montserrat',
+    system-ui,
+    sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--jp-ui-font-color2, #5a6b82);
+  margin-top: 8px;
+  margin-bottom: 2px;
+}
+
+.d4n-ch__select {
+  width: 100%;
+  border: 1px solid var(--jp-border-color2, #e4e9f0);
+  background: var(--jp-layout-color1, #fff);
+  color: var(--jp-ui-font-color1, #0b1f38);
+  padding: 5px 8px;
+  border-radius: 4px;
+  font:
+    12.5px/1.2 'Roboto',
+    system-ui,
+    sans-serif;
+}
+
+.d4n-ch__select:focus {
+  outline: none;
+  border-color: #1fa0a0;
+  box-shadow: 0 0 0 3px rgba(31, 160, 160, 0.25);
+}
+
+.d4n-ch__marks {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.d4n-ch__mark {
+  flex: 1;
+  appearance: none;
+  border: 1px solid var(--jp-border-color2, #e4e9f0);
+  background: var(--jp-layout-color1, #fff);
+  color: var(--jp-ui-font-color2, #5a6b82);
+  padding: 5px 6px;
+  border-radius: 4px;
+  font:
+    12px/1 'Montserrat',
+    system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+
+.d4n-ch__mark:hover {
+  border-color: #1fa0a0;
+}
+
+.d4n-ch__mark.is-active {
+  background: var(--jp-brand-color1, #0f3d6e);
+  color: #fff;
+  border-color: var(--jp-brand-color1, #0f3d6e);
+}
+
+.d4n-ch__chart {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.d4n-ch__chart > * {
+  width: 100%;
+  height: 100%;
+}
+
+.d4n-ch__empty,
+.d4n-ch__loading {
+  color: var(--jp-ui-font-color2, #5a6b82);
+  font:
+    13px/1.4 'Roboto',
+    system-ui,
+    sans-serif;
+  text-align: center;
+  padding: 24px;
+}

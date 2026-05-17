@@ -23,7 +23,13 @@ async def test_sqlite_dbtable(mock_dbinfo, jp_fetch):
     response = await jp_fetch("jupyterlab-db-explorer", "query", params={'taskid': payload['data']})
     assert response.code == 200
     payload = json.loads(response.body)
-    assert payload == {'data': {}}
+    # DDL/DML produces no rows; the cursor session reports zero columns and
+    # an exhausted state. (Older shape was {'data': {}}; the new lazy-cursor
+    # payload is structured but still empty.)
+    assert payload['data']['columns'] == []
+    assert payload['data']['data'] == []
+    assert payload['data']['total_rows'] == 0
+    assert payload['data']['cursor_exhausted'] is True
 
     response = await jp_fetch("jupyterlab-db-explorer", "query",
                               method='POST',
@@ -35,7 +41,13 @@ async def test_sqlite_dbtable(mock_dbinfo, jp_fetch):
     response = await jp_fetch("jupyterlab-db-explorer", "query", params={'taskid': payload['data']})
     assert response.code == 200
     payload = json.loads(response.body)
-    assert payload == {'data': {}}
+    # DDL/DML produces no rows; the cursor session reports zero columns and
+    # an exhausted state. (Older shape was {'data': {}}; the new lazy-cursor
+    # payload is structured but still empty.)
+    assert payload['data']['columns'] == []
+    assert payload['data']['data'] == []
+    assert payload['data']['total_rows'] == 0
+    assert payload['data']['cursor_exhausted'] is True
 
     response = await jp_fetch("jupyterlab-db-explorer", "dbtables", params={'dbid': 'testdb'})
     assert response.code == 200
