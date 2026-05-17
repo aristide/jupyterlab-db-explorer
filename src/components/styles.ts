@@ -522,3 +522,106 @@ export const formTestSuccess = style({
   fontWeight: 500,
   padding: '4px 0'
 });
+
+// --- DB tree view ---
+export const treeToolbarStyle = style({
+  display: 'flex',
+  alignItems: 'center',
+  gap: 4,
+  paddingBottom: 4
+});
+
+// minHeight: 0 is required — without it a flex child won't shrink below its
+// intrinsic content height and overflow:auto becomes a no-op.
+export const treeContainerStyle = style({
+  flex: '1 1 auto',
+  minHeight: 0,
+  overflowY: 'auto',
+  overflowX: 'hidden'
+});
+
+export const treeRowStyle = style({
+  display: 'flex',
+  alignItems: 'center',
+  lineHeight: '22px',
+  cursor: 'pointer',
+  userSelect: 'none',
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  paddingRight: 6,
+  $nest: {
+    [`&:hover:not(.${activeStyle})`]: {
+      background: 'var(--jp-layout-color2)'
+    },
+    [`&.${activeStyle} .jp-icon-selectable[fill]`]: {
+      fill: '#fff'
+    }
+  }
+});
+
+export const treeChevronStyle = style({
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 14,
+  height: 14,
+  flexShrink: 0,
+  opacity: 0.7,
+  marginRight: 2
+});
+
+export const treeIconStyle = style({
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 16,
+  height: 16,
+  flexShrink: 0,
+  marginRight: 4
+});
+
+export const treeNameStyle = style({
+  fontWeight: 'bold',
+  marginRight: 6,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis'
+});
+
+export const treeMemoStyle = style({
+  color: '#888',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  flex: '0 1 auto',
+  minWidth: 0,
+  $nest: {
+    [`.${activeStyle} &`]: {
+      color: 'var(--jp-ui-inverse-font-color2)'
+    }
+  }
+});
+
+export const treeGroupStyle = style({
+  fontStyle: 'italic',
+  color: 'var(--jp-ui-font-color2)',
+  marginRight: 6
+});
+
+export const treeErrorBadgeStyle = style({
+  marginLeft: 6,
+  flexShrink: 0
+});
+
+export const treeSpinnerStyle = style({
+  boxSizing: 'border-box',
+  width: 10,
+  height: 10,
+  borderRadius: '50%',
+  border: '2px solid rgba(0, 0, 0, 0.25)',
+  borderTopColor: 'var(--jp-brand-color1, #1976d2)',
+  marginLeft: 6,
+  flexShrink: 0,
+  animationName: spinStyle,
+  animationDuration: '1s',
+  animationIterationCount: 'infinite',
+  animationTimingFunction: 'linear'
+});

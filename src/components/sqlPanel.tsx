@@ -1,54 +1,20 @@
 import { Signal } from '@lumino/signaling';
-import { searchIcon } from '@jupyterlab/ui-components';
+import { searchIcon, refreshIcon } from '@jupyterlab/ui-components';
 import * as React from 'react';
 import { style } from 'typestyle';
 import { SqlModel } from '../model';
-import { IDbItem, IDBConn } from '../interfaces';
+import { IDBConn } from '../interfaces';
 import { IJpServices } from '../JpServices';
-import { rootIcon } from '../icons';
-import { ConnList, SchemaList, TbList } from './dblist';
-import { ColList } from './collist';
+import { connAddIcon } from '../icons';
 import { ConnForm } from './new_conn';
-import { hrStyle } from './styles';
+import { ActionBtn } from './ActionBtn';
+import { DbTree } from './dbTree';
+import { hrStyle, treeToolbarStyle } from './styles';
 
 const panelMain = style({
   padding: 10,
-  paddingBottom: 0
-});
-
-const navStyle = style({
-  listStyleType: 'none',
-  margin: 0,
-  padding: 0,
-  marginTop: 10,
-  marginBottom: 5,
-  $nest: {
-    '&>li': {
-      display: 'inline-block',
-      $nest: {
-        '&:first-child>span': {
-          verticalAlign: 'text-top'
-        },
-        '&>span': {
-          borderRadius: 2,
-          margin: '0 1px',
-          padding: '0 1px',
-          maxWidth: 50,
-          display: 'inline-block',
-          textOverflow: 'ellipsis',
-          overflow: 'hidden',
-          height: '1.2em',
-          lineHeight: '1.2em',
-          verticalAlign: 'middle',
-          $nest: {
-            '&:hover': {
-              backgroundColor: 'var(--jp-layout-color2)'
-            }
-          }
-        }
-      }
-    }
-  }
+  paddingBottom: 0,
+  flexShrink: 0
 });
 
 const inputIconStyle = style({
@@ -67,9 +33,6 @@ export interface ISqlPanelProps {
 
 export interface ISqlPanelState {
   filter: string;
-  path: Array<IDbItem>;
-  list_type: string;
-  wait: boolean;
   showNewConn: boolean;
 }
 
@@ -78,31 +41,18 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
     super(props);
     this.state = {
       filter: '',
-      path: [],
-      list_type: 'root',
-      wait: false,
       showNewConn: false
     };
+    this._treeRef = React.createRef<DbTree>();
   }
 
-  async componentDidMount(): Promise<void> {
-    this.props.model.passwd_settled.connect((_, _db_id) => {
-      this._refresh();
-    }, this);
-
+  componentDidMount(): void {
+    // The DbTree manages its own model interactions and re-renders on
+    // passwd_settled / conn_changed signals. The panel only needs to react
+    // to conn_changed so it can dismiss the new-connection form on success.
     this.props.model.conn_changed.connect(() => {
       this.setState({ showNewConn: false });
-      this.forceUpdate();
     }, this);
-
-    await this.props.model.init();
-
-    const { path } = this.state;
-    const rc = await this.props.model.load_path(path);
-    if (!rc) {
-      return;
-    }
-    this.setState({ path });
   }
 
   componentWillUnmount(): void {
@@ -111,7 +61,6 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
 
   render(): React.ReactElement {
     const { showNewConn } = this.state;
-
     if (showNewConn) {
       return this._renderNewConnForm();
     }
@@ -133,10 +82,9 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
   }
 
   private _renderTree(): React.ReactElement {
-    const { filter, path, list_type, wait } = this.state;
+    const { filter } = this.state;
     const { model, jp_services } = this.props;
     const { trans } = jp_services;
-    const filter_l = filter.toLowerCase();
     return (
       <>
         <div className={panelMain}>
@@ -149,102 +97,39 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
             />
             <searchIcon.react tag="span" className={inputIconStyle} />
           </div>
-          <ul className={navStyle}>
-            <li onClick={this._go(0, 'root')}>
-              <rootIcon.react
-                tag="span"
-                width="16px"
-                height="16px"
-                top="2px"
-              />
-            </li>
-            {path.map((p, idx) => (
-              <li key={idx} onClick={this._go(idx + 1, p.type)}>
-                &gt;<span title={p.name}>{p.name}</span>
-              </li>
-            ))}
-          </ul>
+          <div className={treeToolbarStyle} style={{ justifyContent: 'flex-end' }}>
+            <ActionBtn
+              msg={trans.__('Add new database connection')}
+              icon={connAddIcon}
+              onClick={this._add}
+            />
+            <ActionBtn
+              msg={trans.__('Refresh')}
+              icon={refreshIcon}
+              onClick={this._refresh}
+            />
+          </div>
           <hr className={hrStyle} />
         </div>
-        {list_type === 'root' && (
-          <ConnList
-            onSelect={this._select}
-            trans={trans}
-            jp_services={jp_services}
-            list={model.get_list(path)}
-            filter={filter_l}
-            wait={wait}
-            onAddConn={this._add}
-            onRefresh={this._refresh}
-          />
-        )}
-        {list_type === 'conn' && (
-          <SchemaList
-            onSelect={this._select}
-            trans={trans}
-            jp_services={jp_services}
-            list={model.get_list(path)}
-            filter={filter_l}
-            wait={wait}
-            dbid={path[0].name}
-            onRefresh={this._refresh}
-          />
-        )}
-        {list_type === 'db' && (
-          <TbList
-            onSelect={this._select}
-            trans={trans}
-            jp_services={jp_services}
-            list={model.get_list(path)}
-            filter={filter_l}
-            wait={wait}
-            dbid={path[0].name}
-            schema={path[1].name}
-            onRefresh={this._refresh}
-          />
-        )}
-        {list_type === 'table' && (
-          <ColList
-            list={model.get_list(path)}
-            jp_services={jp_services}
-            filter={filter_l}
-            onRefresh={this._refresh}
-            wait={wait}
-            dbid={path[0].name}
-            schema={path.length < 3 ? '' : path[path.length - 2].name}
-            table={path[path.length - 1].name}
-          />
-        )}
+        <DbTree
+          ref={this._treeRef}
+          model={model}
+          jp_services={jp_services}
+          filter={filter.toLowerCase()}
+        />
       </>
     );
   }
 
-  private _go =
-    (idx: number, list_type: string) =>
-    (_ev: React.MouseEvent<HTMLLIElement, MouseEvent>) => {
-      const { path } = this.state;
-      this.setState({ path: path.slice(0, idx), list_type, filter: '' });
-    };
-
-  private _select =
-    (item: IDbItem) =>
-    async (
-      _ev: React.MouseEvent<HTMLLIElement | HTMLDivElement, MouseEvent>
-    ) => {
-      const { path } = this.state;
-      const p = [...path, item];
-      this.setState({ path: p, list_type: item.type, filter: '', wait: true });
-      const rc = await this.props.model.load_path(p);
-      if (rc) {
-        this.setState({ wait: false });
-      }
-    };
-
-  private _add = async () => {
+  private _add = (): void => {
     this.setState({ showNewConn: true });
   };
 
-  private _onCreateConn = async (conn: IDBConn) => {
+  private _refresh = async (): Promise<void> => {
+    await this._treeRef.current?.refreshSelected();
+  };
+
+  private _onCreateConn = async (conn: IDBConn): Promise<void> => {
     await this.props.model.add_conn(conn);
     // If create_conn signal fires (error), form stays open via the signal handler
   };
@@ -253,20 +138,10 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
     return await this.props.model.test_conn(conn);
   };
 
-  private _refresh = async () => {
-    const { path } = this.state;
-    const { model } = this.props;
-    model.refresh(path);
-    this.setState({ wait: true });
-    const rc = await model.load_path(path);
-    if (rc) {
-      this.setState({ wait: false });
-    }
-  };
-
-  private _setFilter = (ev: React.ChangeEvent<HTMLInputElement>) => {
+  private _setFilter = (ev: React.ChangeEvent<HTMLInputElement>): void => {
     const filter = ev.target.value;
     this.setState({ filter });
   };
 
+  private _treeRef: React.RefObject<DbTree>;
 }
