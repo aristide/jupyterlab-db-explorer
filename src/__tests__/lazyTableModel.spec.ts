@@ -7,7 +7,13 @@
 import { Signal } from '@lumino/signaling';
 import { LazyTableModel } from '../sqlConsole/lazyTableModel';
 import { IPageData, IStatsData, ITableData, IQueryRes } from '../interfaces';
-import { IQueryModel, IQueryStatus } from '../model';
+import {
+  IFilterSpec,
+  IQueryModel,
+  IQueryStatus,
+  ITopValue,
+  SortDirection
+} from '../model';
 
 class FakeQueryModel implements IQueryModel {
   dbid = 'fake';
@@ -32,8 +38,22 @@ class FakeQueryModel implements IQueryModel {
   async fetchStats(): Promise<IStatsData | null> {
     return null;
   }
+  async setSort(
+    _column: string | null,
+    _direction?: SortDirection
+  ): Promise<ITableData | null> {
+    return null;
+  }
+  async setFilter(_filters: IFilterSpec[]): Promise<ITableData | null> {
+    return null;
+  }
+  async topN(_column: string, _n?: number): Promise<ITopValue[]> {
+    return [];
+  }
   stop = (): void => {};
-  private _begin: Signal<IQueryModel, void> = new Signal<IQueryModel, void>(this);
+  private _begin: Signal<IQueryModel, void> = new Signal<IQueryModel, void>(
+    this
+  );
   private _finish: Signal<IQueryModel, IQueryStatus> = new Signal<
     IQueryModel,
     IQueryStatus
@@ -89,7 +109,12 @@ describe('LazyTableModel', () => {
 
   it('returns a placeholder on miss and triggers exactly one fetch', async () => {
     const q = new FakeQueryModel();
-    q.pages.set(10, { data: [[11, 'eleven'], [12, 'twelve']] });
+    q.pages.set(10, {
+      data: [
+        [11, 'eleven'],
+        [12, 'twelve']
+      ]
+    });
     const m = new LazyTableModel();
     m.setQuery(makeSeed(10, 100, false), q);
 
@@ -112,7 +137,12 @@ describe('LazyTableModel', () => {
 
   it('emits cells-changed once a page resolves', async () => {
     const q = new FakeQueryModel();
-    q.pages.set(0, { data: [[1, 'one'], [2, 'two']] });
+    q.pages.set(0, {
+      data: [
+        [1, 'one'],
+        [2, 'two']
+      ]
+    });
     const m = new LazyTableModel();
     // Seed without page 0 so the fetch actually fires.
     m.setQuery(

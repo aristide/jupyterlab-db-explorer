@@ -136,8 +136,23 @@ def _infer_dtype(value: Any) -> str:
 
 
 # ─── Session ────────────────────────────────────────────────────────────────
+@dataclass
+class FilterSpec:
+    """A single filter applied to one column. op is one of 'contains',
+    'equals', 'gt', 'lt', 'between' (between uses [min, max] for `value`)."""
+
+    column: str
+    op: str
+    value: Any
+
+
 class ResultSession:
-    """Owns one streaming cursor, a page cache, and running column stats."""
+    """Owns one streaming cursor, a page cache, and running column stats.
+
+    Sort + filter overlays close the current cursor and open a fresh one with
+    the user SQL wrapped in a CTE; top-N value lookup runs an independent
+    aggregation query that doesn't disturb the cursor.
+    """
 
     def __init__(self, dbid: str, sql: str, usedb: Optional[str] = None):
         self.dbid = dbid
@@ -152,11 +167,16 @@ class ResultSession:
         self.total_rows: Optional[int] = None  # None until cursor exhausts or hard_cap reached
         self.cursor_exhausted: bool = False
 
+        # Active sort / filter overlays. None means no overlay.
+        self.sort: Optional[Tuple[str, str]] = None  # (column, 'ASC' | 'DESC')
+        self.filters: List[FilterSpec] = []
+
         # page_start (multiple of page_size) -> list of serialized rows
         self._pages: Dict[int, List[List[Any]]] = {}
         self._next_row: int = 0           # absolute position of the next row from cursor
         self._connection: Optional[Any] = None
         self._result: Optional[Any] = None
+        self._engine: Optional[Any] = None  # cached so sort/filter can reopen
         self._lock = threading.Lock()
 
     # ── lifecycle ────────────────────────────────────────────────────────
@@ -164,18 +184,45 @@ class ResultSession:
         eng = engine_mod.getEngine(self.dbid, self.usedb)
         if eng is None or eng is False:
             raise RuntimeError(f"could not get engine for dbid {self.dbid}")
-        # stream_results=True asks the driver for a server-side cursor.
-        conn = eng.connect().execution_options(stream_results=True)
+        self._engine = eng
+        self._open_cursor(self._effective_sql())
+
+    def close(self) -> None:
+        with self._lock:
+            self._close_cursor_locked()
+
+    def _close_cursor_locked(self) -> None:
+        if self._result is not None:
+            try:
+                self._result.close()
+            except Exception as e:
+                logger.debug("error closing result: %s", e)
+            self._result = None
+        if self._connection is not None:
+            try:
+                self._connection.close()
+            except Exception as e:
+                logger.debug("error closing connection: %s", e)
+            self._connection = None
+
+    def _open_cursor(self, sql: str) -> None:
+        """Open (or re-open) the streaming cursor on `sql` and prime page 0."""
+        if self._engine is None:
+            raise RuntimeError("session has no engine — call open() first")
+        conn = self._engine.connect().execution_options(stream_results=True)
         try:
-            result = conn.exec_driver_sql(self.sql)
+            result = conn.exec_driver_sql(sql)
         except Exception:
             conn.close()
             raise
         self._connection = conn
         self._result = result
+        self._pages = {}
+        self._next_row = 0
+        self.cursor_exhausted = False
+        self.total_rows = None
 
         if not result.returns_rows:
-            # DDL / DML — drain and mark exhausted, no columns.
             try:
                 conn.commit()
             except Exception:
@@ -184,41 +231,31 @@ class ResultSession:
             self.total_rows = 0
             return
 
-        self.columns = list(result.keys())
-        self.stats = [ColumnStats() for _ in self.columns]
-        # Prime first page so we know dtypes from real data. Scroll a full
-        # page so dtype inference + initial stats see a representative batch.
+        new_columns = list(result.keys())
+        # First-open initializes columns + stats; sort/filter re-opens keep
+        # the existing column shape (same query, just re-ordered/filtered).
+        if not self.columns:
+            self.columns = new_columns
+            self.stats = [ColumnStats() for _ in self.columns]
+        else:
+            # Reset stats accumulators when overlays change so we don't
+            # leak counts from the previous cursor.
+            self.stats = [ColumnStats() for _ in self.columns]
+
         self._scroll_to_offset(self.page_size)
         if self._pages.get(0):
             first_row = self._pages[0][0]
             for i, val in enumerate(first_row):
                 self.stats[i].dtype = _infer_dtype(val)
             self.dtypes = [s.dtype for s in self.stats]
-            # Replay the first row into stats now that dtype is known.
             for i, val in enumerate(first_row):
                 self.stats[i].update(val)
-            # Replay the rest of page 0 too.
             for row in self._pages[0][1:]:
                 for i, val in enumerate(row):
                     self.stats[i].update(val)
         else:
-            # Empty result — leave dtypes as defaults.
-            self.dtypes = ['string' for _ in self.columns]
-
-    def close(self) -> None:
-        with self._lock:
-            if self._result is not None:
-                try:
-                    self._result.close()
-                except Exception as e:
-                    logger.debug("error closing result: %s", e)
-                self._result = None
-            if self._connection is not None:
-                try:
-                    self._connection.close()
-                except Exception as e:
-                    logger.debug("error closing connection: %s", e)
-                self._connection = None
+            if not self.dtypes:
+                self.dtypes = ['string' for _ in self.columns]
 
     # ── page fetch ────────────────────────────────────────────────────────
     def fetch_page(self, offset: int, limit: int) -> List[List[Any]]:
@@ -307,7 +344,148 @@ class ResultSession:
             'rows_seen': self._next_row,
             'cursor_exhausted': self.cursor_exhausted,
             'page_size': self.page_size,
+            'sort': list(self.sort) if self.sort else None,
+            'filters': [
+                {'column': f.column, 'op': f.op, 'value': f.value}
+                for f in self.filters
+            ],
         }
+
+    # ── Sort / filter / top-N overlays ──────────────────────────────────
+    def _quote_ident(self, name: str) -> str:
+        """Dialect-aware identifier quoting (relies on SQLAlchemy's preparer
+        so we get the right delimiters per backend — backticks for MySQL,
+        brackets for SQL Server, double quotes for everything else)."""
+        if self._engine is None:
+            return f'"{name}"'
+        try:
+            return self._engine.dialect.identifier_preparer.quote(name)
+        except Exception:
+            return f'"{name}"'
+
+    def _bind_param_style(self) -> str:
+        """Choose a paramstyle compatible with exec_driver_sql for this
+        dialect. exec_driver_sql passes through to the DBAPI directly so we
+        need the DBAPI's native paramstyle."""
+        if self._engine is None:
+            return '?'
+        try:
+            ps = self._engine.dialect.paramstyle
+        except Exception:
+            ps = 'qmark'
+        if ps == 'qmark':
+            return '?'
+        if ps == 'format':
+            return '%s'
+        if ps == 'numeric':
+            return ':1'
+        if ps == 'named':
+            return ':p0'
+        if ps == 'pyformat':
+            return '%(p0)s'
+        return '?'
+
+    def _effective_sql(self) -> str:
+        """Wrap the user SQL with the active sort/filter overlays, if any."""
+        if not self.sort and not self.filters:
+            return self.sql
+        # Use a CTE so the user SQL doesn't need to be reparsed and any
+        # ORDER BY / LIMIT inside it is preserved within the inner scope.
+        out = f"WITH user_q AS ({self.sql}) SELECT * FROM user_q"
+        where_parts: List[str] = []
+        for f in self.filters:
+            qcol = self._quote_ident(f.column)
+            if f.op == 'contains':
+                # Inline a lightly-escaped literal — exec_driver_sql doesn't
+                # bind params consistently across drivers and this code path
+                # is operator-typed text only.
+                safe = str(f.value).replace("'", "''")
+                where_parts.append(f"CAST({qcol} AS VARCHAR(4000)) LIKE '%{safe}%'")
+            elif f.op == 'equals':
+                safe = str(f.value).replace("'", "''")
+                if isinstance(f.value, (int, float)):
+                    where_parts.append(f"{qcol} = {f.value}")
+                else:
+                    where_parts.append(f"{qcol} = '{safe}'")
+            elif f.op == 'gt' and isinstance(f.value, (int, float)):
+                where_parts.append(f"{qcol} > {f.value}")
+            elif f.op == 'lt' and isinstance(f.value, (int, float)):
+                where_parts.append(f"{qcol} < {f.value}")
+            elif (
+                f.op == 'between'
+                and isinstance(f.value, (list, tuple))
+                and len(f.value) == 2
+            ):
+                lo, hi = f.value
+                if isinstance(lo, (int, float)) and isinstance(hi, (int, float)):
+                    where_parts.append(f"{qcol} BETWEEN {lo} AND {hi}")
+        if where_parts:
+            out += ' WHERE ' + ' AND '.join(where_parts)
+        if self.sort:
+            col, direction = self.sort
+            qcol = self._quote_ident(col)
+            d = direction.upper()
+            if d not in ('ASC', 'DESC'):
+                d = 'ASC'
+            out += f' ORDER BY {qcol} {d}'
+        return out
+
+    def apply_sort(self, column: Optional[str], direction: str = 'ASC') -> None:
+        """Set or clear the sort overlay and reopen the cursor."""
+        with self._lock:
+            if column is None or column == '':
+                self.sort = None
+            else:
+                if column not in self.columns:
+                    raise ValueError(f"unknown column {column!r}")
+                d = direction.upper()
+                if d not in ('ASC', 'DESC'):
+                    d = 'ASC'
+                self.sort = (column, d)
+            self._close_cursor_locked()
+            self._open_cursor(self._effective_sql())
+
+    def apply_filters(self, filters: List[Dict[str, Any]]) -> None:
+        """Replace the active filter set and reopen the cursor."""
+        parsed: List[FilterSpec] = []
+        for f in filters or []:
+            col = f.get('column')
+            op = f.get('op')
+            val = f.get('value')
+            if not col or not op:
+                continue
+            if col not in self.columns:
+                raise ValueError(f"unknown column {col!r}")
+            parsed.append(FilterSpec(column=col, op=op, value=val))
+        with self._lock:
+            self.filters = parsed
+            self._close_cursor_locked()
+            self._open_cursor(self._effective_sql())
+
+    def top_n_values(self, column: str, n: int = 10) -> List[Dict[str, Any]]:
+        """Independent aggregation query — doesn't touch the cursor."""
+        if column not in self.columns:
+            raise ValueError(f"unknown column {column!r}")
+        if self._engine is None:
+            return []
+        qcol = self._quote_ident(column)
+        n = max(1, min(int(n), 100))
+        sql = (
+            f"SELECT {qcol} AS v, COUNT(*) AS c "
+            f"FROM ({self.sql}) user_q "
+            f"GROUP BY {qcol} "
+            f"ORDER BY c DESC, v ASC "
+            f"LIMIT {n}"
+        )
+        with self._engine.connect() as conn:
+            result = conn.exec_driver_sql(sql)
+            rows = result.fetchall()
+        out: List[Dict[str, Any]] = []
+        for r in rows:
+            v, c = r[0], r[1]
+            v_ser = list(make_row_serializable((v,)))[0]
+            out.append({'value': v_ser, 'count': int(c)})
+        return out
 
 
 # ─── Module-level helper used by the task layer ────────────────────────────

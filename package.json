@@ -264,7 +264,8 @@
                     "comment-empty-line-before": null,
                     "at-rule-empty-line-before": null,
                     "value-keyword-case": null,
-                    "custom-property-empty-line-before": null
+                    "custom-property-empty-line-before": null,
+                    "font-family-name-quotes": null
                 }
             }
         ]

@@ -169,6 +169,51 @@ def get_stats(taskid: str):
     }
 
 
+def apply_sort(taskid: str, column: Optional[str], direction: str = 'ASC'):
+    entry = _touch(taskid)
+    if entry is None or entry.session is None:
+        return False, {'error': 'task not exists'}
+    entry.session.apply_sort(column, direction)
+    return True, _session_payload(entry.session, taskid)
+
+
+def apply_filters(taskid: str, filters: List[Dict[str, Any]]):
+    entry = _touch(taskid)
+    if entry is None or entry.session is None:
+        return False, {'error': 'task not exists'}
+    entry.session.apply_filters(filters)
+    return True, _session_payload(entry.session, taskid)
+
+
+def top_n(taskid: str, column: str, n: int = 10):
+    entry = _touch(taskid)
+    if entry is None or entry.session is None:
+        return False, {'error': 'task not exists'}
+    rows = entry.session.top_n_values(column, n)
+    return True, {'values': rows}
+
+
+def _session_payload(session, taskid: str) -> Dict[str, Any]:
+    """Same shape as `get_result`'s success payload — used by sort/filter
+    after the cursor has been reopened."""
+    first_page = session.fetch_page(0, session.page_size)
+    return {
+        'columns': session.columns,
+        'dtypes': session.dtypes,
+        'stats': session.stats_snapshot(),
+        'total_rows': session.total_rows,
+        'cursor_exhausted': session.cursor_exhausted,
+        'taskid': taskid,
+        'page_size': session.page_size,
+        'data': first_page,
+        'sort': list(session.sort) if session.sort else None,
+        'filters': [
+            {'column': f.column, 'op': f.op, 'value': f.value}
+            for f in session.filters
+        ],
+    }
+
+
 async def delete(taskid: str) -> bool:
     entry = task_dict.pop(taskid, None)
     if entry is None:

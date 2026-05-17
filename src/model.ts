@@ -11,6 +11,9 @@ import {
   stop_query,
   get_query_page,
   get_query_stats,
+  post_query_sort,
+  post_query_filter,
+  get_query_topn,
   edit_conn,
   del_conn,
   test_conn,
@@ -22,10 +25,29 @@ import {
   ITreeCmdRes,
   TApiStatus,
   IQueryRes,
+  ITableData,
   IPageData,
   IStatsData,
   IDBConn
 } from './interfaces';
+
+export type SortDirection = 'ASC' | 'DESC';
+
+export interface ISortSpec {
+  column: string;
+  direction: SortDirection;
+}
+
+export interface IFilterSpec {
+  column: string;
+  op: 'contains' | 'equals' | 'gt' | 'lt' | 'between';
+  value: any;
+}
+
+export interface ITopValue {
+  value: any;
+  count: number;
+}
 
 let sqlModelInst: SqlModel;
 
@@ -281,6 +303,16 @@ export interface IQueryModel {
   fetchPage: (offset: number, limit: number) => Promise<IPageData | null>;
   /** Refresh the running per-column statistics snapshot. */
   fetchStats: () => Promise<IStatsData | null>;
+  /** Apply a sort overlay (or pass null to clear). Backend reopens the
+   *  cursor with ORDER BY and returns fresh metadata + first page. */
+  setSort: (
+    column: string | null,
+    direction?: SortDirection
+  ) => Promise<ITableData | null>;
+  /** Replace the active filter set wholesale and reopen the cursor. */
+  setFilter: (filters: IFilterSpec[]) => Promise<ITableData | null>;
+  /** Independent aggregation query — top-N value counts for one column. */
+  topN: (column: string, n?: number) => Promise<ITopValue[]>;
   conns: Array<string>;
   isConnReadOnly: boolean;
   stop: () => void;
@@ -375,6 +407,42 @@ export class QueryModel implements IQueryModel {
       return null;
     }
     return rc.data;
+  }
+
+  async setSort(
+    column: string | null,
+    direction: SortDirection = 'ASC'
+  ): Promise<ITableData | null> {
+    if (!this._taskid) {
+      return null;
+    }
+    const rc = await post_query_sort(this._taskid, column, direction);
+    if (rc.status !== 'OK' || !rc.data) {
+      return null;
+    }
+    return rc.data as ITableData;
+  }
+
+  async setFilter(filters: IFilterSpec[]): Promise<ITableData | null> {
+    if (!this._taskid) {
+      return null;
+    }
+    const rc = await post_query_filter(this._taskid, filters);
+    if (rc.status !== 'OK' || !rc.data) {
+      return null;
+    }
+    return rc.data as ITableData;
+  }
+
+  async topN(column: string, n = 10): Promise<ITopValue[]> {
+    if (!this._taskid) {
+      return [];
+    }
+    const rc = await get_query_topn(this._taskid, column, n);
+    if (rc.status !== 'OK' || !rc.data) {
+      return [];
+    }
+    return rc.data.values || [];
   }
 
   get dbid(): string {

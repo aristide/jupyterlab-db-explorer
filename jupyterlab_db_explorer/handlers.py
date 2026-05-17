@@ -198,6 +198,96 @@ class QueryPageHandler(APIHandler):
             self.finish(json.dumps({'error': str(err)}))
 
 
+class QuerySortHandler(APIHandler):
+    """POST /query/sort  body={taskid, column, direction}.
+
+    Closes the active cursor on the session, wraps the user SQL with the
+    new ORDER BY, and reopens. Returns the same payload as GET /query
+    so the frontend can call `setQuery` and reset its grid.
+    """
+
+    @tornado.web.authenticated
+    async def post(self):
+        body = self.get_json_body() or {}
+        taskid = body.get('taskid')
+        column = body.get('column')  # None / '' clears sort
+        direction = body.get('direction', 'ASC')
+        if not taskid:
+            self.finish(json.dumps({'error': 'taskid required'}))
+            return
+        try:
+            loop = asyncio.get_event_loop()
+            rc, payload = await loop.run_in_executor(
+                None, task.apply_sort, taskid, column, direction
+            )
+            if rc:
+                self.finish(json.dumps({'data': payload}))
+            else:
+                self.finish(json.dumps(payload))
+        except Exception as err:
+            self.log.error(err)
+            self.finish(json.dumps({'error': str(err)}))
+
+
+class QueryFilterHandler(APIHandler):
+    """POST /query/filter  body={taskid, filters:[{column, op, value}, ...]}.
+
+    Replaces the active filter set wholesale, reopens the cursor with the
+    new WHERE overlay, and returns the fresh metadata + first page.
+    """
+
+    @tornado.web.authenticated
+    async def post(self):
+        body = self.get_json_body() or {}
+        taskid = body.get('taskid')
+        filters = body.get('filters', [])
+        if not taskid:
+            self.finish(json.dumps({'error': 'taskid required'}))
+            return
+        try:
+            loop = asyncio.get_event_loop()
+            rc, payload = await loop.run_in_executor(
+                None, task.apply_filters, taskid, filters
+            )
+            if rc:
+                self.finish(json.dumps({'data': payload}))
+            else:
+                self.finish(json.dumps(payload))
+        except Exception as err:
+            self.log.error(err)
+            self.finish(json.dumps({'error': str(err)}))
+
+
+class QueryTopNHandler(APIHandler):
+    """GET /query/topn?taskid=&column=&n=10.
+
+    Independent aggregation query: 'SELECT col, COUNT(*) FROM (user_sql)
+    GROUP BY col ORDER BY 2 DESC LIMIT n'. Does not disturb the active
+    cursor.
+    """
+
+    @tornado.web.authenticated
+    async def get(self):
+        taskid = self.get_argument('taskid')
+        column = self.get_argument('column')
+        try:
+            n = int(self.get_argument('n', '10'))
+        except ValueError:
+            n = 10
+        try:
+            loop = asyncio.get_event_loop()
+            rc, payload = await loop.run_in_executor(
+                None, task.top_n, taskid, column, n
+            )
+            if rc:
+                self.finish(json.dumps({'data': payload}))
+            else:
+                self.finish(json.dumps(payload))
+        except Exception as err:
+            self.log.error(err)
+            self.finish(json.dumps({'error': str(err)}))
+
+
 class QueryStatsHandler(APIHandler):
     """GET /query/stats?taskid=…
 
@@ -235,5 +325,8 @@ def setup_handlers(web_app):
         (handler_url(base_url, "query"), QueryHandler),
         (handler_url(base_url, "query/page"), QueryPageHandler),
         (handler_url(base_url, "query/stats"), QueryStatsHandler),
+        (handler_url(base_url, "query/sort"), QuerySortHandler),
+        (handler_url(base_url, "query/filter"), QueryFilterHandler),
+        (handler_url(base_url, "query/topn"), QueryTopNHandler),
     ]
     web_app.add_handlers(host_pattern, handlers)

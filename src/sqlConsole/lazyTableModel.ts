@@ -1,7 +1,7 @@
 import { DataModel } from '@lumino/datagrid';
 
 import { ColumnDtype, IColumnStats, ITableData } from '../interfaces';
-import { IQueryModel } from '../model';
+import { IFilterSpec, IQueryModel, SortDirection } from '../model';
 
 const DEFAULT_PAGE_SIZE = 1000;
 const PLACEHOLDER = '…';
@@ -49,6 +49,17 @@ export class LazyTableModel extends DataModel {
     this._pages = new Map();
     this._inflight = new Set();
     this._qmodel = qmodel;
+    // Sort/filter overlays come back from the backend in the payload.
+    const backendSort = (
+      data as ITableData & { sort?: [string, string] | null }
+    ).sort;
+    this._activeSort =
+      backendSort && backendSort.length === 2
+        ? { column: backendSort[0], direction: backendSort[1] as SortDirection }
+        : null;
+    const backendFilters = (data as ITableData & { filters?: IFilterSpec[] })
+      .filters;
+    this._activeFilters = Array.isArray(backendFilters) ? backendFilters : [];
     if (data.data && data.data.length > 0) {
       this._pages.set(0, data.data);
     }
@@ -78,6 +89,59 @@ export class LazyTableModel extends DataModel {
 
   get totalRows(): number {
     return this._totalRows;
+  }
+
+  get columns(): string[] {
+    return this._columns;
+  }
+
+  get dtypes(): ColumnDtype[] {
+    return this._dtypes;
+  }
+
+  get stats(): IColumnStats[] {
+    return this._stats;
+  }
+
+  /** Currently applied sort overlay (mirrors the backend session). */
+  get activeSort(): { column: string; direction: SortDirection } | null {
+    return this._activeSort;
+  }
+
+  /** Currently applied filter set (one per column max in our UI). */
+  get activeFilters(): IFilterSpec[] {
+    return this._activeFilters;
+  }
+
+  /** Apply a sort overlay (or clear with column=null), round-tripping to
+   *  the backend and swapping in the fresh metadata + first page. */
+  async applySort(
+    column: string | null,
+    direction: SortDirection = 'ASC'
+  ): Promise<void> {
+    if (!this._qmodel) {
+      return;
+    }
+    const result = await this._qmodel.setSort(column, direction);
+    if (result) {
+      this.setQuery(result, this._qmodel);
+    }
+  }
+
+  /** Replace the active filter set wholesale and round-trip. */
+  async applyFilters(filters: IFilterSpec[]): Promise<void> {
+    if (!this._qmodel) {
+      return;
+    }
+    const result = await this._qmodel.setFilter(filters);
+    if (result) {
+      this.setQuery(result, this._qmodel);
+    }
+  }
+
+  /** Hand the popover its top-N value loader without exposing _qmodel. */
+  topN(column: string, n = 10) {
+    return this._qmodel ? this._qmodel.topN(column, n) : Promise.resolve([]);
   }
 
   // ── DataModel API ─────────────────────────────────────────────────────
@@ -137,7 +201,11 @@ export class LazyTableModel extends DataModel {
         return;
       }
       this._pages.set(pageStart, res.data);
-      if (res.total_rows != null && res.total_rows !== this._totalRows) {
+      if (
+        res.total_rows !== null &&
+        res.total_rows !== undefined &&
+        res.total_rows !== this._totalRows
+      ) {
         this._totalRows = res.total_rows;
         this.emitChanged({ type: 'model-reset' });
         return;
@@ -231,4 +299,7 @@ export class LazyTableModel extends DataModel {
   private _inflight: Set<number> = new Set();
   private _qmodel: IQueryModel | null = null;
   private _gen = 0;
+  private _activeSort: { column: string; direction: SortDirection } | null =
+    null;
+  private _activeFilters: IFilterSpec[] = [];
 }

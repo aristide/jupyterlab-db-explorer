@@ -8,8 +8,7 @@ import {
   IQueryRes,
   IPageRes,
   IStatsRes,
-  IDBConn,
-  IParam
+  IDBConn
 } from './interfaces';
 
 export async function requestAPI<T>(
@@ -82,7 +81,7 @@ export async function GET<T>(
 
 export async function POST<T>(
   act: string,
-  body: IParam,
+  body: Record<string, unknown>,
   options?: RequestInit
 ): Promise<T> {
   let rc!: T;
@@ -246,4 +245,34 @@ export const get_query_stats = async (
   options?: RequestInit
 ): Promise<IStatsRes> => {
   return await GET('query/stats', { taskid }, options);
+};
+
+export const post_query_sort = async (
+  taskid: string,
+  column: string | null,
+  direction: 'ASC' | 'DESC' | string
+): Promise<IQueryRes> => {
+  return await POST('query/sort', { taskid, column, direction });
+};
+
+export const post_query_filter = async (
+  taskid: string,
+  filters: Array<{ column: string; op: string; value: any }>
+): Promise<IQueryRes> => {
+  return await POST('query/filter', { taskid, filters });
+};
+
+export const get_query_topn = async (
+  taskid: string,
+  column: string,
+  n = 10
+): Promise<{
+  status: string;
+  data?: { values: Array<{ value: any; count: number }> };
+}> => {
+  return (await GET('query/topn', {
+    taskid,
+    column,
+    n: String(n)
+  })) as any;
 };
