@@ -1,6 +1,6 @@
-[![Build](https://github.com/groupnotes/jupyterlab-db-explorer/actions/workflows/build.yml/badge.svg)](https://github.com/groupnotes/jupyterlab-db-explorer/actions/workflows/build.yml)
+[![Build](https://github.com/aristide/jupyterlab-db-explorer/actions/workflows/build.yml/badge.svg)](https://github.com/aristide/jupyterlab-db-explorer/actions/workflows/build.yml)
 [![PyPI](https://img.shields.io/pypi/v/jupyterlab-db-explorer.svg)](https://pypi.org/project/jupyterlab-db-explorer/)
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/groupnotes/jupyterlab-db-explorer/main?urlpath=lab)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/aristide/jupyterlab-db-explorer/master?urlpath=lab)
 
 # jupyterlab-db-explorer
 
@@ -109,19 +109,20 @@ export DB_CONN_PRODUCTION_NAME=prod_db
 
 **Vault Environment Variables:**
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `VAULT_ENABLED` | `true` | Set to `false`/`0`/`no`/`off` to bypass Vault entirely, even when `VAULT_ADDR` is set. |
-| `VAULT_ADDR` | *(unset)* | Vault server address (e.g. `https://vault.example.com`). Vault integration is disabled when empty. |
-| `VAULT_AUTH_METHOD` | `token` | Auth method: `token` or `approle`. |
-| `VAULT_TOKEN` | *(unset)* | Token when `VAULT_AUTH_METHOD=token`. |
-| `VAULT_ROLE_ID` | *(unset)* | AppRole role id when `VAULT_AUTH_METHOD=approle`. |
-| `VAULT_SECRET_ID` | *(unset)* | AppRole secret id when `VAULT_AUTH_METHOD=approle`. |
-| `VAULT_KV_MOUNT` | `secret` | KV v2 mount point. |
+| Variable            | Default   | Description                                                                                        |
+| ------------------- | --------- | -------------------------------------------------------------------------------------------------- |
+| `VAULT_ENABLED`     | `true`    | Set to `false`/`0`/`no`/`off` to bypass Vault entirely, even when `VAULT_ADDR` is set.             |
+| `VAULT_ADDR`        | _(unset)_ | Vault server address (e.g. `https://vault.example.com`). Vault integration is disabled when empty. |
+| `VAULT_AUTH_METHOD` | `token`   | Auth method: `token` or `approle`.                                                                 |
+| `VAULT_TOKEN`       | _(unset)_ | Token when `VAULT_AUTH_METHOD=token`.                                                              |
+| `VAULT_ROLE_ID`     | _(unset)_ | AppRole role id when `VAULT_AUTH_METHOD=approle`.                                                  |
+| `VAULT_SECRET_ID`   | _(unset)_ | AppRole secret id when `VAULT_AUTH_METHOD=approle`.                                                |
+| `VAULT_KV_MOUNT`    | `secret`  | KV v2 mount point.                                                                                 |
 
 The dev `docker-compose.yaml` sets `VAULT_ADDR` and `VAULT_TOKEN=devtoken` explicitly for the bundled dev Vault. Outside that setup, both vars must be set by you — there are no production defaults.
 
 **Security notes:**
+
 - The dev Vault runs in-memory with a fixed root token — **never use in production**.
 - For production, prefer AppRole (`VAULT_AUTH_METHOD=approle`) or a sidecar that renews a short-lived token.
 - Only KV v2 is supported; the mount is configurable via `VAULT_KV_MOUNT`.
@@ -163,17 +164,17 @@ You can use type codes or names: `mysql`, `pgsql`, `postgres`, `oracle`, `hive`,
 
 #### Database Type Codes
 
-| Code | Database |
-|------|----------|
-| 1 | MySQL |
-| 2 | PostgreSQL |
-| 3 | Oracle |
-| 4 | Hive LDAP |
-| 5 | Hive Kerberos |
-| 6 | SQLite |
-| 7 | Trino |
-| 8 | StarRocks |
-| 9 | SQL Server |
+| Code | Database      |
+| ---- | ------------- |
+| 1    | MySQL         |
+| 2    | PostgreSQL    |
+| 3    | Oracle        |
+| 4    | Hive LDAP     |
+| 5    | Hive Kerberos |
+| 6    | SQLite        |
+| 7    | Trino         |
+| 8    | StarRocks     |
+| 9    | SQL Server    |
 
 ### Edit Comments
 

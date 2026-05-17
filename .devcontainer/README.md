@@ -4,14 +4,14 @@ Development environment with all services needed to build and test the extension
 
 ## Services
 
-| Service        | Image                        | Ports      | Profile    | Purpose                       |
-|----------------|------------------------------|------------|------------|-------------------------------|
-| jupyter        | aristidetm/labextension-dev  | 8888, 9999 | (always on)| JupyterLab dev container      |
-| postgres       | postgres:16                  | 5432       | postgres   | PostgreSQL for testing        |
-| trino          | trinodb/trino:latest         | 8080       | trino      | Trino query engine            |
-| starrocks      | starrocks/allin1-ubuntu      | 9030, 8030 | starrocks  | StarRocks OLAP database       |
-| starrocks-init | mariadb:latest               | —          | starrocks  | Seeds StarRocks sample data   |
-| vault          | hashicorp/vault:1.17         | 8200       | vault      | HashiCorp Vault for secrets   |
+| Service        | Image                       | Ports      | Profile     | Purpose                     |
+| -------------- | --------------------------- | ---------- | ----------- | --------------------------- |
+| jupyter        | aristidetm/labextension-dev | 8888, 9999 | (always on) | JupyterLab dev container    |
+| postgres       | postgres:16                 | 5432       | postgres    | PostgreSQL for testing      |
+| trino          | trinodb/trino:latest        | 8080       | trino       | Trino query engine          |
+| starrocks      | starrocks/allin1-ubuntu     | 9030, 8030 | starrocks   | StarRocks OLAP database     |
+| starrocks-init | mariadb:latest              | —          | starrocks   | Seeds StarRocks sample data |
+| vault          | hashicorp/vault:1.17        | 8200       | vault       | HashiCorp Vault for secrets |
 
 ## Enable / Disable Services
 
@@ -32,12 +32,12 @@ After changing, rebuild the devcontainer.
 
 ## Test Credentials
 
-| Service    | Host       | Port | User     | Password | Database             |
-|------------|------------|------|----------|----------|----------------------|
-| PostgreSQL | postgres   | 5432 | testuser | testpass | testdb               |
-| Trino      | trino      | 8080 | any      | —        | postgresql / tpch / tpcds |
-| StarRocks  | starrocks  | 9030 | root     | (empty)  | testdb               |
-| Vault      | vault      | 8200 | (token)  | devtoken | —                    |
+| Service    | Host      | Port | User     | Password | Database                  |
+| ---------- | --------- | ---- | -------- | -------- | ------------------------- |
+| PostgreSQL | postgres  | 5432 | testuser | testpass | testdb                    |
+| Trino      | trino     | 8080 | any      | —        | postgresql / tpch / tpcds |
+| StarRocks  | starrocks | 9030 | root     | (empty)  | testdb                    |
+| Vault      | vault     | 8200 | (token)  | devtoken | —                         |
 
 ## Trino Catalogs
 
@@ -50,12 +50,14 @@ After changing, rebuild the devcontainer.
 ## Sample Data
 
 **PostgreSQL** is seeded on first start with:
+
 - `sample.countries` — country codes, names, population, area
 - `sample.indicators` — economic indicators by country and year
 
 To reset: remove the `pgdata` volume and rebuild.
 
 **StarRocks** is seeded by the `starrocks-init` container after StarRocks is healthy:
+
 - `testdb.countries` — same data as PostgreSQL
 - `testdb.indicators` — same data as PostgreSQL
 

@@ -18,7 +18,7 @@ function svgToDataUrl(svg: string): string {
 }
 
 type DbTypeEntry = {
-  value: string;        // numeric ConnType code as a string
+  value: string; // numeric ConnType code as a string
   label: string;
   defaultPort: string;
   swatch: string;
@@ -152,7 +152,11 @@ interface IConnFormState extends Partial<IDBConn> {
 export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
   constructor(props: IConnFormProps) {
     super(props);
-    const initial = { db_type: String(ConnType.DB_PGSQL), db_id: '', ...this.props.conn };
+    const initial = {
+      db_type: String(ConnType.DB_PGSQL),
+      db_id: '',
+      ...this.props.conn
+    };
     const initialAuth: TAuthMode =
       props.vaultEnabled &&
       typeof initial.db_user === 'string' &&
@@ -321,7 +325,9 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
           <section className="d4n-cf__sec d4n-cf__sec--block">
             <div className="d4n-sechead">
               <div className="d4n-sechead__row">
-                <span className="d4n-sechead__eyebrow">{trans.__('Server')}</span>
+                <span className="d4n-sechead__eyebrow">
+                  {trans.__('Server')}
+                </span>
                 <span className="d4n-sechead__hint">
                   {isFilePath
                     ? trans.__('SQLite is file-based')
@@ -409,9 +415,7 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                   type="button"
                   className={`d4n-disclose${advancedOpen ? ' is-open' : ''}`}
                   aria-expanded={!!advancedOpen}
-                  onClick={() =>
-                    this.setState({ advancedOpen: !advancedOpen })
-                  }
+                  onClick={() => this.setState({ advancedOpen: !advancedOpen })}
                 >
                   {this._glyph('chev', 14)}
                   <span>{trans.__('Advanced options')}</span>
@@ -608,9 +612,7 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                       <button
                         type="button"
                         className="d4n-input-suffix"
-                        onClick={() =>
-                          this.setState({ showPwd: !showPwd })
-                        }
+                        onClick={() => this.setState({ showPwd: !showPwd })}
                         aria-label={
                           showPwd
                             ? trans.__('Hide password')
@@ -640,10 +642,7 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
         {/* Footer */}
         <footer className="d4n-cf__footer">
           {testState !== 'idle' && (
-            <div
-              className={`d4n-testresult is-${testState}`}
-              role="status"
-            >
+            <div className={`d4n-testresult is-${testState}`} role="status">
               <span className="d4n-testresult__icon">
                 {testState === 'loading' && this._glyph('spinner', 14)}
                 {testState === 'success' && this._glyph('check', 14)}

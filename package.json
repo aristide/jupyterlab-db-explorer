@@ -13,9 +13,9 @@
         "postgresql",
         "sqlite"
     ],
-    "homepage": "https://github.com/groupnotes/jupyterlab-db-explorer",
+    "homepage": "https://github.com/aristide/jupyterlab-db-explorer",
     "bugs": {
-        "url": "https://github.com/groupnotes/jupyterlab-db-explorer/issues"
+        "url": "https://github.com/aristide/jupyterlab-db-explorer/issues"
     },
     "license": "BSD-3-Clause",
     "author": {
@@ -32,7 +32,7 @@
     "style": "style/index.css",
     "repository": {
         "type": "git",
-        "url": "https://github.com/groupnotes/jupyterlab-db-explorer.git"
+        "url": "https://github.com/aristide/jupyterlab-db-explorer.git"
     },
     "scripts": {
         "build": "jlpm build:lib && jlpm build:labextension:dev",
@@ -157,7 +157,8 @@
         "**/*.d.ts",
         "tests",
         "**/__tests__",
-        "ui-tests"
+        "ui-tests",
+        "pygwalker"
     ],
     "eslintConfig": {
         "extends": [
@@ -242,6 +243,30 @@
             "selector-class-pattern": "^([a-z][A-z\\d]*)(-[A-z\\d]+)*$",
             "selector-no-vendor-prefix": null,
             "value-no-vendor-prefix": null
-        }
+        },
+        "overrides": [
+            {
+                "files": [
+                    "style/d4n-*.css"
+                ],
+                "rules": {
+                    "selector-class-pattern": null,
+                    "csstree/validator": null,
+                    "no-descending-specificity": null,
+                    "alpha-value-notation": null,
+                    "color-function-notation": null,
+                    "color-hex-length": null,
+                    "shorthand-property-no-redundant-values": null,
+                    "no-duplicate-selectors": null,
+                    "rule-empty-line-before": null,
+                    "declaration-block-no-redundant-longhand-properties": null,
+                    "media-feature-range-notation": null,
+                    "comment-empty-line-before": null,
+                    "at-rule-empty-line-before": null,
+                    "value-keyword-case": null,
+                    "custom-property-empty-line-before": null
+                }
+            }
+        ]
     }
 }

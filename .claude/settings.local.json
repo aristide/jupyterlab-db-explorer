@@ -30,8 +30,5 @@
     ]
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "docfork",
-    "brave-search"
-  ]
+  "enabledMcpjsonServers": ["docfork", "brave-search"]
 }

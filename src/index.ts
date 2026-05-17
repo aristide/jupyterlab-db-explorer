@@ -34,7 +34,13 @@ const plugin: JupyterFrontEndPlugin<void> = {
   id: 'jupyterlab-db-explorer:plugin',
   autoStart: true,
   requires: [ILayoutRestorer, IEditorServices, IDocumentManager],
-  optional: [IMainMenu, ISettingRegistry, IThemeManager, ITranslator, IDefaultFileBrowser],
+  optional: [
+    IMainMenu,
+    ISettingRegistry,
+    IThemeManager,
+    ITranslator,
+    IDefaultFileBrowser
+  ],
   activate
 };
 

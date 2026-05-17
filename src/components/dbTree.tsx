@@ -46,15 +46,47 @@ interface IDbTreeState {
 // ─── DB type catalog (brand swatches mirror ConnectionForm + design) ──────
 type DbCatalogEntry = { swatch: string; mono: string; brandSvg: string };
 const DB_CATALOG: Record<number, DbCatalogEntry> = {
-  [ConnType.DB_MYSQL]: { swatch: '#E48E00', mono: 'MY', brandSvg: mysqlBrandSvg },
+  [ConnType.DB_MYSQL]: {
+    swatch: '#E48E00',
+    mono: 'MY',
+    brandSvg: mysqlBrandSvg
+  },
   [ConnType.DB_PGSQL]: { swatch: '#336791', mono: 'PG', brandSvg: postgresSvg },
-  [ConnType.DB_ORACLE]: { swatch: '#C74634', mono: 'OR', brandSvg: oracleBrandSvg },
-  [ConnType.DB_HIVE_LDAP]: { swatch: '#FDB813', mono: 'HV', brandSvg: hiveBrandSvg },
-  [ConnType.DB_HIVE_KERBEROS]: { swatch: '#FDB813', mono: 'HV', brandSvg: hiveBrandSvg },
-  [ConnType.DB_SQLITE]: { swatch: '#003B57', mono: 'SQ', brandSvg: sqliteBrandSvg },
-  [ConnType.DB_TRINO]: { swatch: '#DD00A1', mono: 'TR', brandSvg: trinoBrandSvg },
-  [ConnType.DB_STARROCKS]: { swatch: '#1FA0A0', mono: 'SR', brandSvg: starrocksBrandSvg },
-  [ConnType.DB_SQLSERVER]: { swatch: '#A91D22', mono: 'MS', brandSvg: sqlserverBrandSvg }
+  [ConnType.DB_ORACLE]: {
+    swatch: '#C74634',
+    mono: 'OR',
+    brandSvg: oracleBrandSvg
+  },
+  [ConnType.DB_HIVE_LDAP]: {
+    swatch: '#FDB813',
+    mono: 'HV',
+    brandSvg: hiveBrandSvg
+  },
+  [ConnType.DB_HIVE_KERBEROS]: {
+    swatch: '#FDB813',
+    mono: 'HV',
+    brandSvg: hiveBrandSvg
+  },
+  [ConnType.DB_SQLITE]: {
+    swatch: '#003B57',
+    mono: 'SQ',
+    brandSvg: sqliteBrandSvg
+  },
+  [ConnType.DB_TRINO]: {
+    swatch: '#DD00A1',
+    mono: 'TR',
+    brandSvg: trinoBrandSvg
+  },
+  [ConnType.DB_STARROCKS]: {
+    swatch: '#1FA0A0',
+    mono: 'SR',
+    brandSvg: starrocksBrandSvg
+  },
+  [ConnType.DB_SQLSERVER]: {
+    swatch: '#A91D22',
+    mono: 'MS',
+    brandSvg: sqlserverBrandSvg
+  }
 };
 
 const DB_LABEL: Record<number, string> = {
@@ -284,14 +316,8 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
   render(): React.ReactElement {
     const { model, jp_services } = this.props;
     const { trans } = jp_services;
-    const {
-      filter,
-      expanded,
-      loading,
-      errorKeys,
-      selectedKey,
-      refreshing
-    } = this.state;
+    const { filter, expanded, loading, errorKeys, selectedKey, refreshing } =
+      this.state;
     const rows = buildVisibleRows(
       model,
       this._effectiveExpanded(expanded, filter),
@@ -496,7 +522,10 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
     }
   };
 
-  private _effectiveExpanded(expanded: Set<string>, filter: string): Set<string> {
+  private _effectiveExpanded(
+    expanded: Set<string>,
+    filter: string
+  ): Set<string> {
     // When filtering, force-open all loaded nodes so matches surface without
     // requiring manual expansion. buildVisibleRows still drives visibility
     // off node-matching logic, so non-matching subtrees stay hidden.
@@ -703,8 +732,7 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
     };
 
   private _onHoverMore =
-    (row: TreeRow) =>
-    (ev: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+    (row: TreeRow) => (ev: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
       ev.stopPropagation();
       const menu = this._buildMenu(row);
       if (!menu) {
@@ -715,8 +743,7 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
     };
 
   private _onHoverPreview =
-    (row: TreeRow) =>
-    (ev: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+    (row: TreeRow) => (ev: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
       ev.stopPropagation();
       if (!row.item) {
         return;
@@ -730,8 +757,7 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
     };
 
   private _onHoverCopyTable =
-    (row: TreeRow) =>
-    (ev: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+    (row: TreeRow) => (ev: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
       ev.stopPropagation();
       if (!row.item) {
         return;
@@ -745,8 +771,7 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
     };
 
   private _onHoverCopyName =
-    (row: TreeRow) =>
-    (ev: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+    (row: TreeRow) => (ev: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
       ev.stopPropagation();
       if (!row.item) {
         return;
@@ -946,8 +971,7 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
   };
 
   private _onRowContextMenu =
-    (row: TreeRow) =>
-    (ev: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    (row: TreeRow) => (ev: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
       ev.preventDefault();
       if (row.kind !== 'real' || !row.item) {
         return;

@@ -13,6 +13,7 @@ The deck we received (`uploads/D4N-STATIN-Datalake-Architecture.pptx`) is a work
 The brand sits at the intersection of **public-sector trust** and **modern data tooling**. It needs to read as serious enough for a UN/World Bank partner room and clear enough for a working ministry IT team.
 
 ### Partners visible in the source deck
+
 - **Statistical Institute of Jamaica (STATIN)** — client in this engagement
 - **United Nations DESA Statistics**
 - **The World Bank**
@@ -22,8 +23,9 @@ The brand sits at the intersection of **public-sector trust** and **modern data 
 These are referenced as ecosystem partners — useful context for understanding tone and audience, not part of the Data4Now brand itself.
 
 ### Surfaces this system covers
+
 1. **Slide decks** — client-facing technical proposals (the primary output we have evidence of).
-2. **Web/marketing surface** — implied by the standalone logo, but not provided. UI kit included is a *plausible* recreation flagged below.
+2. **Web/marketing surface** — implied by the standalone logo, but not provided. UI kit included is a _plausible_ recreation flagged below.
 3. **Internal tooling** — could be built on these tokens; no direct evidence in source.
 
 > ⚠️ **Source-fidelity caveat.** The only authoritative material we received is the logo PNG and one PPTX deck. The marketing-site UI kit in `ui_kits/website/` is therefore an **inferred reconstruction** built from the visual DNA of those two assets — not a recreation of an existing site. Please flag corrections.
@@ -32,12 +34,12 @@ These are referenced as ecosystem partners — useful context for understanding 
 
 ## Sources
 
-| Path | What it is |
-|---|---|
-| `uploads/datafornow_logos-original.png` | Original full-color logo (transparent PNG, 960×675) |
+| Path                                            | What it is                                                                     |
+| ----------------------------------------------- | ------------------------------------------------------------------------------ |
+| `uploads/datafornow_logos-original.png`         | Original full-color logo (transparent PNG, 960×675)                            |
 | `uploads/D4N-STATIN-Datalake-Architecture.pptx` | 20-slide technical proposal — primary source for tone, layout, and color usage |
-| `assets/pptx-media/` | Images extracted from the PPTX (cover art, partner logos, diagrams) |
-| `assets/data4now-logo.png` | Working copy of the logo |
+| `assets/pptx-media/`                            | Images extracted from the PPTX (cover art, partner logos, diagrams)            |
+| `assets/data4now-logo.png`                      | Working copy of the logo                                                       |
 
 No Figma file, no codebase, no website URL was provided. If you have any of those, please attach them via the Import menu so we can raise this from "informed inference" to "verified recreation."
 
@@ -49,12 +51,12 @@ Tone is observed from the STATIN deck: confident technical consulting, not marke
 
 ### Voice characteristics
 
-- **Plain English, not jargon-laden.** When jargon must appear (NiFi, Trino, ODBC), it is named once and immediately translated. Example from the deck: *"Trino federates queries to SQL Server and MariaDB via ODBC/JDBC."* The reader is treated as competent but not assumed to know every product name.
-- **Direct, declarative sentences.** Short. Verb-first when possible. Example: *"No data is copied. Trino pushes filters down to each source and merges results in memory."*
-- **Problem → solution framing.** Almost every slide pairs a "Today" pain point with a "Tomorrow" answer. Example: *"Today: admin manually checks SFTP, downloads, renames, moves to folder"* → followed by a numbered NiFi pipeline that automates it. Replicate this structure in marketing copy and case studies.
-- **Comparative language.** "Replaces:" callouts are used heavily. Each component card answers *what does this remove from your life?*
+- **Plain English, not jargon-laden.** When jargon must appear (NiFi, Trino, ODBC), it is named once and immediately translated. Example from the deck: _"Trino federates queries to SQL Server and MariaDB via ODBC/JDBC."_ The reader is treated as competent but not assumed to know every product name.
+- **Direct, declarative sentences.** Short. Verb-first when possible. Example: _"No data is copied. Trino pushes filters down to each source and merges results in memory."_
+- **Problem → solution framing.** Almost every slide pairs a "Today" pain point with a "Tomorrow" answer. Example: _"Today: admin manually checks SFTP, downloads, renames, moves to folder"_ → followed by a numbered NiFi pipeline that automates it. Replicate this structure in marketing copy and case studies.
+- **Comparative language.** "Replaces:" callouts are used heavily. Each component card answers _what does this remove from your life?_
 - **No hype words.** No "revolutionary," "AI-powered," "next-gen," "seamless." If you find yourself reaching for one, name the concrete capability instead.
-- **Plural "we" / second-person "you."** The deck speaks *to* the client: *"the data lake complements your current infrastructure"*, *"connecting to your existing systems"*. Use "you" for clients, "we" for Data4Now, "they" for downstream stakeholders.
+- **Plural "we" / second-person "you."** The deck speaks _to_ the client: _"the data lake complements your current infrastructure"_, _"connecting to your existing systems"_. Use "you" for clients, "we" for Data4Now, "they" for downstream stakeholders.
 
 ### Casing rules
 
@@ -67,7 +69,7 @@ Tone is observed from the STATIN deck: confident technical consulting, not marke
 ### Punctuation & symbols
 
 - **Em dashes** with spaces (`word — word`) for parenthetical asides. Used heavily.
-- **Arrow glyphs** to show pipeline flow: `→` between data zones, `▶` to step through DAGs, `▼` between vertical stages. These are an *intentional motif* — keep them.
+- **Arrow glyphs** to show pipeline flow: `→` between data zones, `▶` to step through DAGs, `▼` between vertical stages. These are an _intentional motif_ — keep them.
 - **Bullet markers** in source decks use `·` or plain bullets. Avoid emoji bullets.
 - **Ampersand** is fine in headings (`Versioning & Volume Backup`); avoid in body.
 - **Colons** introduce examples and lists. Used naturally.
@@ -80,17 +82,17 @@ Tone is observed from the STATIN deck: confident technical consulting, not marke
 
 - **No emoji** in the brand voice. The PPTX has none. Don't introduce any.
 - **No exclamation points.**
-- **No "magic" / "delightful" / "beautifully" / "gorgeously"** language. Data4Now is selling *trustworthy infrastructure*, not delight.
+- **No "magic" / "delightful" / "beautifully" / "gorgeously"** language. Data4Now is selling _trustworthy infrastructure_, not delight.
 - **No "leverage", "synergy", "stakeholder alignment"** McKinsey-speak. The voice is engineer-meets-statistician, not management consultant.
 - **No first-person singular ("I").** Always plural or institutional.
 
 ### Worked sample — the same idea in three contexts
 
-| Surface | Example |
-|---|---|
-| Slide bullet | *"Trino federates SQL Server + MariaDB + MinIO — one query, no exports."* |
-| Marketing hero | *"Query every database you already have. From one place. With the SQL you already write."* |
-| Case-study quote | *"We replaced six weeks of CSV-juggling with a single SELECT statement."* |
+| Surface          | Example                                                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| Slide bullet     | _"Trino federates SQL Server + MariaDB + MinIO — one query, no exports."_                  |
+| Marketing hero   | _"Query every database you already have. From one place. With the SQL you already write."_ |
+| Case-study quote | _"We replaced six weeks of CSV-juggling with a single SELECT statement."_                  |
 
 ---
 
@@ -101,7 +103,7 @@ Tone is observed from the STATIN deck: confident technical consulting, not marke
 The brand runs on **three colors plus a cool-neutral spine**:
 
 - **Navy `#0F3D6E`** is the workhorse — letterforms, headlines, primary buttons, dense text. The deck uses it as the dominant ink color.
-- **Teal `#1FA0A0`** is structural support — section dividers, secondary CTAs, the "FOR" pillar in the wordmark. It carries the *flow / pipeline* metaphor.
+- **Teal `#1FA0A0`** is structural support — section dividers, secondary CTAs, the "FOR" pillar in the wordmark. It carries the _flow / pipeline_ metaphor.
 - **Magenta `#E63558`** is the **single point of emphasis** — used the way the pie wedge is used in the logo: small, intentional, never decorative. Reserve for the one thing on a slide / page that matters most.
 
 Never blend all three in equal weight. A typical slide is ~70% navy/neutral, ~20% teal supporting, ~10% magenta accent (often only one element).
@@ -133,7 +135,7 @@ Display is set **tight** (line-height 1.12–1.28, letter-spacing slightly negat
 - **Fades + small translates only.** 200–320ms with `cubic-bezier(0.2, 0, 0.1, 1)`.
 - **No bouncy / spring** animations. The brand is technical, not playful.
 - **No parallax** on scroll.
-- Pipeline diagrams may animate with a *flow* — arrows or zone-fills sequencing left-to-right — but only on user demand (hover / click), not autoplay.
+- Pipeline diagrams may animate with a _flow_ — arrows or zone-fills sequencing left-to-right — but only on user demand (hover / click), not autoplay.
 
 ### Hover & press states
 
@@ -166,6 +168,7 @@ No inner shadows by default. Avoid the dribbble "neumorphic" double-shadow look.
 ### Cards & containers
 
 The default card pattern:
+
 ```
 background: white
 border: 1px solid var(--d4n-mist)
@@ -174,7 +177,7 @@ shadow: var(--shadow-sm)
 padding: var(--sp-6)         /* 24px */
 ```
 
-For **emphasis cards** (hero stats, key takeaways), elevate to navy fill with white text and *no border*. For **subtle cards** (in dense lists), drop shadow and use only `border: 1px solid var(--border-1)` plus `var(--bg-page)` background.
+For **emphasis cards** (hero stats, key takeaways), elevate to navy fill with white text and _no border_. For **subtle cards** (in dense lists), drop shadow and use only `border: 1px solid var(--border-1)` plus `var(--bg-page)` background.
 
 ### Capsules / pills
 
@@ -201,6 +204,7 @@ Never circular except for avatars and round icon buttons.
 ### Transparency & blur
 
 Used **rarely**. Acceptable cases:
+
 - Sticky header with `backdrop-filter: blur(12px)` and `background: rgba(255,255,255,0.85)` — the only place blur appears in the system.
 - Duotone photo overlays — solid-color rectangles at 75–85% opacity over the photo.
 
@@ -228,7 +232,9 @@ The source deck does **not** use a consistent icon library — most "icons" are 
   ```html
   <script src="https://unpkg.com/lucide@latest"></script>
   <i data-lucide="database" class="d4n-icon"></i>
-  <script>lucide.createIcons();</script>
+  <script>
+    lucide.createIcons();
+  </script>
   ```
 
 - **Stroke weight** standard: 1.75px. Set via `stroke-width` on `<svg>` or pass `--lucide-stroke-width: 1.75` if using the loader.
@@ -247,6 +253,7 @@ The source deck does **not** use a consistent icon library — most "icons" are 
 ### Logo & wordmark
 
 The wordmark is the primary brand mark. Three components:
+
 1. The **DATA / NOW** stacked navy letterforms (tightly set, condensed).
 2. The **vertical "FOR" pillar** in teal between them.
 3. The **pie-chart "O"** in the word "NOW" — navy with a magenta wedge.
@@ -254,6 +261,7 @@ The wordmark is the primary brand mark. Three components:
 Do not separate these into individual marks. The pie wedge is the only place magenta appears in the logo and should not be re-colored.
 
 Logo files in `assets/`:
+
 - `data4now-logo.png` — full color, transparent background
 
 Clearspace: equal to the height of the "F" in "FOR" on all sides. Minimum on-screen width: 120px. Minimum print width: 1 inch.
@@ -262,19 +270,19 @@ Clearspace: equal to the height of the "F" in "FOR" on all sides. Minimum on-scr
 
 ## INDEX — what's in this folder
 
-| Path | Purpose |
-|---|---|
-| `README.md` | This file — start here |
-| `SKILL.md` | Agent-Skills-compatible loader |
-| `colors_and_type.css` | All design tokens — colors, type, spacing, radii, shadows, motion |
-| `fonts/` | Font notes (Montserrat + Roboto loaded from Google Fonts) |
-| `assets/data4now-logo.png` | Primary wordmark |
-| `assets/product-logos/` | Vendor logos referenced in materials (NiFi, MinIO, Trino, etc.) |
-| `assets/pptx-media/` | Raw images extracted from the source deck |
-| `preview/` | Design-system specimen cards (one HTML file per token group) — incl. `tables.html`, `doc-callouts.html`, `doc-page.html` for DOCX-style document work |
-| `slides/` | Slide templates — `index.html` + per-layout JSX components, modeled on the STATIN deck |
-| `ui_kits/website/` | Inferred marketing-site UI kit (homepage hero, features, pricing-style sections, footer) |
-| `uploads/` | Original user-supplied files (don't edit) |
+| Path                       | Purpose                                                                                                                                               |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `README.md`                | This file — start here                                                                                                                                |
+| `SKILL.md`                 | Agent-Skills-compatible loader                                                                                                                        |
+| `colors_and_type.css`      | All design tokens — colors, type, spacing, radii, shadows, motion                                                                                     |
+| `fonts/`                   | Font notes (Montserrat + Roboto loaded from Google Fonts)                                                                                             |
+| `assets/data4now-logo.png` | Primary wordmark                                                                                                                                      |
+| `assets/product-logos/`    | Vendor logos referenced in materials (NiFi, MinIO, Trino, etc.)                                                                                       |
+| `assets/pptx-media/`       | Raw images extracted from the source deck                                                                                                             |
+| `preview/`                 | Design-system specimen cards (one HTML file per token group) — incl. `tables.html`, `doc-callouts.html`, `doc-page.html` for DOCX-style document work |
+| `slides/`                  | Slide templates — `index.html` + per-layout JSX components, modeled on the STATIN deck                                                                |
+| `ui_kits/website/`         | Inferred marketing-site UI kit (homepage hero, features, pricing-style sections, footer)                                                              |
+| `uploads/`                 | Original user-supplied files (don't edit)                                                                                                             |
 
 ---
 

@@ -74,4 +74,3 @@ export interface IConnectionStatus {
   connection: IDBConn | null;
   allow_reset: boolean;
 }
-
