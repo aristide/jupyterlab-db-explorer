@@ -228,4 +228,37 @@ describe('buildVisibleRows', () => {
     const rows = buildVisibleRows(model, expanded, loading, errorKeys, '');
     expect(rows).toEqual([]);
   });
+
+  it('renders a SQL Server conn with the same Databases-group shape as MySQL/PG', () => {
+    const sqlserverConn: IDbItem = {
+      type: 'conn',
+      name: 'MSSQL1',
+      desc: 'SQL Server',
+      subtype: ConnType.DB_SQLSERVER,
+      next: [
+        {
+          type: 'db',
+          name: 'dbo',
+          desc: 'default schema',
+          next: [
+            {
+              type: 'table',
+              name: 'customers',
+              subtype: 'T',
+              next: false
+            }
+          ]
+        }
+      ]
+    };
+    const model = new SqlModel([sqlserverConn]);
+    const { expanded, loading, errorKeys } = emptySets();
+    expanded.add(pathKey([{ type: 'conn', name: 'MSSQL1' }]));
+    const rows = buildVisibleRows(model, expanded, loading, errorKeys, '');
+    expect(rows.map(r => r.label || r.item?.name)).toEqual([
+      'MSSQL1',
+      'Databases'
+    ]);
+    expect(rows[0].item?.subtype).toBe(ConnType.DB_SQLSERVER);
+  });
 });

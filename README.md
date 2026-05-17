@@ -4,13 +4,13 @@
 
 # jupyterlab-db-explorer
 
-A JupyterLab extension for browsing database objects and running SQL queries. Supports multiple database engines including MySQL, PostgreSQL, Hive, Trino, SQLite, Oracle, and StarRocks.
+A JupyterLab extension for browsing database objects and running SQL queries. Supports multiple database engines including MySQL, PostgreSQL, Hive, Trino, SQLite, Oracle, StarRocks, and SQL Server.
 
 ## Features
 
 - Browse and navigate data objects (tables, views, columns) using a tree structure.
 - Run SQL statements directly in JupyterLab and view results.
-- Support for multiple databases: MySQL, PostgreSQL, Hive, Trino, SQLite, Oracle, StarRocks.
+- Support for multiple databases: MySQL, PostgreSQL, Hive, Trino, SQLite, Oracle, StarRocks, SQL Server.
 - Edit annotations for data objects with local and shared (team database) modes.
 
 ## Requirements
@@ -31,7 +31,10 @@ pip install jupyterlab-db-explorer[pgsql]
 pip install jupyterlab-db-explorer[trino]
 pip install jupyterlab-db-explorer[hive]
 pip install jupyterlab-db-explorer[mysql]
+pip install jupyterlab-db-explorer[sqlserver]
 ```
+
+The `[sqlserver]` extra installs the `pyodbc` Python driver. SQL Server also requires the **ODBC Driver 18 for SQL Server** to be installed on the host OS (it is not a Python package). See Microsoft's install instructions for your platform: <https://learn.microsoft.com/sql/connect/odbc/download-odbc-driver-for-sql-server>.
 
 ## Uninstall
 
@@ -156,7 +159,7 @@ By default, all database types are allowed. To restrict which types can be used,
 export DB_EXPLORER_ALLOWED_TYPES=1,2,7
 ```
 
-You can use type codes or names: `mysql`, `pgsql`, `postgres`, `oracle`, `hive`, `hive-ldap`, `hive-kerberos`, `sqlite`, `trino`, `starrocks`.
+You can use type codes or names: `mysql`, `pgsql`, `postgres`, `oracle`, `hive`, `hive-ldap`, `hive-kerberos`, `sqlite`, `trino`, `starrocks`, `sqlserver`, `mssql`.
 
 #### Database Type Codes
 
@@ -170,6 +173,7 @@ You can use type codes or names: `mysql`, `pgsql`, `postgres`, `oracle`, `hive`,
 | 6 | SQLite |
 | 7 | Trino |
 | 8 | StarRocks |
+| 9 | SQL Server |
 
 ### Edit Comments
 

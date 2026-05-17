@@ -6,7 +6,8 @@ export enum ConnType {
   DB_HIVE_KERBEROS = 5,
   DB_SQLITE = 6,
   DB_TRINO = 7,
-  DB_STARROCKS = 8
+  DB_STARROCKS = 8,
+  DB_SQLSERVER = 9
 }
 
 export interface IDbItem {

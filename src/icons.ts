@@ -18,6 +18,7 @@ import sqliteSvg from '../style/icons/sqlite.svg';
 import oracleSvg from '../style/icons/oracle.svg';
 import trinoSvg from '../style/icons/trino.svg';
 import starrocksSvg from '../style/icons/starrocks.svg';
+import sqlserverSvg from '../style/icons/sqlserver.svg';
 
 export const sqlIcon = new LabIcon({
   name: 'sql-explorer',
@@ -102,6 +103,11 @@ export const trinoIcon = new LabIcon({
 export const starrocksIcon = new LabIcon({
   name: 'sql-explorer:starrocks',
   svgstr: starrocksSvg
+});
+
+export const sqlserverIcon = new LabIcon({
+  name: 'sql-explorer:sqlserver',
+  svgstr: sqlserverSvg
 });
 
 export const deleteIcon = new LabIcon({

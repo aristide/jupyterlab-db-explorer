@@ -28,6 +28,7 @@ import {
   sqliteIcon,
   trinoIcon,
   starrocksIcon,
+  sqlserverIcon,
   errorIcon
 } from '../icons';
 import { newSqlConsole } from '../sqlConsole';
@@ -287,6 +288,8 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
         return trinoIcon;
       case ConnType.DB_STARROCKS:
         return starrocksIcon;
+      case ConnType.DB_SQLSERVER:
+        return sqlserverIcon;
       default:
         return sqlIcon;
     }
@@ -500,17 +503,27 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
     schema: string,
     table: string
   ): void {
-    // Dialect-aware quoting (ported from collist.tsx): MySQL/StarRocks use
-    // backticks, others use double quotes.
+    // Dialect-aware quoting: MySQL/StarRocks → backticks, SQL Server →
+    // [brackets], everything else → double quotes.
     const conn = getSqlModel()
       .get_list([])
       .find(c => c.name === dbid);
-    const useBacktick =
+    let qOpen = '"';
+    let qClose = '"';
+    if (
       conn &&
       (conn.subtype === ConnType.DB_MYSQL ||
-        conn.subtype === ConnType.DB_STARROCKS);
-    const q = useBacktick ? '`' : '"';
-    const fq = (schema ? `${q}${schema}${q}.` : '') + `${q}${table}${q}`;
+        conn.subtype === ConnType.DB_STARROCKS)
+    ) {
+      qOpen = '`';
+      qClose = '`';
+    } else if (conn && conn.subtype === ConnType.DB_SQLSERVER) {
+      qOpen = '[';
+      qClose = ']';
+    }
+    const fq =
+      (schema ? `${qOpen}${schema}${qClose}.` : '') +
+      `${qOpen}${table}${qClose}`;
     const sql = `SELECT *\nFROM ${fq} t LIMIT 200`;
     this._openConsole(dbid, sql);
   }

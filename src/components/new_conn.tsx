@@ -36,7 +36,8 @@ const DB_TYPES = [
   { value: '3', label: 'Oracle' },
   { value: '4', label: 'Hive' },
   { value: '7', label: 'Trino' },
-  { value: '8', label: 'StarRocks' }
+  { value: '8', label: 'StarRocks' },
+  { value: '9', label: 'SQL Server' }
 ];
 
 const DEFAULT_PORTS: { [key: string]: string } = {
@@ -46,7 +47,8 @@ const DEFAULT_PORTS: { [key: string]: string } = {
   '4': '10000',
   '5': '10000',
   '7': '8080',
-  '8': '9030'
+  '8': '9030',
+  '9': '1433'
 };
 
 interface IConnFormProps {
@@ -229,12 +231,20 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                 {isSqlite
                   ? trans.__('Database file')
                   : trans.__('Database / schema')}
+                {!isSqlite && (
+                  <>
+                    {' '}
+                    <span className={formOptionalLabel}>
+                      {trans.__('optional')}
+                    </span>
+                  </>
+                )}
               </label>
               <input
                 placeholder={
                   isSqlite
                     ? trans.__('Path to .db file')
-                    : trans.__('Default database to connect to')
+                    : trans.__('Leave blank to browse all')
                 }
                 value={db_name || ''}
                 onChange={this._onChange('db_name')}
@@ -467,23 +477,38 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
     }
     const { trans } = this.props;
     this.setState({ testing: true, testResult: null, testMsg: '' });
-    const result = await this.props.onTest(conn);
-    if (!result.errmsg) {
-      this.setState({
-        testing: false,
-        testResult: 'success',
-        testMsg: trans.__('Connection successful!')
-      });
-      Notification.success(trans.__('Connection successful!'), {
-        autoClose: 5000
-      });
-    } else {
+    try {
+      const result = await this.props.onTest(conn);
+      if (!result.errmsg) {
+        this.setState({
+          testing: false,
+          testResult: 'success',
+          testMsg: trans.__('Connection successful!')
+        });
+        Notification.success(trans.__('Connection successful!'), {
+          autoClose: 5000
+        });
+      } else {
+        this.setState({
+          testing: false,
+          testResult: 'error',
+          testMsg: result.errmsg
+        });
+        Notification.error(result.errmsg, { autoClose: 8000 });
+      }
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'string'
+            ? err
+            : trans.__('Connection test failed.');
       this.setState({
         testing: false,
         testResult: 'error',
-        testMsg: result.errmsg
+        testMsg: msg
       });
-      Notification.error(result.errmsg, { autoClose: 8000 });
+      Notification.error(msg, { autoClose: 8000 });
     }
   };
 

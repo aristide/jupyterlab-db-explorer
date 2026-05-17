@@ -35,6 +35,7 @@ DB_HIVE_KERBEROS = '5'
 DB_SQLITE = '6'
 DB_TRINO = '7'
 DB_STARROCKS = '8'
+DB_SQLSERVER = '9'
 
 _temp_pass_store = dict()
 
@@ -417,10 +418,6 @@ def addEntry(dbinfo, dbfile=DB_CFG):
         if 'db_host' not in dbinfo:
             err = 'must set ip addr.'
 
-    if dbinfo['db_type'] == DB_PGSQL:
-        if 'db_name' not in dbinfo:
-            err = 'postgres must set database name to connect'
-
     if dbinfo['db_type'] == DB_SQLITE:
         if 'db_name' not in dbinfo:
             err = "sqlite must set db name (it's a database file)"
@@ -471,6 +468,7 @@ _TYPE_NAME_MAP = {
     'postgres': DB_PGSQL, 'oracle': DB_ORACLE, 'hive': DB_HIVE_LDAP,
     'hive-ldap': DB_HIVE_LDAP, 'hive-kerberos': DB_HIVE_KERBEROS,
     'sqlite': DB_SQLITE, 'trino': DB_TRINO, 'starrocks': DB_STARROCKS,
+    'sqlserver': DB_SQLSERVER, 'mssql': DB_SQLSERVER,
 }
 
 
@@ -490,7 +488,7 @@ def get_allowed_types():
             continue
         if part in _TYPE_NAME_MAP:
             codes.append(_TYPE_NAME_MAP[part])
-        elif part.isdigit() and 1 <= int(part) <= 8:
+        elif part.isdigit() and 1 <= int(part) <= 9:
             codes.append(part)
     return codes if codes else None
 
@@ -507,14 +505,18 @@ def _getSQL_engine(dbid, db, usedb=None):
     db_user_raw = _resolve_vault_secret(db.get('db_user', ''))
     db_pass_raw = _resolve_vault_secret(db.get('db_pass', ''))
 
-    if usedb is not None and db['db_type'] in [DB_MYSQL, DB_STARROCKS, DB_HIVE_LDAP, DB_HIVE_KERBEROS]:
+    if usedb is not None and db['db_type'] in [
+        DB_MYSQL, DB_STARROCKS, DB_HIVE_LDAP, DB_HIVE_KERBEROS, DB_PGSQL,
+        DB_SQLSERVER
+    ]:
         db_name = usedb
 
     if db['db_type'] == DB_HIVE_KERBEROS:
         db_port = db.get('db_port', 10000)
         principal = db['principal']
         os.system(f"kinit -kt /opt/conda/etc/keytab_{dbid} {principal}")
-        sqlstr = f"hive://{db_host}:{db_port}/{db_name}"
+        kerb_suffix = f"/{db_name}" if db_name else ""
+        sqlstr = f"hive://{db_host}:{db_port}{kerb_suffix}"
         return sqlalchemy.create_engine(sqlstr, connect_args={'auth': 'KERBEROS', 'kerberos_service_name': 'hive'})
 
     # Types that can connect without any credentials at all
@@ -539,21 +541,29 @@ def _getSQL_engine(dbid, db, usedb=None):
         db_user = db_user_raw or 'trino'
         db_pass_encoded = quote_plus(db_pass_raw) if db_pass_raw else ''
 
+    db_suffix = f"/{db_name}" if db_name else ""
+
     if db['db_type'] == DB_MYSQL:
         db_port = db.get('db_port', 3306)
-        sqlstr = f"mysql+pymysql://{db_user}:{db_pass_encoded}@{db_host}:{db_port}/{db_name}"
+        sqlstr = f"mysql+pymysql://{db_user}:{db_pass_encoded}@{db_host}:{db_port}{db_suffix}"
 
     elif db['db_type'] == DB_PGSQL:
+        # PostgreSQL always needs a connect-time database; default to the
+        # `postgres` maintenance DB when none is configured so the user can
+        # browse every other DB they have CONNECT on.
         db_port = db.get('db_port', 5432)
-        sqlstr = f"postgresql://{db_user}:{db_pass_encoded}@{db_host}:{db_port}/{db_name}"
+        pg_db = db_name or 'postgres'
+        sqlstr = f"postgresql://{db_user}:{db_pass_encoded}@{db_host}:{db_port}/{pg_db}"
 
     elif db['db_type'] == DB_ORACLE:
         db_port = db.get('db_port', 1521)
+        if not db_name:
+            raise ValueError("Oracle requires a database/service name")
         sqlstr = f"oracle+cx_Oracle://{db_user}:{db_pass_encoded}@{db_host}:{db_port}/{db_name}"
 
     elif db['db_type'] == DB_HIVE_LDAP:
         db_port = db.get('db_port', 10000)
-        sqlstr = f"hive://{db_user}:{db_pass_encoded}@{db_host}:{db_port}/{db_name}"
+        sqlstr = f"hive://{db_user}:{db_pass_encoded}@{db_host}:{db_port}{db_suffix}"
         return sqlalchemy.create_engine(sqlstr, connect_args={'auth': 'LDAP'})
 
     elif db['db_type'] == DB_SQLITE:
@@ -571,7 +581,7 @@ def _getSQL_engine(dbid, db, usedb=None):
     elif db['db_type'] == DB_TRINO:
         db_port = db.get('db_port', 8080)
         auth_part = f"{db_user}:{db_pass_encoded}@" if db_pass_encoded else f"{db_user}@"
-        sqlstr = f"trino://{auth_part}{db_host}:{db_port}/{db_name}"
+        sqlstr = f"trino://{auth_part}{db_host}:{db_port}{db_suffix}"
 
     elif db['db_type'] == DB_STARROCKS:
         db_port = db.get('db_port', 9030)
@@ -584,7 +594,21 @@ def _getSQL_engine(dbid, db, usedb=None):
             else:
                 db_user = _temp_pass_store[dbid]['user']
                 db_pass_encoded = quote_plus(_temp_pass_store[dbid]['pwd'])
-        sqlstr = f"mysql+pymysql://{db_user}:{db_pass_encoded}@{db_host}:{db_port}/{db_name}"
+        sqlstr = f"mysql+pymysql://{db_user}:{db_pass_encoded}@{db_host}:{db_port}{db_suffix}"
+
+    elif db['db_type'] == DB_SQLSERVER:
+        db_port = db.get('db_port', 1433)
+        # Mirrors the PG pattern: when no default DB is configured connect to
+        # `master` so the user can list every database they can access.
+        sqlserver_db = db_name or 'master'
+        driver = 'ODBC+Driver+18+for+SQL+Server'
+        # TrustServerCertificate=yes is the common dev-server default
+        # (self-signed cert). Production users on properly-signed certs can
+        # remove it from the connection without affecting behavior.
+        sqlstr = (
+            f"mssql+pyodbc://{db_user}:{db_pass_encoded}@{db_host}:{db_port}"
+            f"/{sqlserver_db}?driver={driver}&TrustServerCertificate=yes"
+        )
 
     else:
         raise ValueError("unsupported database type")
