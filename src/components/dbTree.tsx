@@ -91,7 +91,10 @@ type GlyphName =
   | 'view'
   | 'column'
   | 'spinner'
-  | 'warning';
+  | 'warning'
+  | 'dots'
+  | 'eye'
+  | 'copy';
 
 function Glyph({
   name,
@@ -193,6 +196,28 @@ function Glyph({
         <svg {...common}>
           <path d="M10 3l8 14H2l8-14z" />
           <path d="M10 8v4M10 14.5v.5" />
+        </svg>
+      );
+    case 'dots':
+      return (
+        <svg {...common}>
+          <circle cx="5" cy="10" r="1.4" fill="currentColor" stroke="none" />
+          <circle cx="10" cy="10" r="1.4" fill="currentColor" stroke="none" />
+          <circle cx="15" cy="10" r="1.4" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case 'eye':
+      return (
+        <svg {...common}>
+          <path d="M1.8 10s2.9-5.5 8.2-5.5S18.2 10 18.2 10 15.3 15.5 10 15.5 1.8 10 1.8 10z" />
+          <circle cx="10" cy="10" r="2.4" />
+        </svg>
+      );
+    case 'copy':
+      return (
+        <svg {...common}>
+          <rect x="6" y="6" width="10" height="10" rx="1.2" />
+          <path d="M4 12V5.5C4 4.7 4.7 4 5.5 4H12" />
         </svg>
       );
     default:
@@ -367,8 +392,83 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
             rows.map(row => this._renderRow(row, selectedKey, filter))
           )}
         </div>
+
+        {this._renderFooter()}
       </section>
     );
+  }
+
+  private _renderFooter(): React.ReactElement {
+    const { trans } = this.props.jp_services;
+    const { selectedPath } = this.state;
+    const breadcrumb =
+      selectedPath.length > 0
+        ? selectedPath.map(p => p.name).join('  ›  ')
+        : trans.__('No selection');
+    const counts =
+      selectedPath.length > 0 ? this._countDescendants(selectedPath[0]) : null;
+    const metaText = counts
+      ? `${counts.schemas} ${trans.__('schemas')} · ${counts.tables} ${trans.__('tables')}${counts.views ? ` · ${counts.views} ${trans.__('views')}` : ''}`
+      : '';
+    return (
+      <footer className="d4n-tv__footer">
+        <span className="d4n-tv__footer-dot" aria-hidden="true" />
+        <span
+          className="d4n-tv__footer-path"
+          title={selectedPath.map(p => p.name).join(' / ')}
+        >
+          {breadcrumb}
+        </span>
+        {metaText && (
+          <>
+            <span className="d4n-tv__footer-sep" aria-hidden="true" />
+            <span className="d4n-tv__footer-meta">{metaText}</span>
+          </>
+        )}
+      </footer>
+    );
+  }
+
+  /** Walk the raw model tree under a connection and tally schemas / tables /
+   *  views for the footer status line. Uses the same internal _item_list
+   *  access pattern as treeModel.ts. */
+  private _countDescendants(connItem: IDbItem): {
+    schemas: number;
+    tables: number;
+    views: number;
+  } {
+    const root = (this.props.model as unknown as { _item_list: IDbItem[] })
+      ._item_list;
+    let schemas = 0;
+    let tables = 0;
+    let views = 0;
+    const walk = (item: IDbItem): void => {
+      if (item.type === 'db') {
+        schemas++;
+      }
+      if (item.type === 'table') {
+        if (item.subtype === 'V') {
+          views++;
+        } else {
+          tables++;
+        }
+      }
+      const next = item.next;
+      if (Array.isArray(next)) {
+        for (const c of next) {
+          walk(c);
+        }
+      }
+    };
+    const conn = root.find(
+      c => c.name === connItem.name && c.type === connItem.type
+    );
+    if (conn && Array.isArray(conn.next)) {
+      for (const c of conn.next) {
+        walk(c);
+      }
+    }
+    return { schemas, tables, views };
   }
 
   /** Public — called by SqlPanel's Refresh toolbar button if it holds a ref.
@@ -478,6 +578,10 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
           )}
         </span>
 
+        {row.kind === 'group' && typeof row.count === 'number' && (
+          <span className="d4n-tv__count">{row.count}</span>
+        )}
+
         {row.kind === 'real' && row.item?.type === 'conn' && row.item.desc && (
           <span className="d4n-tv__sublabel">{row.item.desc}</span>
         )}
@@ -485,6 +589,8 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
         {row.kind === 'real' && row.item?.type === 'col' && row.item.desc && (
           <span className="d4n-tv__col-type">{row.item.desc}</span>
         )}
+
+        {this._renderHoverActions(row)}
 
         {row.isLoading && (
           <span
@@ -506,6 +612,147 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
       </div>
     );
   }
+
+  private _renderHoverActions(row: TreeRow): React.ReactElement | null {
+    if (row.kind !== 'real' || !row.item) {
+      return null;
+    }
+    const { trans } = this.props.jp_services;
+    const item = row.item;
+    if (item.type === 'conn') {
+      return (
+        <span className="d4n-tv__hover">
+          <button
+            type="button"
+            className="d4n-tv-mini"
+            aria-label={trans.__('Refresh connection')}
+            title={trans.__('Refresh connection')}
+            onClick={this._onHoverRefreshConn(row)}
+          >
+            <Glyph name="refresh" size={12} />
+          </button>
+          <button
+            type="button"
+            className="d4n-tv-mini"
+            aria-label={trans.__('More')}
+            title={trans.__('More')}
+            onClick={this._onHoverMore(row)}
+          >
+            <Glyph name="dots" size={14} />
+          </button>
+        </span>
+      );
+    }
+    if (item.type === 'table') {
+      return (
+        <span className="d4n-tv__hover">
+          <button
+            type="button"
+            className="d4n-tv-mini"
+            aria-label={trans.__('Preview rows')}
+            title={trans.__('Preview rows')}
+            onClick={this._onHoverPreview(row)}
+          >
+            <Glyph name="eye" size={12} />
+          </button>
+          <button
+            type="button"
+            className="d4n-tv-mini"
+            aria-label={trans.__('Copy name')}
+            title={trans.__('Copy name')}
+            onClick={this._onHoverCopyTable(row)}
+          >
+            <Glyph name="copy" size={12} />
+          </button>
+        </span>
+      );
+    }
+    if (item.type === 'db') {
+      return (
+        <span className="d4n-tv__hover">
+          <button
+            type="button"
+            className="d4n-tv-mini"
+            aria-label={trans.__('Copy name')}
+            title={trans.__('Copy name')}
+            onClick={this._onHoverCopyName(row)}
+          >
+            <Glyph name="copy" size={12} />
+          </button>
+        </span>
+      );
+    }
+    return null;
+  }
+
+  private _onHoverRefreshConn =
+    (row: TreeRow) =>
+    async (ev: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+      ev.stopPropagation();
+      if (!row.item) {
+        return;
+      }
+      const conn = row.item;
+      this.props.model.refresh([conn]);
+      const key = pathKey([conn]);
+      const errorKeys = new Set(this.state.errorKeys);
+      errorKeys.delete(key);
+      this.setState({ errorKeys });
+      await this._safeLoad([conn]);
+      this._bump();
+    };
+
+  private _onHoverMore =
+    (row: TreeRow) =>
+    (ev: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+      ev.stopPropagation();
+      const menu = this._buildMenu(row);
+      if (!menu) {
+        return;
+      }
+      const rect = ev.currentTarget.getBoundingClientRect();
+      menu.open(rect.left, rect.bottom);
+    };
+
+  private _onHoverPreview =
+    (row: TreeRow) =>
+    (ev: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+      ev.stopPropagation();
+      if (!row.item) {
+        return;
+      }
+      const dbid = row.ancestors[0]?.name || '';
+      const schemaItem =
+        row.ancestors.length >= 2 ? row.ancestors[1] : undefined;
+      const schema =
+        schemaItem && schemaItem.type === 'db' ? schemaItem.name : '';
+      this._openConsoleForTable(dbid, schema, row.item.name);
+    };
+
+  private _onHoverCopyTable =
+    (row: TreeRow) =>
+    (ev: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+      ev.stopPropagation();
+      if (!row.item) {
+        return;
+      }
+      const schemaItem =
+        row.ancestors.length >= 2 ? row.ancestors[1] : undefined;
+      const schema =
+        schemaItem && schemaItem.type === 'db' ? schemaItem.name : '';
+      const fq = schema ? `${schema}.${row.item.name}` : row.item.name;
+      Clipboard.copyToSystem(fq);
+    };
+
+  private _onHoverCopyName =
+    (row: TreeRow) =>
+    (ev: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+      ev.stopPropagation();
+      if (!row.item) {
+        return;
+      }
+      Clipboard.copyToSystem(row.item.name);
+    };
 
   private _rowTypeClass(row: TreeRow): string {
     if (row.kind === 'group') {

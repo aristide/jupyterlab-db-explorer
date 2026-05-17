@@ -140,6 +140,13 @@ interface IConnFormState extends Partial<IDBConn> {
   /** db_port has been edited manually — stop replacing it with the default
    *  when the user picks a different DB type. */
   portTouched?: boolean;
+  /** Advanced-options disclosure open state. */
+  advancedOpen?: boolean;
+  /** UI-only for now (not yet wired through engine.py): captured in state and
+   *  passed through to onSubmit's IDBConn, but the backend ignores them. */
+  db_ssl_mode?: string;
+  db_conn_timeout?: string;
+  db_conn_opts?: string;
 }
 
 export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
@@ -160,7 +167,11 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
       testState: 'idle',
       testMsg: '',
       idTouched: !!initial.db_id,
-      portTouched: !!initial.db_port
+      portTouched: !!initial.db_port,
+      advancedOpen: false,
+      db_ssl_mode: 'prefer',
+      db_conn_timeout: '10',
+      db_conn_opts: ''
     };
   }
 
@@ -179,7 +190,11 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
       authMode,
       showPwd,
       testState,
-      testMsg
+      testMsg,
+      advancedOpen,
+      db_ssl_mode,
+      db_conn_timeout,
+      db_conn_opts
     } = this.state;
 
     const useVault = !!vaultEnabled && authMode === 'vault';
@@ -389,6 +404,102 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                     />
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  className={`d4n-disclose${advancedOpen ? ' is-open' : ''}`}
+                  aria-expanded={!!advancedOpen}
+                  onClick={() =>
+                    this.setState({ advancedOpen: !advancedOpen })
+                  }
+                >
+                  {this._glyph('chev', 14)}
+                  <span>{trans.__('Advanced options')}</span>
+                  <span className="d4n-disclose__hint">
+                    {trans.__('SSL · connection params')}
+                  </span>
+                </button>
+                {advancedOpen && (
+                  <div className="d4n-cf__advanced">
+                    <div className="d4n-cf__grid">
+                      <div className="d4n-field">
+                        <div className="d4n-field__head">
+                          <label htmlFor="cn-ssl" className="d4n-field__label">
+                            {trans.__('SSL mode')}
+                          </label>
+                        </div>
+                        <div className="d4n-select-wrap">
+                          <select
+                            id="cn-ssl"
+                            className="d4n-select"
+                            value={db_ssl_mode || 'prefer'}
+                            onChange={ev =>
+                              this.setState({ db_ssl_mode: ev.target.value })
+                            }
+                          >
+                            <option value="disable">disable</option>
+                            <option value="allow">allow</option>
+                            <option value="prefer">prefer</option>
+                            <option value="require">require</option>
+                            <option value="verify-ca">verify-ca</option>
+                            <option value="verify-full">verify-full</option>
+                          </select>
+                          {this._glyph('chev', 14)}
+                        </div>
+                      </div>
+                      <div className="d4n-field">
+                        <div className="d4n-field__head">
+                          <label
+                            htmlFor="cn-timeout"
+                            className="d4n-field__label"
+                          >
+                            {trans.__('Connect timeout')}
+                            <span className="d4n-field__optional">
+                              {' '}
+                              {trans.__('seconds')}
+                            </span>
+                          </label>
+                        </div>
+                        <input
+                          id="cn-timeout"
+                          className="d4n-input d4n-mono"
+                          value={db_conn_timeout || ''}
+                          inputMode="numeric"
+                          onChange={ev =>
+                            this.setState({
+                              db_conn_timeout: ev.target.value
+                                .replace(/[^\d]/g, '')
+                                .slice(0, 4)
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="d4n-field">
+                      <div className="d4n-field__head">
+                        <label htmlFor="cn-opts" className="d4n-field__label">
+                          {trans.__('Extra connection params')}
+                          <span className="d4n-field__optional">
+                            {' '}
+                            {trans.__('key=value pairs, one per line')}
+                          </span>
+                        </label>
+                      </div>
+                      <textarea
+                        id="cn-opts"
+                        className="d4n-input d4n-textarea d4n-mono"
+                        rows={3}
+                        value={db_conn_opts || ''}
+                        placeholder={
+                          'application_name=jl-dbx\nsearch_path=public,raw'
+                        }
+                        onChange={ev =>
+                          this.setState({ db_conn_opts: ev.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </section>
@@ -416,28 +527,26 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                       {trans.__('Credential source')}
                     </label>
                   </div>
-                  <div className="d4n-dbpills" role="radiogroup">
+                  <div className="d4n-segmented" role="radiogroup">
                     <button
                       type="button"
                       role="radio"
                       aria-checked={authMode === 'direct'}
-                      className={`d4n-dbpill${authMode === 'direct' ? ' is-selected' : ''}`}
+                      className={`d4n-seg${authMode === 'direct' ? ' is-active' : ''}`}
                       onClick={() => this._setAuthMode('direct')}
                     >
-                      <span className="d4n-dbpill__label">
-                        {trans.__('Credentials')}
-                      </span>
+                      {this._glyph('shield', 14)}
+                      {trans.__('Credentials')}
                     </button>
                     <button
                       type="button"
                       role="radio"
                       aria-checked={authMode === 'vault'}
-                      className={`d4n-dbpill${authMode === 'vault' ? ' is-selected' : ''}`}
+                      className={`d4n-seg${authMode === 'vault' ? ' is-active' : ''}`}
                       onClick={() => this._setAuthMode('vault')}
                     >
-                      <span className="d4n-dbpill__label">
-                        {trans.__('Vault reference')}
-                      </span>
+                      {this._glyph('vault', 14)}
+                      {trans.__('Vault reference')}
                     </button>
                   </div>
                 </div>
@@ -532,18 +641,45 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
         <footer className="d4n-cf__footer">
           {testState !== 'idle' && (
             <div
-              className={
-                'd4n-field__msg' +
-                (testState === 'error' ? ' d4n-field__msg--err' : '')
-              }
+              className={`d4n-testresult is-${testState}`}
               role="status"
-              style={{ marginBottom: 8 }}
             >
-              {testState === 'loading' && trans.__('Testing connection…')}
-              {testState === 'success' &&
-                (testMsg || trans.__('Connection successful.'))}
-              {testState === 'error' &&
-                (testMsg || trans.__('Could not connect.'))}
+              <span className="d4n-testresult__icon">
+                {testState === 'loading' && this._glyph('spinner', 14)}
+                {testState === 'success' && this._glyph('check', 14)}
+                {testState === 'error' && this._glyph('warn', 14)}
+              </span>
+              <div className="d4n-testresult__text">
+                {testState === 'loading' && trans.__('Testing connection…')}
+                {testState === 'success' && trans.__('Connection successful')}
+                {testState === 'error' && trans.__('Could not connect')}
+                {testMsg && (
+                  <span className="d4n-testresult__sub">{testMsg}</span>
+                )}
+              </div>
+              <div className="d4n-testresult__actions">
+                {testState === 'error' && (
+                  <button
+                    type="button"
+                    className="d4n-link"
+                    onClick={this._onTest}
+                  >
+                    {this._glyph('refresh', 12)} {trans.__('Retry')}
+                  </button>
+                )}
+                {testState !== 'loading' && (
+                  <button
+                    type="button"
+                    className="d4n-iconbtn"
+                    aria-label={trans.__('Dismiss')}
+                    onClick={() =>
+                      this.setState({ testState: 'idle', testMsg: '' })
+                    }
+                  >
+                    {this._glyph('close', 14)}
+                  </button>
+                )}
+              </div>
             </div>
           )}
           <div className="d4n-cf__footer-row">
@@ -625,6 +761,52 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
             <path d="M7.2 6.4C4.6 7.7 1.8 10 1.8 10S4.7 15.5 10 15.5c1.6 0 3-.4 4.1-1" />
             <path d="M9 5.6c.33-.06.66-.1 1-.1 5.3 0 8.2 5.5 8.2 5.5-.4.78-1 1.7-1.86 2.6" />
             <path d="M11.7 11.7a2.4 2.4 0 01-3.4-3.4" />
+          </svg>
+        );
+      case 'shield':
+        return (
+          <svg {...p}>
+            <path d="M10 2.5L4 4.5v4.8c0 3.7 2.6 6.6 6 8.2 3.4-1.6 6-4.5 6-8.2V4.5l-6-2z" />
+          </svg>
+        );
+      case 'vault':
+        return (
+          <svg {...p}>
+            <rect x="3" y="4.5" width="14" height="11" rx="1.5" />
+            <circle cx="10" cy="10" r="2.4" />
+            <path d="M10 7.6V10M14.8 12.5l1.2 1.2M5.2 12.5L4 13.7" />
+          </svg>
+        );
+      case 'check':
+        return (
+          <svg {...p}>
+            <path d="M4 10.5l4 4 8-9" />
+          </svg>
+        );
+      case 'warn':
+        return (
+          <svg {...p}>
+            <path d="M10 3l8 14H2L10 3z" />
+            <path d="M10 8.5v3.8M10 14.4v.1" strokeWidth={2} />
+          </svg>
+        );
+      case 'spinner':
+        return (
+          <svg {...p}>
+            <path d="M10 2a8 8 0 018 8" strokeWidth={2} />
+          </svg>
+        );
+      case 'chev':
+        return (
+          <svg {...p}>
+            <path d="M6 8l4 4 4-4" />
+          </svg>
+        );
+      case 'refresh':
+        return (
+          <svg {...p}>
+            <path d="M3 10a7 7 0 0112-4.9L17 8" />
+            <path d="M17 3v5h-5" />
           </svg>
         );
       default:
@@ -738,6 +920,24 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
       const val = this.state[f];
       if (val !== undefined && val !== '') {
         (conn as unknown as Record<string, unknown>)[f] = val;
+      }
+    }
+    // Advanced options — UI-captured for now; the backend can pick them up
+    // when engine.py is extended to honor these knobs. Only emit non-default
+    // values so unchanged forms produce the same IDBConn shape as before.
+    const advanced = this.state;
+    if (advanced.advancedOpen) {
+      if (advanced.db_ssl_mode && advanced.db_ssl_mode !== 'prefer') {
+        (conn as unknown as Record<string, unknown>).db_ssl_mode =
+          advanced.db_ssl_mode;
+      }
+      if (advanced.db_conn_timeout && advanced.db_conn_timeout !== '10') {
+        (conn as unknown as Record<string, unknown>).db_conn_timeout =
+          advanced.db_conn_timeout;
+      }
+      if (advanced.db_conn_opts) {
+        (conn as unknown as Record<string, unknown>).db_conn_opts =
+          advanced.db_conn_opts;
       }
     }
     return conn;
