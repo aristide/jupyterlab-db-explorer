@@ -1,55 +1,120 @@
 import * as React from 'react';
 import { TranslationBundle } from '@jupyterlab/translation';
 import { Notification } from '@jupyterlab/apputils';
-import { IDBConn } from '../interfaces';
-import { sqlIcon } from '../icons';
-import {
-  connFormStyle,
-  connFormHeader,
-  connFormBody,
-  formGroupStyle,
-  formFieldStyle,
-  formRowStyle,
-  errStyle,
-  formSectionTitle,
-  formHeaderStyle,
-  formHeaderIconStyle,
-  formHeaderTextStyle,
-  formDivider,
-  dbTypePicker,
-  dbTypeOption,
-  dbTypeOptionSelected,
-  formBottomBar,
-  formBottomBarLead,
-  formBottomBarActions,
-  formBtnOutline,
-  formBtnPrimary,
-  formBtnTest,
-  formOptionalLabel,
-  formTestSuccess
-} from './styles';
+import { IDBConn, ConnType } from '../interfaces';
 
-const DB_TYPES = [
-  { value: '2', label: 'PostgreSQL' },
-  { value: '1', label: 'MySQL' },
-  { value: '6', label: 'SQLite' },
-  { value: '3', label: 'Oracle' },
-  { value: '4', label: 'Hive' },
-  { value: '7', label: 'Trino' },
-  { value: '8', label: 'StarRocks' },
-  { value: '9', label: 'SQL Server' }
+// Brand SVG strings — masked into the pill's colored swatch.
+import postgresSvg from '../../style/db-icons/postgresql.svg';
+import mysqlSvg from '../../style/db-icons/mysql.svg';
+import sqliteSvg from '../../style/db-icons/sqlite.svg';
+import oracleSvg from '../../style/db-icons/oracle.svg';
+import hiveSvg from '../../style/db-icons/apachehive.svg';
+import trinoSvg from '../../style/db-icons/trino.svg';
+import starrocksSvg from '../../style/db-icons/starrocks.svg';
+import sqlserverSvg from '../../style/db-icons/microsoftsqlserver.svg';
+
+function svgToDataUrl(svg: string): string {
+  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
+}
+
+type DbTypeEntry = {
+  value: string;        // numeric ConnType code as a string
+  label: string;
+  defaultPort: string;
+  swatch: string;
+  mono: string;
+  glyphUrl: string;
+  hostHint: string;
+  filePath?: boolean;
+};
+
+const DB_TYPES: DbTypeEntry[] = [
+  {
+    value: String(ConnType.DB_PGSQL),
+    label: 'PostgreSQL',
+    defaultPort: '5432',
+    swatch: '#336791',
+    mono: 'PG',
+    glyphUrl: svgToDataUrl(postgresSvg),
+    hostHint: 'e.g. db.example.com'
+  },
+  {
+    value: String(ConnType.DB_MYSQL),
+    label: 'MySQL',
+    defaultPort: '3306',
+    swatch: '#E48E00',
+    mono: 'MY',
+    glyphUrl: svgToDataUrl(mysqlSvg),
+    hostHint: 'e.g. mysql.example.com'
+  },
+  {
+    value: String(ConnType.DB_SQLSERVER),
+    label: 'SQL Server',
+    defaultPort: '1433',
+    swatch: '#A91D22',
+    mono: 'MS',
+    glyphUrl: svgToDataUrl(sqlserverSvg),
+    hostHint: 'e.g. mssql.example.com'
+  },
+  {
+    value: String(ConnType.DB_SQLITE),
+    label: 'SQLite',
+    defaultPort: '',
+    swatch: '#003B57',
+    mono: 'SQ',
+    glyphUrl: svgToDataUrl(sqliteSvg),
+    hostHint: 'Path to .db file',
+    filePath: true
+  },
+  {
+    value: String(ConnType.DB_ORACLE),
+    label: 'Oracle',
+    defaultPort: '1521',
+    swatch: '#C74634',
+    mono: 'OR',
+    glyphUrl: svgToDataUrl(oracleSvg),
+    hostHint: 'e.g. oracle.example.com'
+  },
+  {
+    value: String(ConnType.DB_HIVE_LDAP),
+    label: 'Hive',
+    defaultPort: '10000',
+    swatch: '#FDB813',
+    mono: 'HV',
+    glyphUrl: svgToDataUrl(hiveSvg),
+    hostHint: 'HiveServer2 host'
+  },
+  {
+    value: String(ConnType.DB_TRINO),
+    label: 'Trino',
+    defaultPort: '8080',
+    swatch: '#DD00A1',
+    mono: 'TR',
+    glyphUrl: svgToDataUrl(trinoSvg),
+    hostHint: 'Trino coordinator host'
+  },
+  {
+    value: String(ConnType.DB_STARROCKS),
+    label: 'StarRocks',
+    defaultPort: '9030',
+    swatch: '#1FA0A0',
+    mono: 'SR',
+    glyphUrl: svgToDataUrl(starrocksSvg),
+    hostHint: 'FE host (query port)'
+  }
 ];
 
-const DEFAULT_PORTS: { [key: string]: string } = {
-  '1': '3306',
-  '2': '5432',
-  '3': '1521',
-  '4': '10000',
-  '5': '10000',
-  '7': '8080',
-  '8': '9030',
-  '9': '1433'
-};
+function findType(value: string | undefined): DbTypeEntry {
+  return DB_TYPES.find(t => t.value === value) || DB_TYPES[0];
+}
+
+function slugify(s: string): string {
+  return (s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32);
+}
 
 interface IConnFormProps {
   trans: TranslationBundle;
@@ -62,19 +127,25 @@ interface IConnFormProps {
 }
 
 type TAuthMode = 'direct' | 'vault';
+type TTestState = 'idle' | 'loading' | 'success' | 'error';
 
 interface IConnFormState extends Partial<IDBConn> {
   submitting?: boolean;
-  testing?: boolean;
-  testResult?: 'success' | 'error' | null;
-  testMsg?: string;
   authMode?: TAuthMode;
+  showPwd?: boolean;
+  testState?: TTestState;
+  testMsg?: string;
+  /** db_id has been edited manually — stop auto-slugging from name. */
+  idTouched?: boolean;
+  /** db_port has been edited manually — stop replacing it with the default
+   *  when the user picks a different DB type. */
+  portTouched?: boolean;
 }
 
 export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
   constructor(props: IConnFormProps) {
     super(props);
-    const initial = { db_type: '2', db_id: '', ...this.props.conn };
+    const initial = { db_type: String(ConnType.DB_PGSQL), db_id: '', ...this.props.conn };
     const initialAuth: TAuthMode =
       props.vaultEnabled &&
       typeof initial.db_user === 'string' &&
@@ -84,14 +155,17 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
     this.state = {
       ...initial,
       submitting: false,
-      testing: false,
-      testResult: null,
+      authMode: initialAuth,
+      showPwd: false,
+      testState: 'idle',
       testMsg: '',
-      authMode: initialAuth
+      idTouched: !!initial.db_id,
+      portTouched: !!initial.db_port
     };
   }
 
   render(): React.ReactElement {
+    const { trans, allowedTypes, vaultEnabled, onCancel, onTest } = this.props;
     const {
       db_id,
       db_type,
@@ -101,348 +175,557 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
       db_user,
       db_pass,
       name,
-      errmsg,
       submitting,
-      testing,
-      testResult,
-      testMsg,
-      authMode
+      authMode,
+      showPwd,
+      testState,
+      testMsg
     } = this.state;
-    const { trans, onCancel, onTest, allowedTypes, vaultEnabled } = this.props;
+
     const useVault = !!vaultEnabled && authMode === 'vault';
-    const isSqlite = db_type === '6';
-    const defaultPort = DEFAULT_PORTS[db_type || '2'] || '';
     const visibleTypes =
       allowedTypes && allowedTypes.length > 0
         ? DB_TYPES.filter(t => allowedTypes.includes(t.value))
         : DB_TYPES;
+    const currentType = findType(db_type);
+    const isFilePath = !!currentType.filePath;
+    const portPlaceholder = currentType.defaultPort || '';
 
     return (
-      <div className={connFormStyle}>
-        {/* ---- Fixed Header ---- */}
-        <div className={connFormHeader}>
-          <div className={formHeaderStyle}>
-            <div className={formHeaderIconStyle}>
-              <sqlIcon.react tag="span" width="28px" height="28px" />
+      <form
+        className="d4n-cf d4n-cf--refined d4n-cf--comfortable-density"
+        onSubmit={this._onSubmitForm}
+        noValidate
+      >
+        <header className="d4n-cf__header">
+          <div className="d4n-cf__header-row">
+            <div className="d4n-cf__icon">{this._glyph('db', 18)}</div>
+            <div className="d4n-cf__titles">
+              <h2 className="d4n-cf__title">{trans.__('New connection')}</h2>
+              <p className="d4n-cf__subtitle">
+                {trans.__('Configure database credentials for the explorer.')}
+              </p>
             </div>
-            <div className={formHeaderTextStyle}>
-              <div className="title">{trans.__('New connection')}</div>
-              <div className="subtitle">
-                {trans.__('Configure database credentials')}
-              </div>
-            </div>
+            {onCancel && (
+              <button
+                type="button"
+                className="d4n-iconbtn d4n-cf__close"
+                aria-label={trans.__('Close')}
+                onClick={onCancel}
+              >
+                {this._glyph('close', 16)}
+              </button>
+            )}
           </div>
-          <hr className={formDivider} />
-        </div>
+        </header>
 
-        {/* ---- Scrollable Body ---- */}
-        <div className={connFormBody}>
-          {/* Error / Test result */}
-          {errmsg && <div className={errStyle}>{errmsg}</div>}
-          {testResult === 'success' && (
-            <div className={formTestSuccess}>{testMsg}</div>
-          )}
-          {testResult === 'error' && <div className={errStyle}>{testMsg}</div>}
-
-          {/* Name & Identifier */}
-          <div className={formGroupStyle}>
-            <div className={formRowStyle}>
-              <div className={formFieldStyle}>
-                <label>{trans.__('Connection name')}</label>
+        <div className="d4n-cf__scroll">
+          {/* Identity */}
+          <section className="d4n-cf__sec">
+            <div className="d4n-cf__grid">
+              <div className="d4n-field">
+                <div className="d4n-field__head">
+                  <label htmlFor="cn-name" className="d4n-field__label">
+                    {trans.__('Connection name')}
+                  </label>
+                </div>
                 <input
-                  placeholder={trans.__('production-db')}
+                  id="cn-name"
+                  className="d4n-input"
                   value={name || ''}
-                  onChange={this._onChange('name')}
+                  placeholder={trans.__('production-db')}
+                  onChange={this._onNameChange}
+                  autoComplete="off"
                 />
               </div>
-              <div className={formFieldStyle}>
-                <label>{trans.__('Identifier')}</label>
-                <input
-                  placeholder={trans.__('Auto-generated')}
-                  value={db_id || ''}
-                  onChange={this._onChange('db_id')}
-                />
+              <div className="d4n-field">
+                <div className="d4n-field__head">
+                  <label htmlFor="cn-id" className="d4n-field__label">
+                    {trans.__('Identifier')}
+                    <span className="d4n-field__optional">
+                      {' '}
+                      {trans.__('optional')}
+                    </span>
+                  </label>
+                </div>
+                <div className="d4n-input-wrap">
+                  <span className="d4n-input-prefix d4n-mono">id:</span>
+                  <input
+                    id="cn-id"
+                    className="d4n-input d4n-input--prefixed d4n-mono"
+                    value={db_id || ''}
+                    placeholder={trans.__('auto-generated')}
+                    onChange={this._onIdChange}
+                  />
+                </div>
               </div>
             </div>
+          </section>
 
-            {/* Database Type */}
-            <div className={formFieldStyle}>
-              <label>{trans.__('Database type')}</label>
-              <div className={dbTypePicker}>
+          {/* DB type */}
+          <section className="d4n-cf__sec">
+            <div className="d4n-field">
+              <div className="d4n-field__head">
+                <label className="d4n-field__label">
+                  {trans.__('Database type')}
+                </label>
+              </div>
+              <div
+                className="d4n-dbpills"
+                role="radiogroup"
+                aria-label={trans.__('Database type')}
+              >
                 {visibleTypes.map(t => (
                   <button
                     key={t.value}
-                    className={
-                      db_type === t.value ? dbTypeOptionSelected : dbTypeOption
-                    }
-                    onClick={() =>
-                      this.setState({
-                        db_type: t.value,
-                        errmsg: undefined,
-                        testResult: null
-                      })
-                    }
                     type="button"
+                    role="radio"
+                    aria-checked={t.value === db_type}
+                    className={`d4n-dbpill${t.value === db_type ? ' is-selected' : ''}`}
+                    onClick={() => this._onPickType(t)}
                   >
-                    {t.label}
+                    <span
+                      className="d4n-dbpill__dot"
+                      style={{ background: t.swatch }}
+                      aria-hidden="true"
+                    >
+                      <span
+                        className="d4n-dbpill__badge"
+                        data-icon
+                        style={{ ['--db-icon' as string]: t.glyphUrl }}
+                      />
+                    </span>
+                    <span className="d4n-dbpill__label">{t.label}</span>
                   </button>
                 ))}
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* SERVER section */}
-          {!isSqlite && (
-            <>
-              <hr className={formDivider} />
-              <div className={formSectionTitle}>{trans.__('SERVER')}</div>
-              <div className={formGroupStyle}>
-                <div className={formRowStyle}>
-                  <div className={formFieldStyle}>
-                    <label>{trans.__('Host')}</label>
+          {/* Server */}
+          <section className="d4n-cf__sec d4n-cf__sec--block">
+            <div className="d4n-sechead">
+              <div className="d4n-sechead__row">
+                <span className="d4n-sechead__eyebrow">{trans.__('Server')}</span>
+                <span className="d4n-sechead__hint">
+                  {isFilePath
+                    ? trans.__('SQLite is file-based')
+                    : trans.__('Where the database lives')}
+                </span>
+              </div>
+            </div>
+            {isFilePath ? (
+              <div className="d4n-cf__grid">
+                <div className="d4n-field d4n-span-2">
+                  <div className="d4n-field__head">
+                    <label htmlFor="cn-file" className="d4n-field__label">
+                      {trans.__('Database file')}
+                    </label>
+                  </div>
+                  <input
+                    id="cn-file"
+                    className="d4n-input d4n-mono"
+                    value={db_name || ''}
+                    placeholder={trans.__('Path to .db file')}
+                    onChange={this._onChange('db_name')}
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="d4n-cf__grid d4n-cf__grid--3-2">
+                  <div className="d4n-field d4n-span-2">
+                    <div className="d4n-field__head">
+                      <label htmlFor="cn-host" className="d4n-field__label">
+                        {trans.__('Host')}
+                      </label>
+                    </div>
                     <input
-                      placeholder={trans.__('e.g. db.example.com')}
+                      id="cn-host"
+                      className="d4n-input d4n-mono"
                       value={db_host || ''}
+                      placeholder={trans.__(currentType.hostHint)}
                       onChange={this._onChange('db_host')}
+                      autoComplete="off"
                     />
                   </div>
-                  <div className={formFieldStyle}>
-                    <label>
-                      {trans.__('Port')}{' '}
-                      <span className={formOptionalLabel}>
-                        {trans.__('optional')}
-                      </span>
-                    </label>
+                  <div className="d4n-field">
+                    <div className="d4n-field__head">
+                      <label htmlFor="cn-port" className="d4n-field__label">
+                        {trans.__('Port')}
+                        <span className="d4n-field__optional">
+                          {' '}
+                          {trans.__('optional')}
+                        </span>
+                      </label>
+                    </div>
                     <input
-                      placeholder={defaultPort}
+                      id="cn-port"
+                      className="d4n-input d4n-mono"
                       value={db_port || ''}
-                      onChange={this._onChange('db_port')}
+                      placeholder={portPlaceholder}
+                      inputMode="numeric"
+                      onChange={this._onPortChange}
                     />
                   </div>
                 </div>
-              </div>
-            </>
-          )}
-
-          {/* Database / Schema */}
-          <div className={formGroupStyle}>
-            <div className={formFieldStyle}>
-              <label>
-                {isSqlite
-                  ? trans.__('Database file')
-                  : trans.__('Database / schema')}
-                {!isSqlite && (
-                  <>
-                    {' '}
-                    <span className={formOptionalLabel}>
-                      {trans.__('optional')}
-                    </span>
-                  </>
-                )}
-              </label>
-              <input
-                placeholder={
-                  isSqlite
-                    ? trans.__('Path to .db file')
-                    : trans.__('Leave blank to browse all')
-                }
-                value={db_name || ''}
-                onChange={this._onChange('db_name')}
-              />
-            </div>
-          </div>
-
-          {/* AUTHENTICATION section */}
-          {!isSqlite && (
-            <>
-              <hr className={formDivider} />
-              <div className={formSectionTitle}>
-                {trans.__('AUTHENTICATION')}
-              </div>
-              <div className={formGroupStyle}>
-                {vaultEnabled && (
-                  <div className={formFieldStyle}>
-                    <label>{trans.__('Credential source')}</label>
-                    <div className={dbTypePicker}>
-                      <button
-                        type="button"
-                        className={
-                          authMode === 'direct'
-                            ? dbTypeOptionSelected
-                            : dbTypeOption
-                        }
-                        onClick={() => this._setAuthMode('direct')}
-                      >
-                        {trans.__('Credentials')}
-                      </button>
-                      <button
-                        type="button"
-                        className={
-                          authMode === 'vault'
-                            ? dbTypeOptionSelected
-                            : dbTypeOption
-                        }
-                        onClick={() => this._setAuthMode('vault')}
-                      >
-                        {trans.__('Vault reference')}
-                      </button>
+                <div className="d4n-cf__grid">
+                  <div className="d4n-field d4n-span-2">
+                    <div className="d4n-field__head">
+                      <label htmlFor="cn-db" className="d4n-field__label">
+                        {trans.__('Database / schema')}
+                        <span className="d4n-field__optional">
+                          {' '}
+                          {trans.__('optional')}
+                        </span>
+                      </label>
                     </div>
-                  </div>
-                )}
-                <div className={formRowStyle}>
-                  <div className={formFieldStyle}>
-                    <label>
-                      {useVault
-                        ? trans.__('Username Vault URL')
-                        : trans.__('Username')}{' '}
-                      <span className={formOptionalLabel}>
-                        {trans.__('optional')}
-                      </span>
-                    </label>
                     <input
-                      placeholder={
-                        useVault
-                          ? 'vault://path/to/secret#username'
-                          : trans.__('Leave blank for prompt')
-                      }
-                      value={db_user || ''}
-                      onChange={this._onChange('db_user')}
+                      id="cn-db"
+                      className="d4n-input d4n-mono"
+                      value={db_name || ''}
+                      placeholder={trans.__('Leave blank to browse all')}
+                      onChange={this._onChange('db_name')}
                     />
                   </div>
-                  <div className={formFieldStyle}>
-                    <label>
+                </div>
+              </>
+            )}
+          </section>
+
+          {/* Authentication */}
+          {!isFilePath && (
+            <section className="d4n-cf__sec d4n-cf__sec--block">
+              <div className="d4n-sechead">
+                <div className="d4n-sechead__row">
+                  <span className="d4n-sechead__eyebrow">
+                    {trans.__('Authentication')}
+                  </span>
+                  <span className="d4n-sechead__hint">
+                    {useVault
+                      ? trans.__('Resolved at runtime from Vault')
+                      : trans.__('Stored in the user keyring')}
+                  </span>
+                </div>
+              </div>
+
+              {vaultEnabled && (
+                <div className="d4n-field">
+                  <div className="d4n-field__head">
+                    <label className="d4n-field__label">
+                      {trans.__('Credential source')}
+                    </label>
+                  </div>
+                  <div className="d4n-dbpills" role="radiogroup">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={authMode === 'direct'}
+                      className={`d4n-dbpill${authMode === 'direct' ? ' is-selected' : ''}`}
+                      onClick={() => this._setAuthMode('direct')}
+                    >
+                      <span className="d4n-dbpill__label">
+                        {trans.__('Credentials')}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={authMode === 'vault'}
+                      className={`d4n-dbpill${authMode === 'vault' ? ' is-selected' : ''}`}
+                      onClick={() => this._setAuthMode('vault')}
+                    >
+                      <span className="d4n-dbpill__label">
+                        {trans.__('Vault reference')}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="d4n-cf__grid">
+                <div className="d4n-field">
+                  <div className="d4n-field__head">
+                    <label htmlFor="cn-user" className="d4n-field__label">
                       {useVault
-                        ? trans.__('Password Vault URL')
-                        : trans.__('Password')}{' '}
-                      <span className={formOptionalLabel}>
+                        ? trans.__('Username Vault URL')
+                        : trans.__('Username')}
+                      <span className="d4n-field__optional">
+                        {' '}
                         {trans.__('optional')}
                       </span>
                     </label>
+                  </div>
+                  <input
+                    id="cn-user"
+                    className="d4n-input d4n-mono"
+                    value={db_user || ''}
+                    placeholder={
+                      useVault
+                        ? 'vault://path/to/secret#username'
+                        : trans.__('Leave blank for prompt')
+                    }
+                    autoComplete="off"
+                    onChange={this._onChange('db_user')}
+                  />
+                </div>
+                <div className="d4n-field">
+                  <div className="d4n-field__head">
+                    <label htmlFor="cn-pwd" className="d4n-field__label">
+                      {useVault
+                        ? trans.__('Password Vault URL')
+                        : trans.__('Password')}
+                      <span className="d4n-field__optional">
+                        {' '}
+                        {trans.__('optional')}
+                      </span>
+                    </label>
+                  </div>
+                  <div className="d4n-input-wrap">
                     <input
-                      type={useVault ? 'text' : 'password'}
+                      id="cn-pwd"
+                      type={useVault || showPwd ? 'text' : 'password'}
+                      className="d4n-input d4n-input--suffixed d4n-mono"
+                      value={db_pass || ''}
                       placeholder={
                         useVault
                           ? 'vault://path/to/secret#password'
                           : trans.__('Leave blank for prompt')
                       }
-                      value={db_pass || ''}
+                      autoComplete="new-password"
                       onChange={this._onChange('db_pass')}
                     />
-                  </div>
-                </div>
-                {useVault && (
-                  <div className={formOptionalLabel}>
-                    {trans.__(
-                      'Format: vault://<path>#<field> — resolved by the server at connect time.'
+                    {!useVault && (
+                      <button
+                        type="button"
+                        className="d4n-input-suffix"
+                        onClick={() =>
+                          this.setState({ showPwd: !showPwd })
+                        }
+                        aria-label={
+                          showPwd
+                            ? trans.__('Hide password')
+                            : trans.__('Show password')
+                        }
+                        tabIndex={-1}
+                      >
+                        {this._glyph(showPwd ? 'eye-off' : 'eye', 14)}
+                      </button>
                     )}
                   </div>
-                )}
+                </div>
               </div>
-            </>
+              {useVault && (
+                <div className="d4n-field__msg">
+                  {trans.__(
+                    'Format: vault://<path>#<field> — resolved by the server at connect time.'
+                  )}
+                </div>
+              )}
+            </section>
           )}
+
+          <div className="d4n-cf__scroll-end" aria-hidden="true" />
         </div>
 
-        {/* ---- Fixed Bottom Bar ---- */}
-        <div className={formBottomBar}>
-          {onTest && (
-            <button
-              className={`${formBtnTest} ${formBottomBarLead}`}
-              onClick={this._onTest}
-              disabled={testing || submitting}
-              type="button"
+        {/* Footer */}
+        <footer className="d4n-cf__footer">
+          {testState !== 'idle' && (
+            <div
+              className={
+                'd4n-field__msg' +
+                (testState === 'error' ? ' d4n-field__msg--err' : '')
+              }
+              role="status"
+              style={{ marginBottom: 8 }}
             >
-              {testing
-                ? trans.__('Testing...')
-                : trans.__('Test connection')}
-            </button>
+              {testState === 'loading' && trans.__('Testing connection…')}
+              {testState === 'success' &&
+                (testMsg || trans.__('Connection successful.'))}
+              {testState === 'error' &&
+                (testMsg || trans.__('Could not connect.'))}
+            </div>
           )}
-          <div className={formBottomBarActions}>
+          <div className="d4n-cf__footer-row">
+            {onTest && (
+              <button
+                type="button"
+                className="d4n-btn d4n-btn--ghost"
+                onClick={this._onTest}
+                disabled={testState === 'loading' || submitting}
+              >
+                {testState === 'loading'
+                  ? trans.__('Testing…')
+                  : trans.__('Test connection')}
+              </button>
+            )}
+            <div className="d4n-cf__footer-spacer" />
             {onCancel && (
               <button
-                className={formBtnOutline}
+                type="button"
+                className="d4n-btn d4n-btn--secondary"
                 onClick={onCancel}
                 disabled={submitting}
-                type="button"
               >
                 {trans.__('Cancel')}
               </button>
             )}
             <button
-              className={formBtnPrimary}
-              onClick={this._onSubmit}
-              disabled={submitting || testing}
-              type="button"
+              type="submit"
+              className="d4n-btn d4n-btn--primary"
+              disabled={submitting || testState === 'loading'}
             >
-              {submitting ? trans.__('Creating...') : trans.__('Create')}
+              {submitting ? trans.__('Creating…') : trans.__('Create')}
             </button>
           </div>
-        </div>
-      </div>
+        </footer>
+      </form>
     );
   }
 
-  private _setAuthMode = (mode: TAuthMode): void => {
+  // ─── Inline glyphs (small subset of design's Icon) ────────────────────
+  private _glyph(name: string, size = 16): React.ReactElement {
+    const p = {
+      width: size,
+      height: size,
+      viewBox: '0 0 20 20',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: 1.6,
+      strokeLinecap: 'round' as const,
+      strokeLinejoin: 'round' as const,
+      'aria-hidden': true
+    };
+    switch (name) {
+      case 'db':
+        return (
+          <svg {...p}>
+            <ellipse cx="10" cy="5" rx="5.5" ry="2" />
+            <path d="M4.5 5v10c0 1.1 2.46 2 5.5 2s5.5-.9 5.5-2V5" />
+            <path d="M4.5 10c0 1.1 2.46 2 5.5 2s5.5-.9 5.5-2" />
+          </svg>
+        );
+      case 'close':
+        return (
+          <svg {...p}>
+            <path d="M5 5l10 10M15 5L5 15" />
+          </svg>
+        );
+      case 'eye':
+        return (
+          <svg {...p}>
+            <path d="M1.8 10s2.9-5.5 8.2-5.5S18.2 10 18.2 10 15.3 15.5 10 15.5 1.8 10 1.8 10z" />
+            <circle cx="10" cy="10" r="2.4" />
+          </svg>
+        );
+      case 'eye-off':
+        return (
+          <svg {...p}>
+            <path d="M3 3l14 14" />
+            <path d="M7.2 6.4C4.6 7.7 1.8 10 1.8 10S4.7 15.5 10 15.5c1.6 0 3-.4 4.1-1" />
+            <path d="M9 5.6c.33-.06.66-.1 1-.1 5.3 0 8.2 5.5 8.2 5.5-.4.78-1 1.7-1.86 2.6" />
+            <path d="M11.7 11.7a2.4 2.4 0 01-3.4-3.4" />
+          </svg>
+        );
+      default:
+        return <svg {...p} />;
+    }
+  }
+
+  // ─── Field handlers ─────────────────────────────────────────────────
+  private _onNameChange = (ev: React.ChangeEvent<HTMLInputElement>): void => {
+    const v = ev.target.value;
     this.setState(prev => {
-      if (prev.authMode === mode) {
-        return null as any;
+      const next: Partial<IConnFormState> = { name: v, testState: 'idle' };
+      if (!prev.idTouched) {
+        next.db_id = slugify(v);
       }
-      return {
-        authMode: mode,
-        db_user: '',
-        db_pass: '',
-        errmsg: undefined,
-        testResult: null
-      } as IConnFormState;
+      return next as IConnFormState;
+    });
+  };
+
+  private _onIdChange = (ev: React.ChangeEvent<HTMLInputElement>): void => {
+    const v = slugify(ev.target.value);
+    this.setState({ db_id: v, idTouched: true, testState: 'idle' });
+  };
+
+  private _onPortChange = (ev: React.ChangeEvent<HTMLInputElement>): void => {
+    const v = ev.target.value.replace(/[^\d]/g, '').slice(0, 5);
+    this.setState({ db_port: v, portTouched: true, testState: 'idle' });
+  };
+
+  private _onPickType = (t: DbTypeEntry): void => {
+    this.setState(prev => {
+      const next: Partial<IConnFormState> = {
+        db_type: t.value,
+        testState: 'idle'
+      };
+      if (!prev.portTouched) {
+        next.db_port = t.defaultPort;
+      }
+      return next as IConnFormState;
     });
   };
 
   private _onChange =
     (key: keyof IDBConn) =>
-    (
-      event:
-        | React.ChangeEvent<HTMLInputElement>
-        | React.ChangeEvent<HTMLSelectElement>
-    ) => {
+    (ev: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       this.setState({
-        [key]: event.target.value,
-        errmsg: undefined,
-        testResult: null
-      });
+        [key]: ev.target.value,
+        testState: 'idle'
+      } as IConnFormState);
     };
 
+  private _setAuthMode = (mode: TAuthMode): void => {
+    this.setState(prev => {
+      if (prev.authMode === mode) {
+        return null as unknown as IConnFormState;
+      }
+      return {
+        authMode: mode,
+        db_user: '',
+        db_pass: '',
+        testState: 'idle'
+      } as IConnFormState;
+    });
+  };
+
+  // ─── Build IDBConn from current state ───────────────────────────────
   private _buildConn(): IDBConn | null {
     const { db_type, db_host, db_name, db_id, name: connName } = this.state;
     const { trans } = this.props;
-
     if (!db_type) {
-      this.setState({ errmsg: trans.__('Please select a database type.') });
-      return null;
-    }
-    if (db_type !== '6' && !db_host) {
-      this.setState({ errmsg: trans.__('Please enter the host address.') });
-      return null;
-    }
-    if (db_type === '6' && !db_name) {
       this.setState({
-        errmsg: trans.__('Please enter the database file path.')
+        testState: 'error',
+        testMsg: trans.__('Please select a database type.')
+      });
+      return null;
+    }
+    const isFilePath = findType(db_type).filePath;
+    if (!isFilePath && !db_host) {
+      this.setState({
+        testState: 'error',
+        testMsg: trans.__('Please enter the host address.')
+      });
+      return null;
+    }
+    if (isFilePath && !db_name) {
+      this.setState({
+        testState: 'error',
+        testMsg: trans.__('Please enter the database file path.')
       });
       return null;
     }
 
-    // Auto-generate ID from name if not provided
     let id = db_id || '';
     if (!id && connName) {
-      id = connName.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+      id = slugify(connName);
     }
     if (!id) {
       id = 'conn_' + Date.now().toString(36);
     }
 
-    const conn: IDBConn = {
-      db_id: id,
-      db_type: db_type || '2'
-    };
-
+    const conn: IDBConn = { db_id: id, db_type };
     const fields: (keyof IDBConn)[] = [
       'name',
       'db_host',
@@ -454,46 +737,42 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
     for (const f of fields) {
       const val = this.state[f];
       if (val !== undefined && val !== '') {
-        (conn as any)[f] = val;
+        (conn as unknown as Record<string, unknown>)[f] = val;
       }
     }
-
     return conn;
   }
 
-  private _onSubmit = () => {
+  // ─── Submit / test ──────────────────────────────────────────────────
+  private _onSubmitForm = (ev: React.FormEvent<HTMLFormElement>): void => {
+    ev.preventDefault();
     const conn = this._buildConn();
     if (!conn) {
       return;
     }
-    this.setState({ submitting: true, errmsg: undefined, testResult: null });
+    this.setState({ submitting: true, testState: 'idle' });
     this.props.onSubmit(conn);
   };
 
-  private _onTest = async () => {
+  private _onTest = async (): Promise<void> => {
     const conn = this._buildConn();
     if (!conn || !this.props.onTest) {
       return;
     }
     const { trans } = this.props;
-    this.setState({ testing: true, testResult: null, testMsg: '' });
+    this.setState({ testState: 'loading', testMsg: '' });
     try {
       const result = await this.props.onTest(conn);
       if (!result.errmsg) {
         this.setState({
-          testing: false,
-          testResult: 'success',
-          testMsg: trans.__('Connection successful!')
+          testState: 'success',
+          testMsg: trans.__('Connection successful.')
         });
         Notification.success(trans.__('Connection successful!'), {
           autoClose: 5000
         });
       } else {
-        this.setState({
-          testing: false,
-          testResult: 'error',
-          testMsg: result.errmsg
-        });
+        this.setState({ testState: 'error', testMsg: result.errmsg });
         Notification.error(result.errmsg, { autoClose: 8000 });
       }
     } catch (err) {
@@ -503,16 +782,12 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
           : typeof err === 'string'
             ? err
             : trans.__('Connection test failed.');
-      this.setState({
-        testing: false,
-        testResult: 'error',
-        testMsg: msg
-      });
+      this.setState({ testState: 'error', testMsg: msg });
       Notification.error(msg, { autoClose: 8000 });
     }
   };
 
   setError(msg: string): void {
-    this.setState({ submitting: false, errmsg: msg });
+    this.setState({ submitting: false, testState: 'error', testMsg: msg });
   }
 }

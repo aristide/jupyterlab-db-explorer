@@ -14,7 +14,16 @@
       "TodoWrite",
       "Bash(*)",
       "mcp__docfork__search_docs",
-      "mcp__docfork__fetch_doc"
+      "mcp__docfork__fetch_doc",
+      "Read(//home/jupyter/.claude/plans/**)",
+      "Bash(mkdir -p /home/jupyter/.claude/plans/)",
+      "Write(/workspace/.claude/skills/**)",
+      "Edit(/workspace/.claude/skills/**)",
+      "Read(/workspace/.claude/skills/**)",
+      "Bash(mkdir -p /workspace/.claude/skills/**)",
+      "Bash(mkdir:/workspace/.claude/skills/**)",
+      "Bash(cp:/workspace/.claude/skills/**)",
+      "Bash(python:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

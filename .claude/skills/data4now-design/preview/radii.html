@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Radii</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--d4n-paper);font-family:var(--font-body)}
+  .card{width:700px;padding:var(--sp-6);box-sizing:border-box;display:grid;grid-template-columns:repeat(5,1fr);gap:var(--sp-4)}
+  .item{display:flex;flex-direction:column;align-items:center;gap:var(--sp-2)}
+  .box{width:90px;height:64px;background:var(--d4n-navy);border:1px solid var(--d4n-navy)}
+  .name{font-family:var(--font-mono);font-size:11px;color:var(--fg-2)}
+  .px{font-family:var(--font-mono);font-size:10px;color:var(--fg-3)}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="item"><div class="box" style="border-radius:4px"></div><span class="name">--r-sm</span><span class="px">4px</span></div>
+  <div class="item"><div class="box" style="border-radius:6px"></div><span class="name">--r-md</span><span class="px">6px</span></div>
+  <div class="item"><div class="box" style="border-radius:10px"></div><span class="name">--r-lg</span><span class="px">10px</span></div>
+  <div class="item"><div class="box" style="border-radius:16px"></div><span class="name">--r-xl</span><span class="px">16px</span></div>
+  <div class="item"><div class="box" style="border-radius:999px"></div><span class="name">--r-pill</span><span class="px">999px</span></div>
+</div>
+</body>
+</html>

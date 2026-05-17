@@ -1,0 +1,321 @@
+/* ============================================================
+   Data4Now — Colors & Type Foundation
+   ============================================================
+   Brand DNA from the logo: navy (DATA / NOW), teal (FOR pillar),
+   magenta wedge (pie chart accent inside the "O"). The system
+   reads as confident, technical, civic — never tech-bro neon.
+   ------------------------------------------------------------ */
+
+/* Webfonts (Google Fonts substitutes — see fonts/README.md).
+   Original PPTX uses Montserrat SemiBold + Roboto. We use both
+   directly from Google Fonts since they ARE the originals. */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Roboto:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* ----------------------------------------
+     BRAND COLORS — sampled from the logo
+     ---------------------------------------- */
+  --d4n-navy:       #0F3D6E;   /* primary — letterforms, headlines */
+  --d4n-navy-deep:  #082B52;   /* hover/pressed, dense text */
+  --d4n-navy-soft:  #3B5C87;   /* PPTX theme accent navy */
+  --d4n-teal:       #1FA0A0;   /* secondary — supporting structure */
+  --d4n-teal-deep:  #167C7C;
+  --d4n-magenta:    #E63558;   /* accent — single point of emphasis */
+  --d4n-magenta-deep:#C4274A;
+
+  /* ----------------------------------------
+     NEUTRALS — cool grays, slight navy tint
+     ---------------------------------------- */
+  --d4n-ink:        #0B1F38;   /* near-black with navy bias */
+  --d4n-graphite:   #2C3E55;
+  --d4n-slate:      #5A6B82;
+  --d4n-steel:      #8A99AE;
+  --d4n-mist:       #C8D1DD;
+  --d4n-fog:        #E4E9F0;
+  --d4n-paper:      #F4F6FA;   /* page background */
+  --d4n-white:      #FFFFFF;
+
+  /* ----------------------------------------
+     SEMANTIC SURFACES & TEXT
+     ---------------------------------------- */
+  --bg-page:        var(--d4n-paper);
+  --bg-surface:     var(--d4n-white);
+  --bg-raised:      var(--d4n-white);
+  --bg-sunken:      var(--d4n-fog);
+  --bg-inverse:     var(--d4n-navy);
+
+  --fg-1:           var(--d4n-ink);       /* primary body */
+  --fg-2:           var(--d4n-graphite);  /* secondary body */
+  --fg-3:           var(--d4n-slate);     /* tertiary, captions */
+  --fg-4:           var(--d4n-steel);     /* placeholders, disabled */
+  --fg-on-dark:     var(--d4n-white);
+  --fg-on-dark-2:   #B8C5D8;
+  --fg-link:        var(--d4n-teal-deep);
+  --fg-accent:      var(--d4n-magenta);
+
+  --border-1:       var(--d4n-fog);
+  --border-2:       var(--d4n-mist);
+  --border-strong:  var(--d4n-slate);
+  --border-focus:   var(--d4n-teal);
+
+  /* ----------------------------------------
+     STATUS / SEMANTIC COLORS
+     (tuned to coexist with brand palette)
+     ---------------------------------------- */
+  --status-success: #1F8A5E;
+  --status-success-bg: #E3F4EB;
+  --status-warning: #C97C0A;
+  --status-warning-bg: #FBEFD8;
+  --status-danger:  var(--d4n-magenta);
+  --status-danger-bg:#FCE3E9;
+  --status-info:    var(--d4n-teal);
+  --status-info-bg: #DDF1F1;
+
+  /* ----------------------------------------
+     PIPELINE / DATA-ZONE COLORS
+     (medallion architecture — matches PPTX)
+     ---------------------------------------- */
+  --zone-raw:       #6B7280;   /* untransformed, neutral */
+  --zone-anonymized:#A47148;   /* bronze */
+  --zone-staging:   #94A3B8;   /* silver */
+  --zone-aggregated:#B8860B;   /* gold */
+  --zone-archive:   var(--d4n-navy-deep);
+
+  /* ----------------------------------------
+     TYPOGRAPHY — families
+     ---------------------------------------- */
+  --font-display:   'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-body:      'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono:      'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+  /* ----------------------------------------
+     TYPE SCALE — modular, slightly tightened
+     ---------------------------------------- */
+  --fs-12: 0.75rem;   /* 12 — micro labels */
+  --fs-13: 0.8125rem; /* 13 — captions */
+  --fs-14: 0.875rem;  /* 14 — small body, UI */
+  --fs-16: 1rem;      /* 16 — body */
+  --fs-18: 1.125rem;  /* 18 — lead */
+  --fs-20: 1.25rem;   /* 20 — h5 */
+  --fs-24: 1.5rem;    /* 24 — h4 */
+  --fs-30: 1.875rem;  /* 30 — h3 */
+  --fs-36: 2.25rem;   /* 36 — h2 */
+  --fs-48: 3rem;      /* 48 — h1 */
+  --fs-64: 4rem;      /* 64 — display */
+
+  --lh-tight:   1.12;
+  --lh-snug:    1.28;
+  --lh-normal:  1.5;
+  --lh-relaxed: 1.65;
+
+  --ls-tight:    -0.02em;
+  --ls-display:  -0.015em;
+  --ls-normal:   0;
+  --ls-wide:     0.04em;
+  --ls-eyebrow:  0.14em;   /* uppercase labels */
+
+  /* ----------------------------------------
+     SPACING — 4px base
+     ---------------------------------------- */
+  --sp-1:  0.25rem;  /* 4  */
+  --sp-2:  0.5rem;   /* 8  */
+  --sp-3:  0.75rem;  /* 12 */
+  --sp-4:  1rem;     /* 16 */
+  --sp-5:  1.25rem;  /* 20 */
+  --sp-6:  1.5rem;   /* 24 */
+  --sp-8:  2rem;     /* 32 */
+  --sp-10: 2.5rem;   /* 40 */
+  --sp-12: 3rem;     /* 48 */
+  --sp-16: 4rem;     /* 64 */
+  --sp-24: 6rem;     /* 96 */
+
+  /* ----------------------------------------
+     RADII — restrained, slight rounding
+     ---------------------------------------- */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-xl: 16px;
+  --r-pill: 999px;
+
+  /* ----------------------------------------
+     SHADOWS — soft, slightly cool
+     ---------------------------------------- */
+  --shadow-xs: 0 1px 2px rgba(15, 61, 110, 0.06);
+  --shadow-sm: 0 1px 3px rgba(15, 61, 110, 0.08), 0 1px 2px rgba(15, 61, 110, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 61, 110, 0.08), 0 2px 4px rgba(15, 61, 110, 0.04);
+  --shadow-lg: 0 12px 28px rgba(15, 61, 110, 0.12), 0 4px 8px rgba(15, 61, 110, 0.06);
+  --shadow-xl: 0 24px 48px rgba(15, 61, 110, 0.16), 0 8px 16px rgba(15, 61, 110, 0.08);
+  --shadow-focus: 0 0 0 3px rgba(31, 160, 160, 0.30);
+
+  /* ----------------------------------------
+     MOTION
+     ---------------------------------------- */
+  --ease-standard: cubic-bezier(0.2, 0, 0.1, 1);
+  --ease-out:      cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:       cubic-bezier(0.7, 0, 0.84, 0);
+  --dur-fast:      120ms;
+  --dur-base:      200ms;
+  --dur-slow:      320ms;
+
+  /* ----------------------------------------
+     LAYOUT
+     ---------------------------------------- */
+  --container-narrow: 720px;
+  --container-base:   1080px;
+  --container-wide:   1280px;
+  --header-h:         64px;
+}
+
+/* ============================================================
+   SEMANTIC TYPE STYLES
+   Use these classes (or @apply equivalents) in components.
+   ============================================================ */
+
+.d4n-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-64);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-display);
+  color: var(--fg-1);
+}
+
+.d4n-h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-48);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+  color: var(--fg-1);
+}
+
+.d4n-h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-36);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+  color: var(--fg-1);
+}
+
+.d4n-h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-30);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+
+.d4n-h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-24);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+
+.d4n-h5 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-20);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+
+.d4n-eyebrow {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-12);
+  line-height: 1;
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--d4n-teal-deep);
+}
+
+.d4n-lead {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: var(--fs-18);
+  line-height: var(--lh-relaxed);
+  color: var(--fg-2);
+}
+
+.d4n-body {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: var(--fs-16);
+  line-height: var(--lh-relaxed);
+  color: var(--fg-1);
+}
+
+.d4n-body-sm {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: var(--fs-14);
+  line-height: var(--lh-normal);
+  color: var(--fg-2);
+}
+
+.d4n-caption {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: var(--fs-13);
+  line-height: var(--lh-normal);
+  color: var(--fg-3);
+}
+
+.d4n-micro {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--fs-12);
+  line-height: 1;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+
+.d4n-mono {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: var(--fs-14);
+  line-height: var(--lh-normal);
+  color: var(--fg-1);
+}
+
+.d4n-code {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.92em;
+  background: var(--d4n-fog);
+  color: var(--d4n-navy-deep);
+  padding: 0.1em 0.4em;
+  border-radius: var(--r-sm);
+}
+
+/* ============================================================
+   ELEMENT DEFAULTS — opt-in via .d4n-prose wrapper
+   ============================================================ */
+.d4n-prose {
+  font-family: var(--font-body);
+  font-size: var(--fs-16);
+  line-height: var(--lh-relaxed);
+  color: var(--fg-1);
+}
+.d4n-prose h1 { font: 700 var(--fs-48)/var(--lh-tight) var(--font-display); letter-spacing: var(--ls-tight); margin: 0 0 var(--sp-6); }
+.d4n-prose h2 { font: 600 var(--fs-36)/var(--lh-tight) var(--font-display); letter-spacing: var(--ls-tight); margin: var(--sp-12) 0 var(--sp-4); }
+.d4n-prose h3 { font: 600 var(--fs-24)/var(--lh-snug) var(--font-display); margin: var(--sp-8) 0 var(--sp-3); }
+.d4n-prose p  { margin: 0 0 var(--sp-4); text-wrap: pretty; }
+.d4n-prose a  { color: var(--fg-link); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
+.d4n-prose a:hover { color: var(--d4n-magenta); }
+.d4n-prose code { font-family: var(--font-mono); font-size: 0.92em; background: var(--d4n-fog); color: var(--d4n-navy-deep); padding: 0.1em 0.4em; border-radius: var(--r-sm); }
+.d4n-prose pre  { font-family: var(--font-mono); background: var(--d4n-ink); color: var(--d4n-fog); padding: var(--sp-4); border-radius: var(--r-md); overflow:auto; font-size: var(--fs-13); line-height: var(--lh-normal); }
+.d4n-prose ul, .d4n-prose ol { padding-left: 1.25em; margin: 0 0 var(--sp-4); }
+.d4n-prose li { margin: 0 0 var(--sp-2); }
+.d4n-prose blockquote {
+  border-left: 3px solid var(--d4n-teal);
+  padding: var(--sp-2) 0 var(--sp-2) var(--sp-4);
+  margin: var(--sp-4) 0;
+  color: var(--fg-2);
+  font-style: italic;
+}

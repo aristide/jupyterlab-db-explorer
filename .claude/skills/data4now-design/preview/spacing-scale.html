@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spacing scale</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--d4n-paper);font-family:var(--font-body)}
+  .card{width:700px;padding:var(--sp-6);box-sizing:border-box;display:flex;flex-direction:column;gap:8px}
+  .row{display:flex;align-items:center;gap:var(--sp-3)}
+  .name{flex:0 0 80px;font-family:var(--font-mono);font-size:12px;color:var(--fg-2)}
+  .px{flex:0 0 50px;font-family:var(--font-mono);font-size:11px;color:var(--fg-3);text-align:right}
+  .bar{background:var(--d4n-teal);height:14px;border-radius:2px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="row"><span class="name">--sp-1</span><span class="px">4px</span><span class="bar" style="width:4px"></span></div>
+  <div class="row"><span class="name">--sp-2</span><span class="px">8px</span><span class="bar" style="width:8px"></span></div>
+  <div class="row"><span class="name">--sp-3</span><span class="px">12px</span><span class="bar" style="width:12px"></span></div>
+  <div class="row"><span class="name">--sp-4</span><span class="px">16px</span><span class="bar" style="width:16px"></span></div>
+  <div class="row"><span class="name">--sp-6</span><span class="px">24px</span><span class="bar" style="width:24px"></span></div>
+  <div class="row"><span class="name">--sp-8</span><span class="px">32px</span><span class="bar" style="width:32px"></span></div>
+  <div class="row"><span class="name">--sp-12</span><span class="px">48px</span><span class="bar" style="width:48px"></span></div>
+  <div class="row"><span class="name">--sp-16</span><span class="px">64px</span><span class="bar" style="width:64px"></span></div>
+  <div class="row"><span class="name">--sp-24</span><span class="px">96px</span><span class="bar" style="width:96px"></span></div>
+</div>
+</body>
+</html>

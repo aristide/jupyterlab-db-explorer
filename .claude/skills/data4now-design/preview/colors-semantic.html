@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Semantic & status colors</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--d4n-paper);font-family:var(--font-body)}
+  .card{width:700px;padding:var(--sp-6);box-sizing:border-box;display:grid;grid-template-columns:repeat(2,1fr);gap:var(--sp-3)}
+  .pill{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-md);border:1px solid var(--border-1);background:#fff}
+  .dot{width:14px;height:14px;border-radius:999px;flex-shrink:0}
+  .text{display:flex;flex-direction:column}
+  .name{font-family:var(--font-display);font-weight:600;font-size:var(--fs-14);color:var(--fg-1)}
+  .hex{font-family:var(--font-mono);font-size:11px;color:var(--fg-3)}
+  .badge{padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;font-family:var(--font-display);margin-left:auto}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="pill"><span class="dot" style="background:#1F8A5E"></span><div class="text"><span class="name">Success</span><span class="hex">#1F8A5E</span></div><span class="badge" style="background:#E3F4EB;color:#1F8A5E">Live</span></div>
+  <div class="pill"><span class="dot" style="background:#C97C0A"></span><div class="text"><span class="name">Warning</span><span class="hex">#C97C0A</span></div><span class="badge" style="background:#FBEFD8;color:#C97C0A">Pending</span></div>
+  <div class="pill"><span class="dot" style="background:#E63558"></span><div class="text"><span class="name">Danger</span><span class="hex">#E63558</span></div><span class="badge" style="background:#FCE3E9;color:#E63558">Failed</span></div>
+  <div class="pill"><span class="dot" style="background:#1FA0A0"></span><div class="text"><span class="name">Info</span><span class="hex">#1FA0A0</span></div><span class="badge" style="background:#DDF1F1;color:#167C7C">Note</span></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Buttons</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--d4n-paper);font-family:var(--font-body)}
+  .card{width:700px;padding:var(--sp-6);box-sizing:border-box;display:grid;grid-template-columns:repeat(2,1fr);gap:var(--sp-3) var(--sp-4)}
+  .btn{font-family:var(--font-display);font-weight:600;font-size:14px;padding:10px 18px;border-radius:6px;border:1px solid transparent;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;letter-spacing:0;line-height:1}
+  .primary{background:var(--d4n-navy);color:#fff}
+  .primary:hover{background:var(--d4n-navy-deep)}
+  .accent{background:var(--d4n-magenta);color:#fff}
+  .accent:hover{background:var(--d4n-magenta-deep)}
+  .secondary{background:#fff;color:var(--d4n-navy);border-color:var(--d4n-mist)}
+  .secondary:hover{background:var(--d4n-fog)}
+  .ghost{background:transparent;color:var(--d4n-teal-deep)}
+  .ghost:hover{background:var(--d4n-fog)}
+  .small{padding:6px 12px;font-size:13px}
+  .row{display:flex;gap:8px;align-items:center}
+  .label{font-family:var(--font-mono);font-size:10px;color:var(--fg-3);min-width:80px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="row"><span class="label">primary</span><button class="btn primary">Schedule pipeline</button></div>
+  <div class="row"><span class="label">accent</span><button class="btn accent">Publish now</button></div>
+  <div class="row"><span class="label">secondary</span><button class="btn secondary">View logs</button></div>
+  <div class="row"><span class="label">ghost</span><button class="btn ghost">Cancel</button></div>
+  <div class="row"><span class="label">primary sm</span><button class="btn primary small">Run DAG</button></div>
+  <div class="row"><span class="label">disabled</span><button class="btn primary" style="opacity:.5;cursor:not-allowed">Schedule pipeline</button></div>
+</div>
+</body>
+</html>

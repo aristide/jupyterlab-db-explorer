@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pipeline flow motif</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--d4n-paper);font-family:var(--font-body)}
+  .card{width:700px;padding:var(--sp-6);box-sizing:border-box}
+  .row{display:flex;align-items:center;gap:12px}
+  .step{flex:1;background:#fff;border:1px solid var(--d4n-mist);border-radius:var(--r-md);padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+  .num{font-family:var(--font-mono);font-size:10px;color:var(--d4n-teal-deep);font-weight:600;letter-spacing:0.1em;text-transform:uppercase}
+  .name{font-family:var(--font-display);font-weight:600;font-size:13px;color:var(--fg-1)}
+  .sub{font-family:var(--font-body);font-size:11px;color:var(--fg-3)}
+  .arr{color:var(--d4n-teal);font-size:18px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="row">
+    <div class="step"><span class="num">1 · Ingest</span><span class="name">Apache NiFi</span><span class="sub">SFTP, email, web</span></div>
+    <span class="arr">→</span>
+    <div class="step"><span class="num">2 · Store</span><span class="name">MinIO</span><span class="sub">Object storage</span></div>
+    <span class="arr">→</span>
+    <div class="step"><span class="num">3 · Query</span><span class="name">Trino</span><span class="sub">Federated SQL</span></div>
+    <span class="arr">→</span>
+    <div class="step"><span class="num">4 · Analyze</span><span class="name">JupyterHub</span><span class="sub">Notebooks</span></div>
+  </div>
+</div>
+</body>
+</html>

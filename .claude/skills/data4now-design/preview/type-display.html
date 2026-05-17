@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Display type</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--d4n-paper)}
+  .card{width:700px;padding:var(--sp-6);box-sizing:border-box}
+  .row{display:flex;align-items:baseline;gap:var(--sp-4);padding:10px 0;border-bottom:1px solid var(--border-1)}
+  .row:last-child{border-bottom:none}
+  .meta{flex:0 0 110px;font-family:var(--font-mono);font-size:11px;color:var(--fg-3);line-height:1.3}
+  .sample{flex:1;color:var(--fg-1)}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="row"><div class="meta">Display<br>700 · 64 / 1.12</div><div class="sample d4n-display" style="font-size:48px">Data, made useful.</div></div>
+  <div class="row"><div class="meta">H1<br>700 · 48 / 1.12</div><div class="sample d4n-h1" style="font-size:36px">Modern data lakes for NSOs</div></div>
+  <div class="row"><div class="meta">H2<br>600 · 36 / 1.12</div><div class="sample d4n-h2" style="font-size:28px">Federated query, no exports</div></div>
+  <div class="row"><div class="meta">H3<br>600 · 30 / 1.28</div><div class="sample d4n-h3" style="font-size:22px">Medallion architecture in practice</div></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Document page — Data4Now</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:#dde2ec;font-family:var(--font-body);color:var(--fg-1)}
+  .stage{padding:36px;display:flex;flex-direction:column;align-items:center;gap:36px}
+  .legend{width:794px;font-family:var(--font-display);font-weight:600;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--fg-3);display:flex;align-items:center;gap:10px}
+  .legend .dot{width:6px;height:6px;background:var(--d4n-teal);border-radius:50%}
+
+  /* A4 ≈ 794×1123 at 96dpi */
+  .doc-page{
+    width:794px;height:1123px;
+    background:#fff;
+    box-shadow:0 12px 28px rgba(15,61,110,.18), 0 4px 8px rgba(15,61,110,.08);
+    position:relative;
+    box-sizing:border-box;
+    overflow:hidden;
+  }
+
+  /* ===== Cover page ===== */
+  .cover{padding:0;display:flex;flex-direction:column}
+  .cover .band{
+    height:380px;background:var(--d4n-navy);color:#fff;
+    padding:56px 64px;box-sizing:border-box;position:relative;display:flex;flex-direction:column;justify-content:space-between;
+  }
+  .cover .band::after{
+    content:"";position:absolute;left:0;right:0;bottom:0;height:8px;
+    background:linear-gradient(90deg,var(--d4n-teal) 0 60%,var(--d4n-magenta) 60% 100%);
+  }
+  /* Brandmark — actual logo, sized for headers */
+  .brand-cover{background:#fff;border-radius:var(--r-md);padding:10px 14px;display:inline-flex;align-items:center;line-height:0;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .brand-cover img{height:40px;width:auto;display:block}
+  .brand-inner{display:flex;align-items:center;line-height:0}
+  .brand-inner img{height:26px;width:auto;display:block}
+  .cover .doc-id{font-family:var(--font-mono);font-size:11px;color:#7BCBCB;letter-spacing:0.08em}
+  .cover .eyebrow-lite{font-family:var(--font-display);font-weight:600;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#7BCBCB}
+  .cover h1{font-family:var(--font-display);font-weight:700;font-size:40px;line-height:1.1;letter-spacing:-0.02em;margin:12px 0 0;max-width:460px;color:#fff}
+  .cover h1 em{font-style:normal;color:var(--d4n-magenta);font-weight:700}
+  .cover .subtitle{font-family:var(--font-body);font-size:14.5px;line-height:1.55;color:#B8C5D8;max-width:460px;margin:12px 0 0}
+
+  .cover .title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:32px}
+  .cover .title-row > div:first-child{flex:1;min-width:0}
+  .prep-for{
+    background:#fff;border-radius:var(--r-md);
+    padding:14px 16px;min-width:200px;max-width:240px;
+    display:flex;flex-direction:column;gap:8px;
+    box-shadow:0 1px 2px rgba(0,0,0,.08);
+  }
+  .prep-for .k{font-family:var(--font-display);font-weight:700;font-size:9.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--d4n-teal-deep)}
+  .prep-for .logo{height:50px;display:flex;align-items:center;justify-content:flex-start;line-height:0}
+  .prep-for .logo img{max-height:100%;width:auto;display:block}
+
+  .cover .body{padding:48px 64px;flex:1;display:flex;flex-direction:column;gap:36px}
+  .cover .meta{display:grid;grid-template-columns:1fr 1fr;gap:28px 48px}
+  .cover .meta .row{display:flex;flex-direction:column;gap:4px}
+  .cover .meta .k{font-family:var(--font-display);font-weight:600;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--d4n-teal-deep)}
+  .cover .meta .v{font-family:var(--font-body);font-size:13.5px;color:var(--fg-1);line-height:1.5}
+  .cover .meta .v b{font-weight:600;color:var(--d4n-navy)}
+
+  .partners{margin-top:auto;display:flex;flex-direction:column;gap:14px}
+  .partners .lbl{font-family:var(--font-display);font-weight:600;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--fg-3)}
+  .partners .logo-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:stretch}
+  .partners .logo-tile{
+    background:#fff;border:1px solid var(--d4n-fog);border-radius:var(--r-md);
+    height:64px;display:flex;align-items:center;justify-content:center;padding:10px 12px;
+  }
+  .partners .logo-tile img{max-height:100%;max-width:100%;width:auto;height:auto;object-fit:contain;display:block}
+
+  .footer{
+    position:absolute;bottom:0;left:0;right:0;height:48px;
+    padding:0 64px;display:flex;align-items:center;justify-content:space-between;
+    border-top:1px solid var(--d4n-fog);
+    font-family:var(--font-body);font-size:10.5px;color:var(--fg-3);letter-spacing:0.04em;
+  }
+  .footer b{font-family:var(--font-display);font-weight:700;color:var(--d4n-navy)}
+
+  /* ===== Inner page ===== */
+  .inner{padding:0}
+  .inner .pg-header{
+    height:64px;padding:0 64px;display:flex;align-items:center;justify-content:space-between;
+    border-bottom:1px solid var(--d4n-fog);font-family:var(--font-display);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--fg-3);
+  }
+  .inner .pg-header .left{display:flex;align-items:center;gap:14px}
+  .inner .pg-header .left .sep{width:1px;height:20px;background:var(--d4n-mist)}
+  .inner .pg-header b{color:var(--d4n-navy);font-weight:700}
+  .inner .pg-header .right{color:var(--d4n-teal-deep)}
+
+  .inner .body{padding:24px 64px 48px}
+
+  .sec-eyebrow{font-family:var(--font-display);font-weight:600;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--d4n-teal-deep);margin:0}
+  .sec-rule{height:2px;width:32px;background:var(--d4n-teal);margin:8px 0 12px}
+  .sec-title{font-family:var(--font-display);font-weight:700;font-size:24px;letter-spacing:-0.015em;color:var(--fg-1);margin:0 0 6px;line-height:1.15}
+  .sec-lede{font-family:var(--font-body);font-size:12.5px;color:var(--fg-2);line-height:1.55;margin:0 0 14px;max-width:560px}
+
+  h3.h3{font-family:var(--font-display);font-weight:600;font-size:15px;color:var(--d4n-navy);margin:14px 0 6px;letter-spacing:-0.005em}
+  p.p{font-family:var(--font-body);font-size:12px;color:var(--fg-1);line-height:1.55;margin:0 0 8px;text-wrap:pretty}
+  p.p em{font-style:normal;color:var(--d4n-magenta)}
+  code.c{font-family:var(--font-mono);font-size:0.92em;background:var(--d4n-fog);color:var(--d4n-navy-deep);padding:0.1em 0.4em;border-radius:var(--r-sm)}
+
+  /* Embedded compact table */
+  table.tbl{
+    width:100%;border-collapse:separate;border-spacing:0;font-family:var(--font-body);font-size:11.5px;
+    background:#fff;border:1px solid var(--d4n-mist);border-radius:var(--r-md);overflow:hidden;margin:8px 0 4px;
+  }
+  table.tbl thead th{
+    font-family:var(--font-display);font-weight:600;font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;
+    color:var(--fg-3);background:var(--d4n-paper);text-align:left;padding:6px 10px;border-bottom:1px solid var(--d4n-mist);
+  }
+  table.tbl td{padding:6px 10px;border-bottom:1px solid var(--d4n-fog);line-height:1.4;vertical-align:top}
+  table.tbl tr:last-child td{border-bottom:none}
+  table.tbl td.num{text-align:right;font-family:var(--font-mono);font-size:11px;font-variant-numeric:tabular-nums}
+  table.tbl tfoot td{border-top:1.5px solid var(--d4n-navy);background:var(--d4n-paper);font-family:var(--font-display);font-weight:700;color:var(--d4n-navy)}
+  table.cap-cap{caption-side:bottom;text-align:left;font-family:var(--font-body);font-size:10.5px;color:var(--fg-3);padding-top:6px}
+  .figref{font-family:var(--font-display);font-weight:600;font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--d4n-teal-deep);margin:10px 0 4px}
+
+  /* Embedded callout */
+  .cl{
+    display:grid;grid-template-columns:24px 1fr;column-gap:10px;
+    background:#fff;border:1px solid var(--d4n-fog);border-left:3px solid var(--d4n-magenta);
+    border-radius:var(--r-md);padding:8px 12px;margin:8px 0;
+  }
+  .cl .i{width:20px;height:20px;border-radius:var(--r-sm);background:#FCE3E9;color:var(--d4n-magenta);font-family:var(--font-display);font-weight:700;font-size:11px;display:flex;align-items:center;justify-content:center;line-height:1}
+  .cl .lab{font-family:var(--font-display);font-weight:700;font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--d4n-magenta-deep);margin:0 0 2px}
+  .cl p{margin:0;font-family:var(--font-body);font-size:11.5px;color:var(--fg-1);line-height:1.5}
+
+  /* ===== Code block ===== */
+  .codeblk{
+    background:var(--d4n-ink);color:var(--d4n-fog);
+    border-radius:var(--r-md);overflow:hidden;
+    border:1px solid var(--d4n-graphite);
+    font-family:var(--font-mono);font-size:10.5px;line-height:1.5;
+    margin:6px 0 4px;
+  }
+  .codeblk .head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:5px 12px;background:#0a1830;border-bottom:1px solid #1a2c4a;
+    font-family:var(--font-display);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:#7BCBCB;
+  }
+  .codeblk .head .file{color:var(--d4n-steel);letter-spacing:0.04em;text-transform:none;font-family:var(--font-mono);font-size:10px}
+  .codeblk pre{margin:0;padding:8px 14px;white-space:pre;overflow:auto}
+  .tk-k{color:#7BCBCB}
+  .tk-s{color:#E68FA1}
+  .tk-c{color:#6B7E97;font-style:italic}
+  .tk-n{color:#F4D9A4}
+  .tk-p{color:#C8D1DD}
+
+  /* ===== Terminal / command-line block ===== */
+  .termblk{
+    background:#0a1830;color:#E4E9F0;
+    border-radius:var(--r-md);overflow:hidden;
+    border:1px solid var(--d4n-graphite);
+    font-family:var(--font-mono);font-size:10.5px;line-height:1.5;
+    margin:6px 0 4px;
+  }
+  .termblk .head{
+    display:flex;align-items:center;gap:8px;
+    padding:5px 12px;background:#06112a;border-bottom:1px solid #1a2c4a;
+    font-family:var(--font-mono);font-size:10px;color:var(--d4n-steel);
+  }
+  .termblk .head .dots{display:inline-flex;gap:5px}
+  .termblk .head .dot{width:7px;height:7px;border-radius:50%;background:#3a4a66}
+  .termblk .head .dot.r{background:#E63558}
+  .termblk .head .dot.y{background:#C97C0A}
+  .termblk .head .dot.g{background:#1F8A5E}
+  .termblk .head .ttl{margin-left:6px;letter-spacing:0.04em}
+  .termblk pre{margin:0;padding:6px 14px;white-space:pre;overflow:auto}
+  .termblk .prompt{color:#7BCBCB;user-select:none}
+  .termblk .cmd{color:#F4D9A4}
+  .termblk .arg{color:#E4E9F0}
+  .termblk .flag{color:#E68FA1}
+  .termblk .out{color:#8A99AE}
+  .termblk .ok{color:#5CC28E}
+  .termblk .err{color:#E63558}
+
+  /* TOC */
+  .toc{display:flex;flex-direction:column;gap:0;margin-top:8px}
+  .toc .row{
+    display:grid;grid-template-columns:32px 1fr auto;align-items:baseline;
+    padding:12px 0;border-bottom:1px dashed var(--d4n-fog);
+    font-family:var(--font-body);font-size:13px;color:var(--fg-1);
+  }
+  .toc .row:last-child{border-bottom:none}
+  .toc .num{font-family:var(--font-mono);font-size:11.5px;color:var(--d4n-teal-deep);letter-spacing:0.04em}
+  .toc .ttl{font-family:var(--font-display);font-weight:600;font-size:13.5px;color:var(--fg-1)}
+  .toc .ttl span{display:block;font-family:var(--font-body);font-weight:400;font-size:11.5px;color:var(--fg-3);margin-top:2px;letter-spacing:0}
+  .toc .pg{font-family:var(--font-mono);font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums}
+  .toc .row.section-break{border-bottom-color:var(--d4n-mist);border-bottom-style:solid;padding-bottom:14px;margin-bottom:6px}
+
+  /* Page-break marker between pages */
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <div class="legend"><span class="dot"></span><span>Page 1 of 3 · cover</span></div>
+
+  <!-- ============= COVER ============= -->
+  <div class="doc-page cover">
+    <div class="band">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div class="brand-cover">
+          <img src="../assets/data4now-logo.png" alt="Data4Now">
+        </div>
+        <div class="doc-id">D4N-STATIN-ARCH-002 · v2.1</div>
+      </div>
+      <div class="title-row">
+        <div>
+          <div class="eyebrow-lite">Technical proposal · STATIN engagement</div>
+          <h1>Statistical Datalake <em>Architecture</em></h1>
+          <p class="subtitle">A medallion-zone, federation-first design for the Statistical Institute of Jamaica — replacing manual ingestion and ad-hoc spreadsheets with auditable, on-prem data flows.</p>
+        </div>
+        <div class="prep-for">
+          <div class="k">Prepared for</div>
+          <div class="logo"><img src="../assets/logo-statin.png" alt="STATIN — Statistical Institute of Jamaica"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="body">
+      <div class="meta">
+        <div class="row"><div class="k">Prepared for</div><div class="v"><b>Statistical Institute of Jamaica</b><br>Office of the Director General</div></div>
+        <div class="row"><div class="k">Prepared by</div><div class="v"><b>Data4Now</b> · Architecture practice<br>M. Chen · principal architect</div></div>
+        <div class="row"><div class="k">Classification</div><div class="v">Internal — client &amp; partner distribution</div></div>
+        <div class="row"><div class="k">Date issued</div><div class="v">14 May 2026 · supersedes v2.0</div></div>
+        <div class="row"><div class="k">Review window</div><div class="v">14 May — 04 June 2026</div></div>
+        <div class="row"><div class="k">Approvers</div><div class="v">STATIN CIO · D4N principal · UN DESA observer</div></div>
+      </div>
+
+      <div class="partners">
+        <div class="lbl">Ecosystem partners referenced</div>
+        <div class="logo-row">
+          <div class="logo-tile"><img src="../assets/logo-undp.png" alt="United Nations Development Programme"></div>
+          <div class="logo-tile"><img src="../assets/logo-un-desa-statistics.png" alt="UN DESA Statistics"></div>
+          <div class="logo-tile"><img src="../assets/logo-worldbank.png" alt="The World Bank"></div>
+          <div class="logo-tile"><img src="../assets/logo-gpsdd.png" alt="Global Partnership for Sustainable Development Data"></div>
+          <div class="logo-tile"><img src="../assets/logo-sdsn.png" alt="Sustainable Development Solutions Network"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span><b>Data4Now</b> · Statistical Datalake Architecture</span>
+      <span>Page 1 of 24</span>
+    </div>
+  </div>
+
+  <!-- ============= TOC PAGE ============= -->
+  <div class="legend"><span class="dot"></span><span>Page 2 of 3 · table of contents</span></div>
+
+  <div class="doc-page inner">
+    <div class="pg-header">
+      <div class="left">
+        <div class="brand-inner"><img src="../assets/data4now-logo.png" alt="Data4Now"></div>
+        <div class="sep"></div>
+        <span><b>D4N-STATIN-ARCH-002</b> · v2.1</span>
+      </div>
+      <div class="right">Contents</div>
+    </div>
+    <div class="body">
+      <p class="sec-eyebrow">Document map</p>
+      <div class="sec-rule"></div>
+      <h2 class="sec-title">Table of contents</h2>
+      <p class="sec-lede">Sections are numbered for cross-reference. Indented entries are sub-sections. Page numbers match the printed pagination, not the PDF viewer.</p>
+
+      <div class="toc">
+        <div class="row section-break"><div class="num">01</div><div class="ttl">Executive summary<span>The case for a federated, on-prem datalake — in two pages.</span></div><div class="pg">3</div></div>
+        <div class="row section-break"><div class="num">02</div><div class="ttl">Current challenges &amp; opportunities<span>Where statistical workflows break today.</span></div><div class="pg">5</div></div>
+        <div class="row"><div class="num">2.1</div><div class="ttl">Manual ingestion bottlenecks</div><div class="pg">6</div></div>
+        <div class="row"><div class="num">2.2</div><div class="ttl">Spreadsheet sprawl &amp; reconciliation drift</div><div class="pg">7</div></div>
+        <div class="row section-break"><div class="num">2.3</div><div class="ttl">Storage &amp; backup posture</div><div class="pg">8</div></div>
+
+        <div class="row section-break"><div class="num">03</div><div class="ttl">Proposed architecture<span>NiFi · MinIO · Trino · Airflow · JupyterHub on Kubernetes.</span></div><div class="pg">10</div></div>
+        <div class="row"><div class="num">3.1</div><div class="ttl">Ingestion — Apache NiFi</div><div class="pg">11</div></div>
+        <div class="row"><div class="num">3.2</div><div class="ttl">Storage — MinIO &amp; medallion zones</div><div class="pg">13</div></div>
+        <div class="row"><div class="num">3.3</div><div class="ttl">Federation — Trino</div><div class="pg">15</div></div>
+        <div class="row"><div class="num">3.4</div><div class="ttl">Orchestration — Apache Airflow</div><div class="pg">17</div></div>
+        <div class="row section-break"><div class="num">3.5</div><div class="ttl">Analysis — JupyterHub</div><div class="pg">18</div></div>
+
+        <div class="row section-break"><div class="num">04</div><div class="ttl">Integration with existing infrastructure<span>Nutanix · Veeam · SQL Server · Active Directory.</span></div><div class="pg">19</div></div>
+        <div class="row section-break"><div class="num">05</div><div class="ttl">Governance, RBAC &amp; audit<span>Who can read what, and how we prove it.</span></div><div class="pg">21</div></div>
+        <div class="row"><div class="num">06</div><div class="ttl">Rollout plan &amp; milestones</div><div class="pg">23</div></div>
+        <div class="row"><div class="num">07</div><div class="ttl">Appendix · Glossary &amp; references</div><div class="pg">24</div></div>
+      </div>
+    </div>
+    <div class="footer">
+      <span><b>Data4Now</b> · Statistical Datalake Architecture</span>
+      <span>Page 2 of 24</span>
+    </div>
+  </div>
+
+  <!-- ============= INNER CONTENT PAGE ============= -->
+  <div class="legend"><span class="dot"></span><span>Page 3 of 3 · body content with table + callout</span></div>
+
+  <div class="doc-page inner">
+    <div class="pg-header">
+      <div class="left">
+        <div class="brand-inner"><img src="../assets/data4now-logo.png" alt="Data4Now"></div>
+        <div class="sep"></div>
+        <span><b>D4N-STATIN-ARCH-002</b> · v2.1</span>
+      </div>
+      <div class="right">§ 03 · Proposed architecture</div>
+    </div>
+    <div class="body">
+      <p class="sec-eyebrow">Section 3.1</p>
+      <div class="sec-rule"></div>
+      <h2 class="sec-title">Ingestion — Apache NiFi replaces all manual data collection</h2>
+      <p class="sec-lede">Every external source — SFTP drops, mail attachments, vendor REST endpoints, JDBC pulls from MariaDB — becomes a single validated, audit-trailed pipeline. The admin's morning routine of downloading, renaming, and folder-moving disappears entirely.</p>
+
+      <h3 class="h3">3.1.1 — Sources covered at go-live</h3>
+      <p class="p">The first NiFi release covers five sources that together account for ~83% of the manual hours logged in the 2025 STATIN time-tracking audit. Each becomes a separate <code class="c">ProcessGroup</code> with its own schema validator, retry policy, and provenance hash.</p>
+
+      <p class="figref">Table 3.1 — Day-one ingestion sources</p>
+      <table class="tbl">
+        <thead><tr><th>Source</th><th>Owner</th><th>Method</th><th class="num">Rec/day</th><th class="num">Latency</th></tr></thead>
+        <tbody>
+          <tr><td>CPI submissions</td><td>STATIN — Prices</td><td>NiFi SFTP listener</td><td class="num">14,820</td><td class="num">5 min</td></tr>
+          <tr><td>Customs declarations</td><td>Jamaica Customs</td><td>NiFi REST poll</td><td class="num">9,610</td><td class="num">15 min</td></tr>
+          <tr><td>Trade statistics</td><td>Min. of Industry</td><td>JDBC pull · MariaDB</td><td class="num">22,180</td><td class="num">10 min</td></tr>
+          <tr><td>Population estimates</td><td>STATIN — Demography</td><td>Manual upload</td><td class="num">240</td><td class="num">24 hr</td></tr>
+        </tbody>
+        <tfoot><tr><td colspan="3">Daily total</td><td class="num">50,250</td><td class="num">—</td></tr></tfoot>
+      </table>
+
+      <h3 class="h3">3.1.2 — What this replaces</h3>
+      <div class="cl">
+        <div class="i">→</div>
+        <div>
+          <p class="lab">Replaces</p>
+          <p>Manual SFTP polling · CSV rename scripts · Excel <code class="c">VLOOKUP</code> across three workbooks · USB-drive backups · the email thread titled <em>"FINAL_v7_use this one.xlsx"</em>.</p>
+        </div>
+      </div>
+
+      <h3 class="h3">3.1.3 — Flows are deployed as code</h3>
+      <p class="p">Every <code class="c">ProcessGroup</code> is versioned in the NiFi Registry, peer-reviewed in a pull request, and rolled out by Airflow. The full flow descriptor below registers the CPI listener.</p>
+
+      <p class="figref">Listing 3.1 — cpi-sftp-listener.flow.json</p>
+      <div class="codeblk">
+        <div class="head"><span>JSON · NiFi flow descriptor</span><span class="file">cpi-sftp-listener.flow.json</span></div>
+<pre>{
+  <span class="tk-s">"name"</span>: <span class="tk-s">"cpi-sftp-listener"</span>,
+  <span class="tk-s">"zone"</span>: <span class="tk-s">"raw"</span>,
+  <span class="tk-s">"schedule"</span>: <span class="tk-s">"*/5 * * * *"</span>,
+  <span class="tk-s">"source"</span>: { <span class="tk-s">"type"</span>: <span class="tk-s">"sftp"</span>, <span class="tk-s">"path"</span>: <span class="tk-s">"/in/cpi/*.csv"</span> },
+  <span class="tk-s">"validate"</span>: { <span class="tk-s">"schema"</span>: <span class="tk-s">"cpi.v3"</span>, <span class="tk-s">"on_fail"</span>: <span class="tk-s">"quarantine"</span> },
+  <span class="tk-s">"sink"</span>: <span class="tk-s">"s3://lake/raw/cpi/{yyyy}/{mm}/"</span>
+}</pre>
+      </div>
+
+      <p class="figref" style="margin-top:10px">Listing 3.2 — registering &amp; deploying the flow</p>
+      <div class="termblk">
+        <div class="head"><span class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></span><span class="ttl">d4n@statin-jump — zsh</span></div>
+<pre><span class="prompt">$</span> <span class="cmd">d4n</span> <span class="arg">flow register</span> <span class="flag">--file</span> <span class="arg">cpi-sftp-listener.flow.json</span>
+<span class="out">  ✔ schema cpi.v3 resolved</span>
+<span class="out">  ✔ published to NiFi Registry @ rev </span><span class="ok">f3a91c</span>
+<span class="prompt">$</span> <span class="cmd">d4n</span> <span class="arg">flow deploy</span> <span class="flag">--env</span> <span class="arg">prod</span> <span class="flag">--rev</span> <span class="arg">f3a91c</span>
+<span class="ok">  ✔ deployed · next run 06:00 UTC</span></pre>
+      </div>
+    </div>
+    <div class="footer">
+      <span><b>Data4Now</b> · Statistical Datalake Architecture</span>
+      <span>Page 11 of 24</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Iconography</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html,body{margin:0;padding:0;background:var(--d4n-paper);font-family:var(--font-body)}
+  .card{width:700px;padding:var(--sp-6);box-sizing:border-box;display:grid;grid-template-columns:repeat(8,1fr);gap:var(--sp-4);align-items:start}
+  .item{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--fg-2)}
+  .item svg{stroke-width:1.75}
+  .name{font-family:var(--font-mono);font-size:10px;color:var(--fg-3)}
+  .item.accent{color:var(--d4n-teal-deep)}
+  .item.alert{color:var(--d4n-magenta)}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="item"><i data-lucide="database" width="22" height="22"></i><span class="name">database</span></div>
+  <div class="item"><i data-lucide="server" width="22" height="22"></i><span class="name">server</span></div>
+  <div class="item"><i data-lucide="git-branch" width="22" height="22"></i><span class="name">git-branch</span></div>
+  <div class="item"><i data-lucide="workflow" width="22" height="22"></i><span class="name">workflow</span></div>
+  <div class="item accent"><i data-lucide="zap" width="22" height="22"></i><span class="name">zap</span></div>
+  <div class="item"><i data-lucide="file-spreadsheet" width="22" height="22"></i><span class="name">spreadsheet</span></div>
+  <div class="item"><i data-lucide="shield-check" width="22" height="22"></i><span class="name">shield</span></div>
+  <div class="item"><i data-lucide="users" width="22" height="22"></i><span class="name">users</span></div>
+  <div class="item"><i data-lucide="bar-chart-3" width="22" height="22"></i><span class="name">chart</span></div>
+  <div class="item"><i data-lucide="upload-cloud" width="22" height="22"></i><span class="name">upload</span></div>
+  <div class="item"><i data-lucide="search" width="22" height="22"></i><span class="name">search</span></div>
+  <div class="item"><i data-lucide="settings" width="22" height="22"></i><span class="name">settings</span></div>
+  <div class="item"><i data-lucide="bell" width="22" height="22"></i><span class="name">bell</span></div>
+  <div class="item alert"><i data-lucide="alert-triangle" width="22" height="22"></i><span class="name">alert</span></div>
+  <div class="item"><i data-lucide="check-circle-2" width="22" height="22"></i><span class="name">check</span></div>
+  <div class="item"><i data-lucide="arrow-right" width="22" height="22"></i><span class="name">arrow-right</span></div>
+</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>

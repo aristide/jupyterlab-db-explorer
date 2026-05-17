@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Medallion zone colors</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--d4n-paper);font-family:var(--font-body)}
+  .card{width:700px;padding:var(--sp-6);box-sizing:border-box;display:flex;align-items:stretch;gap:6px}
+  .zone{flex:1;border-radius:var(--r-md);padding:var(--sp-3);color:#fff;display:flex;flex-direction:column;justify-content:space-between;min-height:120px}
+  .label{font-family:var(--font-display);font-weight:700;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;opacity:0.85}
+  .name{font-family:var(--font-display);font-weight:700;font-size:18px;letter-spacing:-0.01em;margin-top:4px}
+  .hex{font-family:var(--font-mono);font-size:11px;opacity:0.75;margin-top:auto}
+  .arrow{align-self:center;color:var(--fg-3);font-size:18px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="zone" style="background:#6B7280"><div><div class="label">Zone 1</div><div class="name">Raw</div></div><div class="hex">#6B7280</div></div>
+  <div class="arrow">→</div>
+  <div class="zone" style="background:#A47148"><div><div class="label">Zone 2</div><div class="name">Anonymized</div></div><div class="hex">#A47148</div></div>
+  <div class="arrow">→</div>
+  <div class="zone" style="background:#94A3B8"><div><div class="label">Zone 3</div><div class="name">Staging</div></div><div class="hex">#94A3B8</div></div>
+  <div class="arrow">→</div>
+  <div class="zone" style="background:#B8860B"><div><div class="label">Zone 4</div><div class="name">Aggregated</div></div><div class="hex">#B8860B</div></div>
+  <div class="arrow">→</div>
+  <div class="zone" style="background:#082B52"><div><div class="label">Zone 5</div><div class="name">Archive</div></div><div class="hex">#082B52</div></div>
+</div>
+</body>
+</html>

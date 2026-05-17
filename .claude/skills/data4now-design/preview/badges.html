@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Badges & pills</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--d4n-paper);font-family:var(--font-body)}
+  .card{width:700px;padding:var(--sp-6);box-sizing:border-box;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .pill{padding:4px 12px;border-radius:999px;font-family:var(--font-display);font-weight:600;font-size:12px;letter-spacing:0.02em;display:inline-flex;align-items:center;gap:6px}
+  .dot{width:6px;height:6px;border-radius:999px}
+  .ok{background:#E3F4EB;color:#1F8A5E}
+  .warn{background:#FBEFD8;color:#C97C0A}
+  .err{background:#FCE3E9;color:#E63558}
+  .info{background:#DDF1F1;color:#167C7C}
+  .neutral{background:var(--d4n-fog);color:var(--d4n-graphite)}
+  .navy{background:var(--d4n-navy);color:#fff}
+  .upper{text-transform:uppercase;letter-spacing:0.12em;font-size:11px}
+  .tag{padding:3px 8px;border-radius:4px;background:var(--d4n-fog);color:var(--d4n-graphite);font-family:var(--font-mono);font-size:11px}
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="pill ok"><span class="dot" style="background:#1F8A5E"></span>Live</span>
+  <span class="pill warn"><span class="dot" style="background:#C97C0A"></span>Pending review</span>
+  <span class="pill err"><span class="dot" style="background:#E63558"></span>Failed</span>
+  <span class="pill info">Backfilling</span>
+  <span class="pill neutral">Draft</span>
+  <span class="pill navy upper">Aggregated</span>
+  <span class="pill upper" style="background:#A47148;color:#fff">Anonymized</span>
+  <span class="tag">parquet</span>
+  <span class="tag">v3.2.1</span>
+  <span class="tag">cpi-monthly</span>
+</div>
+</body>
+</html>

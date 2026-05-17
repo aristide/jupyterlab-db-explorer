@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tables — Data4Now</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--d4n-paper);font-family:var(--font-body);color:var(--fg-1)}
+  .page{width:920px;margin:0 auto;padding:var(--sp-10) var(--sp-8);box-sizing:border-box;display:flex;flex-direction:column;gap:var(--sp-10)}
+  .eyebrow{font-family:var(--font-display);font-weight:600;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--d4n-teal-deep);margin:0}
+  .rule{height:2px;width:32px;background:var(--d4n-teal);margin:8px 0 12px}
+  .title{font-family:var(--font-display);font-weight:700;font-size:32px;letter-spacing:-0.015em;color:var(--fg-1);margin:0}
+  .lede{font-family:var(--font-body);font-size:14px;color:var(--fg-2);line-height:1.6;max-width:640px;margin:8px 0 0}
+  .section-label{font-family:var(--font-display);font-weight:600;font-size:14px;color:var(--fg-2);margin:0 0 var(--sp-3);letter-spacing:0.02em}
+  .group{display:flex;flex-direction:column;gap:var(--sp-3)}
+  .note{font-family:var(--font-body);font-size:12px;color:var(--fg-3);line-height:1.55;margin:0}
+
+  /* ===== Base table ===== */
+  table.d4n-table{
+    width:100%;
+    border-collapse:separate;
+    border-spacing:0;
+    font-family:var(--font-body);
+    font-size:13px;
+    color:var(--fg-1);
+    background:#fff;
+    border:1px solid var(--d4n-mist);
+    border-radius:var(--r-lg);
+    overflow:hidden;
+  }
+  table.d4n-table thead th{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--fg-3);
+    background:var(--d4n-paper);
+    text-align:left;
+    padding:12px 16px;
+    border-bottom:1px solid var(--d4n-mist);
+    white-space:nowrap;
+  }
+  table.d4n-table tbody td{
+    padding:12px 16px;
+    border-bottom:1px solid var(--d4n-fog);
+    vertical-align:top;
+    line-height:1.5;
+  }
+  table.d4n-table tbody tr:last-child td{border-bottom:none}
+  table.d4n-table td.num,table.d4n-table th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--font-mono);font-size:12.5px}
+
+  /* Zebra */
+  table.d4n-table--zebra tbody tr:nth-child(even) td{background:var(--d4n-paper)}
+
+  /* Compact */
+  table.d4n-table--compact thead th,table.d4n-table--compact tbody td{padding:8px 12px;font-size:12.5px}
+
+  /* Bordered (every cell) */
+  table.d4n-table--bordered tbody td{border-right:1px solid var(--d4n-fog)}
+  table.d4n-table--bordered tbody td:last-child{border-right:none}
+  table.d4n-table--bordered thead th{border-right:1px solid var(--d4n-mist)}
+  table.d4n-table--bordered thead th:last-child{border-right:none}
+
+  /* Totals row */
+  table.d4n-table tfoot td{
+    padding:12px 16px;
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:13px;
+    color:var(--d4n-navy);
+    background:var(--d4n-paper);
+    border-top:2px solid var(--d4n-navy);
+  }
+  table.d4n-table tfoot td.num{font-family:var(--font-mono)}
+
+  /* Inverse / emphasis */
+  table.d4n-table--emph{background:var(--d4n-navy);border-color:var(--d4n-navy-deep);color:#fff}
+  table.d4n-table--emph thead th{background:var(--d4n-navy-deep);color:#7BCBCB;border-bottom-color:var(--d4n-navy-deep)}
+  table.d4n-table--emph tbody td{border-bottom-color:rgba(255,255,255,0.08);color:#fff}
+  table.d4n-table--emph tbody tr:hover td{background:rgba(255,255,255,0.04)}
+
+  /* Pills inside cells */
+  .pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-display);font-weight:600;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;padding:3px 9px;border-radius:var(--r-pill);line-height:1.4}
+  .pill .dot{width:6px;height:6px;border-radius:50%}
+  .pill.success{background:var(--status-success-bg);color:var(--status-success)}
+  .pill.success .dot{background:var(--status-success)}
+  .pill.warning{background:var(--status-warning-bg);color:var(--status-warning)}
+  .pill.warning .dot{background:var(--status-warning)}
+  .pill.danger {background:var(--status-danger-bg);color:var(--status-danger)}
+  .pill.danger .dot{background:var(--status-danger)}
+  .pill.info   {background:var(--status-info-bg);color:var(--status-info)}
+  .pill.info .dot{background:var(--status-info)}
+
+  /* Zone tags (medallion) */
+  .zone{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-display);font-weight:700;font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase}
+  .zone::before{content:"";width:10px;height:10px;border-radius:2px;display:inline-block}
+  .zone.raw::before       {background:var(--zone-raw)}
+  .zone.anon::before      {background:var(--zone-anonymized)}
+  .zone.staging::before   {background:var(--zone-staging)}
+  .zone.aggregated::before{background:var(--zone-aggregated)}
+  .zone.archive::before   {background:var(--zone-archive)}
+
+  /* Key/value table — labels left, value right */
+  table.d4n-kv{
+    width:100%;
+    border-collapse:collapse;
+    font-family:var(--font-body);
+    font-size:13px;
+  }
+  table.d4n-kv th{
+    text-align:left;
+    width:200px;
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--fg-3);
+    padding:10px 16px 10px 0;
+    border-bottom:1px solid var(--d4n-fog);
+    vertical-align:top;
+  }
+  table.d4n-kv td{
+    padding:10px 0;
+    border-bottom:1px solid var(--d4n-fog);
+    color:var(--fg-1);
+    line-height:1.55;
+  }
+  table.d4n-kv tr:last-child th,table.d4n-kv tr:last-child td{border-bottom:none}
+
+  /* Comparison table — "Today vs Tomorrow" */
+  table.d4n-vs{
+    width:100%;
+    border-collapse:separate;
+    border-spacing:0;
+    font-family:var(--font-body);
+    font-size:13px;
+    table-layout:fixed;
+  }
+  table.d4n-vs thead th{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:11px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    padding:14px 16px;
+    text-align:left;
+    color:#fff;
+    background:var(--d4n-graphite);
+  }
+  table.d4n-vs thead th:first-child{background:transparent;color:var(--fg-3);font-weight:600;letter-spacing:0.12em}
+  table.d4n-vs thead th.future{background:var(--d4n-navy)}
+  table.d4n-vs tbody th{
+    text-align:left;
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:13px;
+    color:var(--fg-1);
+    padding:14px 16px 14px 0;
+    border-bottom:1px solid var(--d4n-fog);
+    vertical-align:top;
+    width:24%;
+  }
+  table.d4n-vs tbody td{
+    padding:14px 16px;
+    border-bottom:1px solid var(--d4n-fog);
+    vertical-align:top;
+    line-height:1.55;
+    background:#fff;
+  }
+  table.d4n-vs tbody td.future{background:#F1F7FB;color:var(--d4n-navy-deep)}
+  table.d4n-vs tbody tr:last-child td,table.d4n-vs tbody tr:last-child th{border-bottom:none}
+  table.d4n-vs tbody td .strike{color:var(--fg-3);text-decoration:line-through;text-decoration-color:var(--d4n-magenta);text-decoration-thickness:1.5px}
+  table.d4n-vs tbody td em{font-style:normal;color:var(--d4n-magenta);font-weight:500}
+
+  /* Right-rule emphasis on a column */
+  .col-emph{box-shadow:inset 3px 0 0 var(--d4n-teal)}
+
+  caption.cap{
+    caption-side:bottom;
+    text-align:left;
+    font-family:var(--font-body);
+    font-size:12px;
+    color:var(--fg-3);
+    padding-top:10px;
+    line-height:1.5;
+  }
+  .src{color:var(--fg-4)}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <p class="eyebrow">Document elements · 01</p>
+    <div class="rule"></div>
+    <h1 class="title">Tables</h1>
+    <p class="lede">Six table patterns for technical proposals, statistical reports, and project documents. Hairline borders, tabular numerals in the mono face, uppercase column heads with wide tracking — the same vocabulary as the slide system, translated to the page.</p>
+  </header>
+
+  <!-- 01 — Standard data table with zebra + totals -->
+  <section class="group">
+    <p class="section-label">01 — Standard data table · zebra rows · totals row</p>
+    <table class="d4n-table d4n-table--zebra">
+      <thead>
+        <tr>
+          <th>Source system</th>
+          <th>Owner</th>
+          <th>Ingestion method</th>
+          <th class="num">Records / day</th>
+          <th class="num">Latency (min)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>CPI submissions</td><td>STATIN — Prices</td><td>NiFi SFTP listener</td><td class="num">14,820</td><td class="num">5</td></tr>
+        <tr><td>Customs declarations</td><td>Jamaica Customs</td><td>NiFi REST poll</td><td class="num">9,610</td><td class="num">15</td></tr>
+        <tr><td>Population estimates</td><td>STATIN — Demography</td><td>Manual upload</td><td class="num">240</td><td class="num">1,440</td></tr>
+        <tr><td>Labour force survey</td><td>STATIN — Social</td><td>NiFi SMTP watcher</td><td class="num">3,400</td><td class="num">60</td></tr>
+        <tr><td>Trade statistics</td><td>Min. of Industry</td><td>JDBC pull · MariaDB</td><td class="num">22,180</td><td class="num">10</td></tr>
+      </tbody>
+      <tfoot>
+        <tr><td colspan="3">Daily total — all ingestion streams</td><td class="num">50,250</td><td class="num">—</td></tr>
+      </tfoot>
+      <caption class="cap"><span class="src">Source —</span> NiFi flow registry, sample week of 12 May 2026.</caption>
+    </table>
+  </section>
+
+  <!-- 02 — Compact + status pills -->
+  <section class="group">
+    <p class="section-label">02 — Compact table · status pills</p>
+    <table class="d4n-table d4n-table--compact">
+      <thead>
+        <tr>
+          <th style="width:90px">Pipeline</th>
+          <th>Last run</th>
+          <th>Records</th>
+          <th>Quality</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>cpi-monthly</td><td>2026-05-13 06:00</td><td class="num">14,820</td><td class="num">99.4%</td><td><span class="pill success"><span class="dot"></span>OK</span></td></tr>
+        <tr><td>customs-rest</td><td>2026-05-13 06:15</td><td class="num">9,610</td><td class="num">97.1%</td><td><span class="pill warning"><span class="dot"></span>Drift</span></td></tr>
+        <tr><td>lfs-smtp</td><td>2026-05-13 04:00</td><td class="num">3,400</td><td class="num">100%</td><td><span class="pill success"><span class="dot"></span>OK</span></td></tr>
+        <tr><td>trade-jdbc</td><td>2026-05-13 06:30</td><td class="num">22,180</td><td class="num">86.2%</td><td><span class="pill danger"><span class="dot"></span>Failed</span></td></tr>
+        <tr><td>pop-manual</td><td>2026-05-09 09:42</td><td class="num">240</td><td class="num">—</td><td><span class="pill info"><span class="dot"></span>Pending review</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 03 — Bordered cells + zone tags -->
+  <section class="group">
+    <p class="section-label">03 — Bordered grid · medallion zone tags</p>
+    <table class="d4n-table d4n-table--bordered">
+      <thead>
+        <tr>
+          <th>Bucket</th>
+          <th>Zone</th>
+          <th>Retention</th>
+          <th>Access</th>
+          <th class="num">Size</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>s3://lake/raw/cpi/</td><td><span class="zone raw">Raw</span></td><td>90 days</td><td>NiFi service only</td><td class="num">1.4 TB</td></tr>
+        <tr><td>s3://lake/anon/cpi/</td><td><span class="zone anon">Anonymized</span></td><td>2 years</td><td>Analyst pool</td><td class="num">980 GB</td></tr>
+        <tr><td>s3://lake/staging/cpi/</td><td><span class="zone staging">Staging</span></td><td>180 days</td><td>Statistician group</td><td class="num">320 GB</td></tr>
+        <tr><td>s3://lake/agg/cpi/</td><td><span class="zone aggregated">Aggregated</span></td><td>10 years</td><td>Public dashboards</td><td class="num">48 GB</td></tr>
+        <tr><td>s3://lake/archive/cpi/</td><td><span class="zone archive">Archive</span></td><td>Indefinite</td><td>Veeam only</td><td class="num">6.2 TB</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 04 — Comparison Today vs Tomorrow -->
+  <section class="group">
+    <p class="section-label">04 — Comparison table · today vs tomorrow</p>
+    <table class="d4n-vs">
+      <thead>
+        <tr><th>Workflow</th><th>Today</th><th class="future">Tomorrow</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th>CPI ingestion</th>
+          <td><span class="strike">Admin downloads CSVs from SFTP, renames files, drops into shared folder.</span></td>
+          <td class="future col-emph">NiFi listens to SFTP, validates schema, lands in <em>raw</em> bucket — full audit trail.</td>
+        </tr>
+        <tr>
+          <th>Cross-source query</th>
+          <td><span class="strike">Export to Excel, vlookup against three workbooks, send to statistician.</span></td>
+          <td class="future col-emph">Single <em>SELECT</em> in Trino — federates SQL Server, MariaDB, MinIO at once.</td>
+        </tr>
+        <tr>
+          <th>Quarterly report</th>
+          <td><span class="strike">Six analysts copy-paste from PDFs; numbers reconciled by hand.</span></td>
+          <td class="future col-emph">JupyterHub notebook reads the <em>aggregated</em> zone — same numbers every time.</td>
+        </tr>
+        <tr>
+          <th>Backup</th>
+          <td><span class="strike">USB drive in director's office. Sometimes.</span></td>
+          <td class="future col-emph">Veeam versioning over MinIO buckets — point-in-time restore.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 05 — Key/Value (metadata block) -->
+  <section class="group">
+    <p class="section-label">05 — Key / value · document metadata</p>
+    <table class="d4n-kv">
+      <tr><th>Document ID</th><td>D4N-STATIN-ARCH-002</td></tr>
+      <tr><th>Prepared for</th><td>Statistical Institute of Jamaica (STATIN)</td></tr>
+      <tr><th>Prepared by</th><td>Data4Now · Architecture practice</td></tr>
+      <tr><th>Classification</th><td>Internal — client &amp; partner distribution</td></tr>
+      <tr><th>Version</th><td>2.1 · supersedes 2.0 (2026-04-18)</td></tr>
+      <tr><th>Review window</th><td>14 May 2026 — 04 June 2026</td></tr>
+      <tr><th>Approvers</th><td>STATIN CIO · D4N principal architect · UN DESA observer</td></tr>
+    </table>
+  </section>
+
+  <!-- 06 — Inverse / emphasis table -->
+  <section class="group">
+    <p class="section-label">06 — Emphasis table · navy fill for hero stats</p>
+    <table class="d4n-table d4n-table--emph">
+      <thead>
+        <tr>
+          <th>Indicator</th>
+          <th class="num">Baseline 2025</th>
+          <th class="num">Year 1</th>
+          <th class="num">Year 3 target</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Manual data handling — hours/month</td><td class="num">412</td><td class="num">189</td><td class="num">110</td></tr>
+        <tr><td>Federated queries — per week</td><td class="num">0</td><td class="num">340</td><td class="num">1,200</td></tr>
+        <tr><td>Datasets in single source of truth</td><td class="num">3</td><td class="num">24</td><td class="num">58</td></tr>
+        <tr><td>Time to publish quarterly report</td><td class="num">14d</td><td class="num">6d</td><td class="num">2d</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Form fields</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--d4n-paper);font-family:var(--font-body)}
+  .card{width:700px;padding:var(--sp-6);box-sizing:border-box;display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-4)}
+  .field{display:flex;flex-direction:column;gap:6px}
+  label{font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--fg-1)}
+  .hint{font-family:var(--font-body);font-size:12px;color:var(--fg-3)}
+  input,select{font-family:var(--font-body);font-size:14px;color:var(--fg-1);padding:9px 12px;border:1px solid var(--border-2);border-radius:6px;background:#fff;outline:none;width:100%;box-sizing:border-box}
+  input:focus{border-color:var(--d4n-teal);box-shadow:var(--shadow-focus)}
+  input.error{border-color:var(--d4n-magenta)}
+  .err{color:var(--d4n-magenta);font-size:12px;font-family:var(--font-body)}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="field"><label>Bucket name</label><input value="raw/customs"><span class="hint">MinIO path, lowercase</span></div>
+  <div class="field"><label>Schedule</label><select><option>Hourly</option><option>Daily 02:00</option></select></div>
+  <div class="field"><label>SFTP host</label><input value="sftp.namra.gov.jm" style="border-color:var(--d4n-teal);box-shadow:var(--shadow-focus)"></div>
+  <div class="field"><label>Owner email</label><input class="error" value="not-an-email"><span class="err">Must be a valid email address</span></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Brand colors</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--d4n-paper);font-family:var(--font-body)}
+  .card{width:700px;padding:var(--sp-6);box-sizing:border-box;display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-4)}
+  .swatch{border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--border-1);background:#fff}
+  .chip{height:96px}
+  .meta{padding:var(--sp-3) var(--sp-4)}
+  .name{font-family:var(--font-display);font-weight:600;font-size:var(--fs-14);color:var(--fg-1);margin-bottom:2px}
+  .hex{font-family:var(--font-mono);font-size:var(--fs-13);color:var(--fg-3)}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="swatch"><div class="chip" style="background:#0F3D6E"></div><div class="meta"><div class="name">Navy</div><div class="hex">#0F3D6E</div></div></div>
+  <div class="swatch"><div class="chip" style="background:#1FA0A0"></div><div class="meta"><div class="name">Teal</div><div class="hex">#1FA0A0</div></div></div>
+  <div class="swatch"><div class="chip" style="background:#E63558"></div><div class="meta"><div class="name">Magenta</div><div class="hex">#E63558</div></div></div>
+</div>
+</body>
+</html>

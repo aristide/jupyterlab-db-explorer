@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Duotone hero treatment</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--d4n-paper);font-family:var(--font-body)}
+  .card{width:700px;height:280px;box-sizing:border-box;padding:var(--sp-4);display:flex;gap:12px}
+  .panel{flex:1;border-radius:var(--r-lg);overflow:hidden;position:relative;background-image:url('../assets/hero-duotone-photo.png');background-size:cover;background-position:center}
+  .panel.teal::after{content:"";position:absolute;inset:0;background:#1FA0A0;mix-blend-mode:multiply;opacity:0.85}
+  .panel.split::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#1FA0A0 0 50%,#E63558 50% 100%);mix-blend-mode:multiply;opacity:0.85}
+  .panel .label{position:absolute;left:14px;bottom:14px;color:#fff;font-family:var(--font-display);font-weight:600;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;z-index:2}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="panel teal"><span class="label">Single-tone — teal</span></div>
+  <div class="panel split"><span class="label">Split — teal · magenta</span></div>
+</div>
+</body>
+</html>

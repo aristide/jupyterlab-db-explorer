@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Logo</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; background: var(--d4n-paper); }
+  .card {
+    width: 700px; height: 200px;
+    display: grid; grid-template-columns: 1fr 1fr;
+    align-items: center; gap: var(--sp-4);
+    padding: var(--sp-6);
+    box-sizing: border-box;
+    background: var(--d4n-paper);
+    font-family: var(--font-body);
+  }
+  .light, .dark {
+    height: 100%;
+    border-radius: var(--r-lg);
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border-1);
+  }
+  .light { background: var(--d4n-white); }
+  .dark  { background: var(--d4n-navy); border-color: var(--d4n-navy); }
+  img { max-width: 78%; max-height: 78%; }
+  .dark img { filter: brightness(0) invert(1); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="light"><img src="../assets/data4now-logo.png" alt="Data4Now logo, color"></div>
+    <div class="dark"><img src="../assets/data4now-logo.png" alt="Data4Now logo, knockout"></div>
+  </div>
+</body>
+</html>

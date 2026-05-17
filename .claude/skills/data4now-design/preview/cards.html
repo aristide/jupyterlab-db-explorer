@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cards</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--d4n-paper);font-family:var(--font-body)}
+  .wrap{width:700px;padding:var(--sp-6);box-sizing:border-box;display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-4)}
+  .card{background:#fff;border:1px solid var(--d4n-mist);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:var(--sp-5)}
+  .eyebrow{font-family:var(--font-display);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:var(--d4n-teal-deep);margin-bottom:6px}
+  .h{font-family:var(--font-display);font-weight:600;font-size:18px;color:var(--fg-1);margin:0 0 6px}
+  .b{font-family:var(--font-body);font-size:13px;color:var(--fg-2);line-height:1.55;margin:0}
+  .emph{background:var(--d4n-navy);color:#fff;border:none}
+  .emph .h,.emph .b{color:#fff}
+  .emph .eyebrow{color:#7BCBCB}
+  .stat{font-family:var(--font-display);font-weight:700;font-size:36px;letter-spacing:-0.02em;color:#fff;line-height:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card"><div class="eyebrow">Component</div><h3 class="h">Apache NiFi</h3><p class="b">Visual drag-and-drop pipeline builder. Replaces manual Excel/email ingestion with automated, monitored flows.</p></div>
+  <div class="card emph"><div class="eyebrow">Outcome</div><div class="stat">73%</div><p class="b" style="margin-top:8px">Less manual data handling after the lake goes live.</p></div>
+</div>
+</body>
+</html>

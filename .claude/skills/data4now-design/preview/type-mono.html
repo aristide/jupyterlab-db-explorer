@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mono & code</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--d4n-paper)}
+  .card{width:700px;padding:var(--sp-6);box-sizing:border-box;display:flex;flex-direction:column;gap:var(--sp-3)}
+  .label{font-family:var(--font-mono);font-size:11px;color:var(--fg-3);text-transform:uppercase;letter-spacing:0.08em}
+  pre{margin:0;background:var(--d4n-ink);color:#D8E2F0;padding:var(--sp-3) var(--sp-4);border-radius:var(--r-md);font-family:var(--font-mono);font-size:13px;line-height:1.5;overflow:hidden}
+  .kw{color:#7CC4FF}
+  .str{color:#F5A0B5}
+  .num{color:#FFD580}
+  .com{color:#6B7B92;font-style:italic}
+  .inline{font-family:var(--font-body);font-size:14px;color:var(--fg-1)}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="label">SQL — Trino federation</div>
+  <pre><span class="kw">SELECT</span> m.commodity, s.description, t.value
+<span class="kw">FROM</span> minio.silver.trade m
+<span class="kw">JOIN</span> sqlserver.legacy.codes s <span class="kw">ON</span> m.hs_code = s.code
+<span class="kw">JOIN</span> mariadb.surveys.weights t <span class="kw">ON</span> m.category = t.category</pre>
+  <div class="inline">Inline path: <code class="d4n-code">raw/customs/2026/03/trade-march.xlsx</code></div>
+</div>
+</body>
+</html>

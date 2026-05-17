@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Shadows</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--d4n-paper);font-family:var(--font-body)}
+  .card{width:700px;padding:var(--sp-8) var(--sp-6);box-sizing:border-box;display:grid;grid-template-columns:repeat(5,1fr);gap:var(--sp-4)}
+  .item{display:flex;flex-direction:column;align-items:center;gap:var(--sp-3)}
+  .box{width:96px;height:64px;background:#fff;border-radius:var(--r-md);border:1px solid var(--border-1)}
+  .name{font-family:var(--font-mono);font-size:11px;color:var(--fg-2)}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="item"><div class="box" style="box-shadow:var(--shadow-xs)"></div><span class="name">xs</span></div>
+  <div class="item"><div class="box" style="box-shadow:var(--shadow-sm)"></div><span class="name">sm</span></div>
+  <div class="item"><div class="box" style="box-shadow:var(--shadow-md)"></div><span class="name">md</span></div>
+  <div class="item"><div class="box" style="box-shadow:var(--shadow-lg)"></div><span class="name">lg</span></div>
+  <div class="item"><div class="box" style="box-shadow:var(--shadow-xl)"></div><span class="name">xl</span></div>
+</div>
+</body>
+</html>
