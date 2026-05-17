@@ -9,14 +9,16 @@ import { copyIcon } from '@jupyterlab/ui-components';
 import { Menu } from '@lumino/widgets';
 
 import {
-  DataModel,
   DataGrid,
   TextRenderer,
-  //CellRenderer,
   BasicKeyHandler,
   BasicMouseHandler,
   BasicSelectionModel
 } from '@lumino/datagrid';
+
+import { LazyTableModel } from './lazyTableModel';
+
+export { LazyTableModel } from './lazyTableModel';
 
 namespace CommandIds {
   export const copyToClipboard = 'copy-selection-to-clipboard';
@@ -29,7 +31,7 @@ namespace Table {
 }
 
 export class Table implements IDisposable {
-  constructor(model: TableDataModel, options?: Table.IOptions) {
+  constructor(model: LazyTableModel, options?: Table.IOptions) {
     const translator = options?.translator || nullTranslator;
     const trans = translator?.load('jupyterlab_db_explorer');
 
@@ -38,8 +40,10 @@ export class Table implements IDisposable {
         rowHeight: 24,
         columnWidth: 144,
         rowHeaderWidth: 64,
-        columnHeaderHeight: 36
-      }
+        // Room for the column-name row + the stats sub-row.
+        columnHeaderHeight: 44
+      },
+      headerVisibility: 'all'
     });
 
     this.theme = 'light';
@@ -95,7 +99,7 @@ export class Table implements IDisposable {
     });
   }
 
-  set dataModel(model: TableDataModel) {
+  set dataModel(model: LazyTableModel) {
     this._grid.dataModel = model;
     this._grid.selectionModel = new BasicSelectionModel({ dataModel: model });
   }
@@ -105,7 +109,6 @@ export class Table implements IDisposable {
   }
 
   get selection(): Array<any> {
-    //toArray(this._selectionModel.selections());
     return [];
   }
 
@@ -120,46 +123,6 @@ export class Table implements IDisposable {
 
   private readonly _grid: DataGrid;
   private readonly _contextMenu: Menu;
-}
-
-export class TableDataModel extends DataModel {
-  constructor(keys: Array<string>, data: Array<Array<any>>) {
-    super();
-    this._data = data;
-    this._keys = keys;
-  }
-
-  readonly _data: Array<Array<any>>;
-  readonly _keys: Array<string>;
-
-  rowCount(region: DataModel.RowRegion): number {
-    return region === 'body' ? this._data.length : 1;
-  }
-
-  columnCount(region: DataModel.ColumnRegion): number {
-    return region === 'body' ? this._keys.length : 1;
-  }
-
-  data(region: DataModel.CellRegion, row: number, column: number): any {
-    if (region === 'row-header') {
-      return row;
-    }
-    if (region === 'column-header') {
-      return this._keys[column];
-    }
-    if (region === 'corner-header') {
-      return '';
-    }
-    return this._serializeData(this._data[row][column]);
-  }
-
-  _serializeData(data: any): any {
-    const _type = typeof data;
-    if (_type === 'object') {
-      return JSON.stringify(data);
-    }
-    return data;
-  }
 }
 
 /**

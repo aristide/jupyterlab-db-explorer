@@ -6,6 +6,8 @@ import {
   IApiRes,
   IPass,
   IQueryRes,
+  IPageRes,
+  IStatsRes,
   IDBConn,
   IParam
 } from './interfaces';
@@ -224,4 +226,24 @@ export const get_query = async (
 
 export const stop_query = async (taskid: string): Promise<IQueryRes> => {
   return await DELETE('query', { taskid });
+};
+
+export const get_query_page = async (
+  taskid: string,
+  offset: number,
+  limit: number,
+  options?: RequestInit
+): Promise<IPageRes> => {
+  return await GET(
+    'query/page',
+    { taskid, offset: String(offset), limit: String(limit) },
+    options
+  );
+};
+
+export const get_query_stats = async (
+  taskid: string,
+  options?: RequestInit
+): Promise<IStatsRes> => {
+  return await GET('query/stats', { taskid }, options);
 };

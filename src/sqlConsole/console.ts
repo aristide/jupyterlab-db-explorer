@@ -52,7 +52,7 @@ export class SqlConsoleWidget extends SplitPanel {
     this.queryModel = queryModel;
 
     this.editor = new Editor(model, jp_services.editorService.factoryService);
-    this.resultsTable = new ResultsTable([], []);
+    this.resultsTable = new ResultsTable();
 
     this.addWidget(this.editor.widget);
     this.addWidget(this.resultsTable.widget);
@@ -154,12 +154,12 @@ export class SqlConsoleWidget extends SplitPanel {
       return;
     }
     this._is_running = true;
-    this.resultsTable.setData([], []);
+    this.resultsTable.clear();
     const rc = await this.queryModel.query(sql);
     this._is_running = false;
     if (rc.status === 'OK' && rc.data !== undefined) {
       const data = rc.data as ITableData;
-      this.resultsTable.setData(data.columns, data.data);
+      this.resultsTable.setData(data, this.queryModel);
     }
   };
 

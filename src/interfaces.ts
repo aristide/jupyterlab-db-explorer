@@ -57,9 +57,35 @@ export interface ITreeCmdRes {
   pass_info?: IPass; // if status if NEED_PASS,
 }
 
+export type ColumnDtype = 'number' | 'datetime' | 'string';
+
+export interface IColumnStats {
+  dtype: ColumnDtype;
+  count: number;
+  null_count: number;
+  /** Number of distinct values, or '1000+' once capped. */
+  distinct: number | string;
+  min?: number | string;
+  max?: number | string;
+  mean?: number;
+}
+
 export interface ITableData {
   columns: Array<string>;
+  /** First page of rows; subsequent pages fetched via getQueryPage. */
   data: Array<Array<any>>;
+  /** Inferred per-column dtypes for the stats sub-row + chart-shelf. */
+  dtypes?: ColumnDtype[];
+  /** Running per-column statistics — grow as more pages are fetched. */
+  stats?: IColumnStats[];
+  /** Total rows once the cursor has been exhausted, otherwise null. */
+  total_rows?: number | null;
+  /** True when the streaming cursor has reached EOF or the hard cap. */
+  cursor_exhausted?: boolean;
+  /** Backend page size — frontend should use this when computing fetches. */
+  page_size?: number;
+  /** Server-issued id used to fetch subsequent pages / stats. */
+  taskid?: string;
 }
 
 export interface IQueryRes {
@@ -67,6 +93,31 @@ export interface IQueryRes {
   data?: ITableData | string;
   message?: string;
   pass_info?: IPass; // if status if NEED_PASS,
+}
+
+export interface IPageData {
+  data: Array<Array<any>>;
+  total_rows?: number | null;
+  cursor_exhausted?: boolean;
+}
+
+export interface IPageRes {
+  status: TApiStatus;
+  data?: IPageData;
+  message?: string;
+}
+
+export interface IStatsData {
+  stats: IColumnStats[];
+  rows_seen?: number;
+  total_rows?: number | null;
+  cursor_exhausted?: boolean;
+}
+
+export interface IStatsRes {
+  status: TApiStatus;
+  data?: IStatsData;
+  message?: string;
 }
 
 export interface IConnectionStatus {

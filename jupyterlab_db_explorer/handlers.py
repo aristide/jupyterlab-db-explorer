@@ -1,3 +1,4 @@
+import asyncio
 import json
 import traceback
 from jupyter_server.base.handlers import APIHandler
@@ -136,7 +137,7 @@ class QueryHandler(APIHandler):
             if not st:
                 self.finish(json.dumps({'error': 'NEED-PASS', 'pass_info': {'db_id': qdata['dbid'], 'db_user': db_user}}))
             else:
-                taskid = await task.create_query_task(db.query_exec, qdata['dbid'], qdata['sql'])
+                taskid = await task.create_query_task(qdata['dbid'], qdata['sql'])
                 self.finish(json.dumps({'error': 'RETRY', 'data': taskid}))
         except Exception as err:
             self.log.error(err)
@@ -165,6 +166,58 @@ class QueryHandler(APIHandler):
             self.log.error(err)
             self.finish(json.dumps({'error': str(err)}))
 
+
+class QueryPageHandler(APIHandler):
+    """GET /query/page?taskid=…&offset=…&limit=…
+
+    Returns rows in the half-open range [offset, offset+limit) from the
+    cached cursor result. Cursor advances forward as needed; previously
+    fetched pages are served from the in-memory page cache.
+    """
+
+    @tornado.web.authenticated
+    async def get(self):
+        task_id = self.get_argument('taskid')
+        try:
+            offset = int(self.get_argument('offset', '0'))
+            limit = int(self.get_argument('limit', '1000'))
+        except ValueError:
+            self.finish(json.dumps({'error': 'offset and limit must be integers'}))
+            return
+        try:
+            loop = asyncio.get_event_loop()
+            rc, payload = await loop.run_in_executor(
+                None, task.get_page, task_id, offset, limit
+            )
+            if rc:
+                self.finish(json.dumps({'data': payload}))
+            else:
+                self.finish(json.dumps(payload))
+        except Exception as err:
+            self.log.error(err)
+            self.finish(json.dumps({'error': str(err)}))
+
+
+class QueryStatsHandler(APIHandler):
+    """GET /query/stats?taskid=…
+
+    Returns the running per-column stats snapshot. The cursor only scrolls
+    forward, so stats grow as pages are fetched.
+    """
+
+    @tornado.web.authenticated
+    async def get(self):
+        task_id = self.get_argument('taskid')
+        try:
+            rc, payload = task.get_stats(task_id)
+            if rc:
+                self.finish(json.dumps({'data': payload}))
+            else:
+                self.finish(json.dumps(payload))
+        except Exception as err:
+            self.log.error(err)
+            self.finish(json.dumps({'error': str(err)}))
+
 def handler_url(base_url, act):
     return url_path_join(base_url, "jupyterlab-db-explorer", act)
 
@@ -180,5 +233,7 @@ def setup_handlers(web_app):
         (handler_url(base_url, "columns"), TabColumnHandler),
         (handler_url(base_url, "pass"), PasswdHandler),
         (handler_url(base_url, "query"), QueryHandler),
+        (handler_url(base_url, "query/page"), QueryPageHandler),
+        (handler_url(base_url, "query/stats"), QueryStatsHandler),
     ]
     web_app.add_handlers(host_pattern, handlers)

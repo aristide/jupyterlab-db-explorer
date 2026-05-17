@@ -27,3 +27,15 @@ ENV_DB_CONN_SUFFIX_USER = '_USER'
 ENV_DB_CONN_SUFFIX_PASS = '_PASS'
 ENV_DB_CONN_SUFFIX_NAME = '_NAME'
 ENV_DB_CONN_SUFFIX_ID = '_ID'
+
+# Result-cursor session tuning. All optional, sensible defaults below.
+# - QUERY_LIMIT: max rows the streaming cursor will scroll through before
+#   stopping. Bounds server memory for the page-cache.
+# - RESULT_TTL_SEC: how long an idle ResultSession stays alive before being
+#   evicted from task store (and its DB connection closed).
+# - MAX_CACHED_RESULTS: LRU bound on the number of concurrent ResultSessions.
+# - RESULT_PAGE_SIZE: rows per page fetched from the cursor + cached.
+ENV_QUERY_LIMIT = 'DB_EXPLORER_QUERY_LIMIT'
+ENV_RESULT_TTL_SEC = 'DB_EXPLORER_RESULT_TTL_SEC'
+ENV_MAX_CACHED_RESULTS = 'DB_EXPLORER_MAX_CACHED_RESULTS'
+ENV_RESULT_PAGE_SIZE = 'DB_EXPLORER_RESULT_PAGE_SIZE'

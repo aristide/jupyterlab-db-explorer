@@ -9,6 +9,8 @@ import {
   query,
   get_query,
   stop_query,
+  get_query_page,
+  get_query_stats,
   edit_conn,
   del_conn,
   test_conn,
@@ -20,6 +22,8 @@ import {
   ITreeCmdRes,
   TApiStatus,
   IQueryRes,
+  IPageData,
+  IStatsData,
   IDBConn
 } from './interfaces';
 
@@ -271,6 +275,12 @@ export interface IQueryModel {
   dbid: string;
   schema?: string;
   query: (sql: string) => Promise<IQueryRes>;
+  /** Fetch a page of rows from the most-recently-completed query's cached
+   *  cursor. Resolves with null if the task has been evicted or the cursor
+   *  has not been opened. */
+  fetchPage: (offset: number, limit: number) => Promise<IPageData | null>;
+  /** Refresh the running per-column statistics snapshot. */
+  fetchStats: () => Promise<IStatsData | null>;
   conns: Array<string>;
   isConnReadOnly: boolean;
   stop: () => void;
@@ -338,6 +348,34 @@ export class QueryModel implements IQueryModel {
     this._controller.abort();
     stop_query(this._taskid);
   };
+
+  /** Public accessor used by the LazyTableModel to identify which result it
+   *  is currently displaying. Empty string when no query has completed yet. */
+  get taskid(): string {
+    return this._taskid || '';
+  }
+
+  async fetchPage(offset: number, limit: number): Promise<IPageData | null> {
+    if (!this._taskid) {
+      return null;
+    }
+    const rc = await get_query_page(this._taskid, offset, limit);
+    if (rc.status !== 'OK' || !rc.data) {
+      return null;
+    }
+    return rc.data;
+  }
+
+  async fetchStats(): Promise<IStatsData | null> {
+    if (!this._taskid) {
+      return null;
+    }
+    const rc = await get_query_stats(this._taskid);
+    if (rc.status !== 'OK' || !rc.data) {
+      return null;
+    }
+    return rc.data;
+  }
 
   get dbid(): string {
     return this._dbid;

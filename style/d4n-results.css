@@ -1,0 +1,47 @@
+/* ============================================================================
+   d4n-results.css — SQL Console result-table chrome.
+
+   Most of the result grid is rendered by @lumino/datagrid in canvas, but the
+   surrounding scaffolding (loading bar, footer status, column-header chrome
+   overlays in later phases) is plain DOM. Styles below give those bits the
+   d4n look. We deliberately scope under .d4n-rt to avoid leaking globally.
+   ========================================================================== */
+
+.d4n-rt {
+  --rt-bg: var(--jp-layout-color1, #fff);
+  --rt-fg: var(--jp-ui-font-color1, #0b1f38);
+  --rt-fg-muted: var(--jp-ui-font-color2, #5a6b82);
+  --rt-border: var(--jp-border-color2, #e4e9f0);
+  --rt-accent: var(--jp-brand-color1, #0f3d6e);
+  --rt-accent-2: #1fa0a0;
+  --rt-magenta: #e63558;
+  --rt-success: var(--jp-success-color1, #1f8a5e);
+}
+
+.d4n-rt__footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--rt-border);
+  background: var(--rt-bg);
+  color: var(--rt-fg-muted);
+  font: 500 11px/1.2 'Montserrat', var(--jp-ui-font-family, system-ui),
+    sans-serif;
+}
+
+.d4n-rt__footer-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rt-success);
+}
+.d4n-rt__footer-dot.is-truncated {
+  background: var(--rt-magenta);
+}
+
+.d4n-rt__footer-meta {
+  margin-left: auto;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+}
