@@ -106,9 +106,14 @@ function svgToDataUrl(svg: string): string {
 }
 
 // Pre-compute brand-SVG data URLs once at module load.
-const DB_GLYPH_URL: Record<number, string> = Object.fromEntries(
-  Object.entries(DB_CATALOG).map(([k, v]) => [k, svgToDataUrl(v.brandSvg)])
-) as Record<number, string>;
+const DB_GLYPH_URL: Record<number, string> = (() => {
+  const out: Record<number, string> = {};
+  for (const k of Object.keys(DB_CATALOG)) {
+    const code = Number(k);
+    out[code] = svgToDataUrl(DB_CATALOG[code].brandSvg);
+  }
+  return out;
+})();
 
 // ─── Inline SVG glyphs (ported from the design's <Icon name=…/>) ──────────
 type GlyphName =

@@ -64,11 +64,14 @@ async def test_err_conn(jp_fetch):
     payload = json.loads(response.body)
     assert payload == {'error': 'db_id add already exists.'}
 
+    # PostgreSQL no longer requires db_name at create time — the engine
+    # defaults to the `postgres` maintenance DB when none is configured.
+    # A PG conn without a host still errors though.
     response = await jp_fetch("jupyterlab-db-explorer", "conns",
         method='POST', body=json.dumps({"db_id": "add1", "db_type": engine.DB_PGSQL}))
     assert response.code == 200
     payload = json.loads(response.body)
-    assert payload == {'error': 'postgres must set database name to connect'}
+    assert payload == {'error': 'must set ip addr.'}
 
     response = await jp_fetch("jupyterlab-db-explorer", "conns",
         method='POST', body=json.dumps({"db_id": "add1", "db_name": "test", "db_type": engine.DB_PGSQL}))
