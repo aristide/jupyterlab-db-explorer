@@ -362,8 +362,8 @@ export class QueryModel implements IQueryModel {
       return rc;
     }
     while (rc.status === 'RETRY') {
-      (this._taskid = rc.data as string),
-        (rc = await get_query(this._taskid, options));
+      ((this._taskid = rc.data as string),
+        (rc = await get_query(this._taskid, options)));
     }
     const st: IQueryStatus = { status: rc.status, errmsg: rc.message };
     this._query_finish.emit(st);
