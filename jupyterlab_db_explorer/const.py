@@ -8,6 +8,10 @@ ENV_DB_USER = 'DB_USER'
 ENV_DB_PASS = 'DB_PASS'
 ENV_DB_NAME = 'DB_NAME'
 ENV_DB_ID = 'DB_ID'
+# Trino/StarRocks JWT auth. AUTH_TYPE='jwt' makes DB_PASS the bearer token.
+# HTTP_SCHEME is Trino-only ('https' default, 'http' allowed override).
+ENV_DB_AUTH_TYPE = 'DB_AUTH_TYPE'
+ENV_DB_HTTP_SCHEME = 'DB_HTTP_SCHEME'
 
 # Environment variable to control reset functionality (default: enabled)
 ENV_ALLOW_RESET = 'DB_EXPLORER_ALLOW_RESET'
@@ -27,6 +31,10 @@ ENV_DB_CONN_SUFFIX_USER = '_USER'
 ENV_DB_CONN_SUFFIX_PASS = '_PASS'
 ENV_DB_CONN_SUFFIX_NAME = '_NAME'
 ENV_DB_CONN_SUFFIX_ID = '_ID'
+# JWT auth (Trino & StarRocks). When AUTH_TYPE='jwt', the PASS field holds the
+# bearer token. HTTP_SCHEME is Trino-only.
+ENV_DB_CONN_SUFFIX_AUTH_TYPE = '_AUTH_TYPE'
+ENV_DB_CONN_SUFFIX_HTTP_SCHEME = '_HTTP_SCHEME'
 
 # Result-cursor session tuning. All optional, sensible defaults below.
 # - QUERY_LIMIT: max rows the streaming cursor will scroll through before

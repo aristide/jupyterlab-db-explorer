@@ -84,7 +84,8 @@
   /* ----------------------------------------
      TYPOGRAPHY — families
      ---------------------------------------- */
-  --font-display: 'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display:
+    'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-body: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
 
@@ -142,14 +143,14 @@
      SHADOWS — soft, slightly cool
      ---------------------------------------- */
   --shadow-xs: 0 1px 2px rgba(15, 61, 110, 0.06);
-  --shadow-sm: 0 1px 3px rgba(15, 61, 110, 0.08),
-    0 1px 2px rgba(15, 61, 110, 0.04);
-  --shadow-md: 0 4px 12px rgba(15, 61, 110, 0.08),
-    0 2px 4px rgba(15, 61, 110, 0.04);
-  --shadow-lg: 0 12px 28px rgba(15, 61, 110, 0.12),
-    0 4px 8px rgba(15, 61, 110, 0.06);
-  --shadow-xl: 0 24px 48px rgba(15, 61, 110, 0.16),
-    0 8px 16px rgba(15, 61, 110, 0.08);
+  --shadow-sm:
+    0 1px 3px rgba(15, 61, 110, 0.08), 0 1px 2px rgba(15, 61, 110, 0.04);
+  --shadow-md:
+    0 4px 12px rgba(15, 61, 110, 0.08), 0 2px 4px rgba(15, 61, 110, 0.04);
+  --shadow-lg:
+    0 12px 28px rgba(15, 61, 110, 0.12), 0 4px 8px rgba(15, 61, 110, 0.06);
+  --shadow-xl:
+    0 24px 48px rgba(15, 61, 110, 0.16), 0 8px 16px rgba(15, 61, 110, 0.08);
   --shadow-focus: 0 0 0 3px rgba(31, 160, 160, 0.3);
 
   /* ----------------------------------------

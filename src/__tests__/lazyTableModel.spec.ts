@@ -6,7 +6,13 @@
  */
 import { Signal } from '@lumino/signaling';
 import { LazyTableModel } from '../sqlConsole/lazyTableModel';
-import { IPageData, IStatsData, ITableData, IQueryRes } from '../interfaces';
+import {
+  IHistogramBin,
+  IPageData,
+  IStatsData,
+  ITableData,
+  IQueryRes
+} from '../interfaces';
 import {
   IFilterSpec,
   IQueryModel,
@@ -48,6 +54,9 @@ class FakeQueryModel implements IQueryModel {
     return null;
   }
   async topN(_column: string, _n?: number): Promise<ITopValue[]> {
+    return [];
+  }
+  async histogram(_column: string, _n_bins?: number): Promise<IHistogramBin[]> {
     return [];
   }
   stop = (): void => {};

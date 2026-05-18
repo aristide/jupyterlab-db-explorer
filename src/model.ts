@@ -14,6 +14,7 @@ import {
   post_query_sort,
   post_query_filter,
   get_query_topn,
+  get_query_histogram,
   edit_conn,
   del_conn,
   test_conn,
@@ -28,6 +29,7 @@ import {
   ITableData,
   IPageData,
   IStatsData,
+  IHistogramBin,
   IDBConn
 } from './interfaces';
 
@@ -313,6 +315,8 @@ export interface IQueryModel {
   setFilter: (filters: IFilterSpec[]) => Promise<ITableData | null>;
   /** Independent aggregation query — top-N value counts for one column. */
   topN: (column: string, n?: number) => Promise<ITopValue[]>;
+  /** Independent aggregation query — numeric value histogram for a column. */
+  histogram: (column: string, n_bins?: number) => Promise<IHistogramBin[]>;
   conns: Array<string>;
   isConnReadOnly: boolean;
   stop: () => void;
@@ -443,6 +447,17 @@ export class QueryModel implements IQueryModel {
       return [];
     }
     return rc.data.values || [];
+  }
+
+  async histogram(column: string, n_bins = 10): Promise<IHistogramBin[]> {
+    if (!this._taskid) {
+      return [];
+    }
+    const rc = await get_query_histogram(this._taskid, column, n_bins);
+    if (rc.status !== 'OK' || !rc.data) {
+      return [];
+    }
+    return rc.data.bins || [];
   }
 
   get dbid(): string {

@@ -27,6 +27,10 @@ export interface IDBConn {
   db_port?: string;
   db_user?: string;
   db_pass?: string;
+  /** 'password' (default) or 'jwt' — only Trino & StarRocks honour 'jwt'. */
+  db_auth_type?: string;
+  /** Trino-only: 'https' (default for JWT) or 'http'. */
+  db_http_scheme?: string;
   name?: string;
   errmsg?: string;
 }
@@ -117,6 +121,18 @@ export interface IStatsData {
 export interface IStatsRes {
   status: TApiStatus;
   data?: IStatsData;
+  message?: string;
+}
+
+export interface IHistogramBin {
+  min: number;
+  max: number;
+  count: number;
+}
+
+export interface IHistogramRes {
+  status: TApiStatus;
+  data?: { bins: IHistogramBin[] };
   message?: string;
 }
 

@@ -126,3 +126,5 @@ dmypy.json
 scope/
 notebooks/
 pygwalker/
+
+.memsearch/*

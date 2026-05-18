@@ -1,6 +1,11 @@
 import { DataModel } from '@lumino/datagrid';
 
-import { ColumnDtype, IColumnStats, ITableData } from '../interfaces';
+import {
+  ColumnDtype,
+  IColumnStats,
+  IHistogramBin,
+  ITableData
+} from '../interfaces';
 import { IFilterSpec, IQueryModel, SortDirection } from '../model';
 
 const DEFAULT_PAGE_SIZE = 1000;
@@ -91,6 +96,20 @@ export class LazyTableModel extends DataModel {
     return this._totalRows;
   }
 
+  /** Approximate count of rows already streamed into the page cache. Used
+   *  by the meta strip to show "Showing 1–N (loading…)" while the cursor
+   *  is still draining. */
+  get loadedRows(): number {
+    let maxEnd = 0;
+    for (const [start, page] of this._pages) {
+      const end = start + page.length;
+      if (end > maxEnd) {
+        maxEnd = end;
+      }
+    }
+    return Math.min(maxEnd, this._totalRows);
+  }
+
   get columns(): string[] {
     return this._columns;
   }
@@ -142,6 +161,14 @@ export class LazyTableModel extends DataModel {
   /** Hand the popover its top-N value loader without exposing _qmodel. */
   topN(column: string, n = 10) {
     return this._qmodel ? this._qmodel.topN(column, n) : Promise.resolve([]);
+  }
+
+  /** Numeric value-distribution histogram (used by the column profile
+   *  header strip). Returns the empty list when there's no backing query. */
+  histogram(column: string, n_bins = 10): Promise<IHistogramBin[]> {
+    return this._qmodel
+      ? this._qmodel.histogram(column, n_bins)
+      : Promise.resolve([]);
   }
 
   // ── DataModel API ─────────────────────────────────────────────────────

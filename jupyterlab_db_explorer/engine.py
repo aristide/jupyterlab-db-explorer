@@ -17,12 +17,14 @@ from .const import (
     DB_ROOT,
     ENV_DB_TYPE, ENV_DB_HOST, ENV_DB_PORT,
     ENV_DB_USER, ENV_DB_PASS, ENV_DB_NAME, ENV_DB_ID,
+    ENV_DB_AUTH_TYPE, ENV_DB_HTTP_SCHEME,
     ENV_ALLOW_RESET, ENV_ALLOWED_TYPES,
     ENV_DB_CONN_PREFIX,
     ENV_DB_CONN_SUFFIX_TYPE, ENV_DB_CONN_SUFFIX_HOST,
     ENV_DB_CONN_SUFFIX_PORT, ENV_DB_CONN_SUFFIX_USER,
     ENV_DB_CONN_SUFFIX_PASS, ENV_DB_CONN_SUFFIX_NAME,
     ENV_DB_CONN_SUFFIX_ID,
+    ENV_DB_CONN_SUFFIX_AUTH_TYPE, ENV_DB_CONN_SUFFIX_HTTP_SCHEME,
 )
 
 DB_CFG = DB_ROOT + 'db_conf.json'
@@ -219,6 +221,7 @@ def _getDBlist_from_env():
         if e[0:3] == 'DB_' and e not in (
             ENV_DB_TYPE, ENV_DB_HOST, ENV_DB_PORT,
             ENV_DB_USER, ENV_DB_PASS, ENV_DB_NAME, ENV_DB_ID,
+            ENV_DB_AUTH_TYPE, ENV_DB_HTTP_SCHEME,
             ENV_ALLOW_RESET, ENV_ALLOWED_TYPES, 'DB_EXPLORER_ALLOW_RESET',
             'DB_EXPLORER_ALLOWED_TYPES'
         ) and not e.startswith(ENV_DB_CONN_PREFIX):
@@ -252,18 +255,23 @@ def _getConns_from_env():
         ENV_DB_CONN_SUFFIX_PASS: 'db_pass',
         ENV_DB_CONN_SUFFIX_NAME: 'db_name',
         ENV_DB_CONN_SUFFIX_ID: 'db_id',
+        ENV_DB_CONN_SUFFIX_AUTH_TYPE: 'db_auth_type',
+        ENV_DB_CONN_SUFFIX_HTTP_SCHEME: 'db_http_scheme',
     }
-    suffix_lengths = {k: len(k) for k in suffix_to_key.keys()}
+    # Longest suffix first so '_AUTH_TYPE' wins over '_TYPE' on
+    # DB_CONN_PROD_AUTH_TYPE — otherwise that variable would be parsed as
+    # connection 'PROD_AUTH' with field 'TYPE'.
+    ordered_suffixes = sorted(suffix_to_key.keys(), key=len, reverse=True)
 
     for e in os.environ:
         if not e.startswith(prefix):
             continue
         rest = e[plen:]  # e.g., "PRODUCTION_TYPE"
 
-        # Find which suffix this ends with
+        # Find which suffix this ends with (longest match wins)
         matched_suffix = None
         info_key = None
-        for suff, slen in suffix_lengths.items():
+        for suff in ordered_suffixes:
             if rest.endswith(suff):
                 matched_suffix = suff
                 info_key = suffix_to_key[suff]
@@ -298,6 +306,8 @@ def load_from_env_single():
         'db_pass': ENV_DB_PASS,
         'db_name': ENV_DB_NAME,
         'db_id':   ENV_DB_ID,
+        'db_auth_type':   ENV_DB_AUTH_TYPE,
+        'db_http_scheme': ENV_DB_HTTP_SCHEME,
     }
     for key, env_name in mapping.items():
         val = os.environ.get(env_name)
@@ -505,6 +515,14 @@ def _getSQL_engine(dbid, db, usedb=None):
     db_user_raw = _resolve_vault_secret(db.get('db_user', ''))
     db_pass_raw = _resolve_vault_secret(db.get('db_pass', ''))
 
+    # JWT auth (Trino & StarRocks): db_pass holds the bearer token rather than
+    # a password. Only those two types honour 'jwt'; everything else ignores it.
+    db_auth_type = (db.get('db_auth_type') or 'password').lower()
+    use_jwt = (
+        db_auth_type == 'jwt'
+        and db['db_type'] in (DB_TRINO, DB_STARROCKS)
+    )
+
     if usedb is not None and db['db_type'] in [
         DB_MYSQL, DB_STARROCKS, DB_HIVE_LDAP, DB_HIVE_KERBEROS, DB_PGSQL,
         DB_SQLSERVER
@@ -525,7 +543,22 @@ def _getSQL_engine(dbid, db, usedb=None):
     # Resolve user/pass
     db_user = None
     db_pass_encoded = None
-    if db['db_type'] not in _NO_AUTH_TYPES:
+    jwt_token = None
+    if use_jwt:
+        # JWT: token sits in db_pass; identity from db_user when present.
+        # If the token is missing (and not in temp store), prompt for it just
+        # like a password — set_pass writes the token into 'pwd'.
+        if db_pass_raw:
+            jwt_token = db_pass_raw
+            db_user = db_user_raw or None
+        elif dbid in _temp_pass_store:
+            jwt_token = _temp_pass_store[dbid]['pwd']
+            db_user = db_user_raw or _temp_pass_store[dbid].get('user') or None
+        else:
+            db_user_hint = db.get('db_user', None)
+            input_passwd(dbid, db_user_hint)
+            return
+    elif db['db_type'] not in _NO_AUTH_TYPES:
         if db_user_raw:
             db_user = db_user_raw
             db_pass_encoded = quote_plus(db_pass_raw)
@@ -580,11 +613,52 @@ def _getSQL_engine(dbid, db, usedb=None):
 
     elif db['db_type'] == DB_TRINO:
         db_port = db.get('db_port', 8080)
+        if use_jwt:
+            # Username is optional with JWT — the token carries the identity —
+            # but the SQLAlchemy URL still requires a user component, so fall
+            # back to 'trino'. Password slot is empty: the bearer goes into
+            # connect_args.
+            trino_user = db_user or 'trino'
+            sqlstr = f"trino://{trino_user}@{db_host}:{db_port}{db_suffix}"
+            try:
+                from trino.auth import JWTAuthentication
+            except ImportError as exc:
+                raise RuntimeError(
+                    "Trino JWT auth requires the 'trino' package "
+                    "(pip install jupyterlab-db-explorer[trino])."
+                ) from exc
+            http_scheme = (db.get('db_http_scheme') or 'https').lower()
+            if http_scheme not in ('http', 'https'):
+                http_scheme = 'https'
+            return sqlalchemy.create_engine(
+                sqlstr,
+                connect_args={
+                    'auth': JWTAuthentication(jwt_token),
+                    'http_scheme': http_scheme,
+                },
+                pool_size=20, max_overflow=20, pool_timeout=30000, echo=False,
+            )
         auth_part = f"{db_user}:{db_pass_encoded}@" if db_pass_encoded else f"{db_user}@"
         sqlstr = f"trino://{auth_part}{db_host}:{db_port}{db_suffix}"
 
     elif db['db_type'] == DB_STARROCKS:
         db_port = db.get('db_port', 9030)
+        if use_jwt:
+            # StarRocks 3.5+ accepts a JWT in place of a password via the MySQL
+            # mysql_clear_password plugin. pymysql sends the password verbatim
+            # when the server requests that plugin, so we just route the token
+            # through the URL's password slot.
+            sr_user = db_user or db.get('db_user', '') or ''
+            if not sr_user:
+                raise ValueError("StarRocks JWT auth requires a username")
+            sqlstr = (
+                f"mysql+pymysql://{sr_user}:{quote_plus(jwt_token)}"
+                f"@{db_host}:{db_port}{db_suffix}"
+            )
+            return sqlalchemy.create_engine(
+                sqlstr,
+                pool_size=20, max_overflow=20, pool_timeout=30000, echo=False,
+            )
         if db_user is None:
             # StarRocks: try temp_pass_store or prompt
             if dbid not in _temp_pass_store:
@@ -656,10 +730,28 @@ def test_connection(dbinfo):
 
         # Types that can connect without credentials
         no_auth_types = (DB_SQLITE, DB_HIVE_KERBEROS, DB_TRINO)
+        is_jwt = (
+            (db.get('db_auth_type') or '').lower() == 'jwt'
+            and db.get('db_type') in (DB_TRINO, DB_STARROCKS)
+        )
 
+        if is_jwt:
+            # JWT path: token lives in db_pass; username is optional for Trino
+            # but required for StarRocks. Reject unresolved vault:// placeholders.
+            resolved_token = _resolve_vault_secret(db.get('db_pass', ''))
+            if not resolved_token or (
+                isinstance(resolved_token, str) and resolved_token.startswith('vault://')
+            ):
+                return False, 'JWT token is required for test'
+            if db.get('db_type') == DB_STARROCKS:
+                resolved_user = _resolve_vault_secret(db.get('db_user', ''))
+                if not resolved_user or (
+                    isinstance(resolved_user, str) and resolved_user.startswith('vault://')
+                ):
+                    return False, 'username is required for StarRocks JWT'
         # For types that require user/pass, check they are provided.
         # Resolve vault:// first so an unresolved placeholder isn't accepted.
-        if db.get('db_type') not in no_auth_types:
+        elif db.get('db_type') not in no_auth_types:
             resolved_user = _resolve_vault_secret(db.get('db_user', ''))
             if not resolved_user or (
                 isinstance(resolved_user, str) and resolved_user.startswith('vault://')
@@ -688,10 +780,19 @@ def check_pass(dbid):
     if dbinfo is None or 'db_type' not in dbinfo:
         raise Exception('conn not exists or error')
 
-    if dbinfo['db_type'] in (DB_HIVE_KERBEROS, DB_SQLITE, DB_TRINO):
+    is_jwt = (
+        (dbinfo.get('db_auth_type') or '').lower() == 'jwt'
+        and dbinfo['db_type'] in (DB_TRINO, DB_STARROCKS)
+    )
+
+    if not is_jwt and dbinfo['db_type'] in (DB_HIVE_KERBEROS, DB_SQLITE, DB_TRINO):
         return (True, None)
 
     if 'db_user' in dbinfo and 'db_pass' in dbinfo:
+        return (True, None)
+
+    # JWT Trino doesn't strictly need a username — only a token.
+    if is_jwt and dbinfo['db_type'] == DB_TRINO and dbinfo.get('db_pass'):
         return (True, None)
 
     if dbid in _temp_pass_store:

@@ -193,6 +193,14 @@ def top_n(taskid: str, column: str, n: int = 10):
     return True, {'values': rows}
 
 
+def histogram(taskid: str, column: str, n_bins: int = 10):
+    entry = _touch(taskid)
+    if entry is None or entry.session is None:
+        return False, {'error': 'task not exists'}
+    bins = entry.session.histogram(column, n_bins)
+    return True, {'bins': bins}
+
+
 
 
 def _session_payload(session, taskid: str) -> Dict[str, Any]:

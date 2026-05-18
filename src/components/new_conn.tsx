@@ -127,11 +127,20 @@ interface IConnFormProps {
 }
 
 type TAuthMode = 'direct' | 'vault';
+type TAuthMethod = 'password' | 'jwt';
 type TTestState = 'idle' | 'loading' | 'success' | 'error';
+
+/** Auth-method picker (password / JWT) is only meaningful for these types. */
+const JWT_CAPABLE_TYPES = new Set<string>([
+  String(ConnType.DB_TRINO),
+  String(ConnType.DB_STARROCKS)
+]);
 
 interface IConnFormState extends Partial<IDBConn> {
   submitting?: boolean;
   authMode?: TAuthMode;
+  /** Password vs JWT bearer. Only used for Trino & StarRocks. */
+  authMethod?: TAuthMethod;
   showPwd?: boolean;
   testState?: TTestState;
   testMsg?: string;
@@ -163,10 +172,13 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
       initial.db_user.startsWith('vault://')
         ? 'vault'
         : 'direct';
+    const initialAuthMethod: TAuthMethod =
+      (initial.db_auth_type || '').toLowerCase() === 'jwt' ? 'jwt' : 'password';
     this.state = {
       ...initial,
       submitting: false,
       authMode: initialAuth,
+      authMethod: initialAuthMethod,
       showPwd: false,
       testState: 'idle',
       testMsg: '',
@@ -175,7 +187,8 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
       advancedOpen: false,
       db_ssl_mode: 'prefer',
       db_conn_timeout: '10',
-      db_conn_opts: ''
+      db_conn_opts: '',
+      db_http_scheme: initial.db_http_scheme || 'https'
     };
   }
 
@@ -192,16 +205,20 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
       name,
       submitting,
       authMode,
+      authMethod,
       showPwd,
       testState,
       testMsg,
       advancedOpen,
       db_ssl_mode,
       db_conn_timeout,
-      db_conn_opts
+      db_conn_opts,
+      db_http_scheme
     } = this.state;
 
     const useVault = !!vaultEnabled && authMode === 'vault';
+    const jwtCapable = !!db_type && JWT_CAPABLE_TYPES.has(db_type);
+    const useJwt = jwtCapable && authMethod === 'jwt';
     const visibleTypes =
       allowedTypes && allowedTypes.length > 0
         ? DB_TYPES.filter(t => allowedTypes.includes(t.value))
@@ -556,6 +573,38 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                 </div>
               )}
 
+              {jwtCapable && (
+                <div className="d4n-field">
+                  <div className="d4n-field__head">
+                    <label className="d4n-field__label">
+                      {trans.__('Auth method')}
+                    </label>
+                  </div>
+                  <div className="d4n-segmented" role="radiogroup">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={authMethod !== 'jwt'}
+                      className={`d4n-seg${authMethod !== 'jwt' ? ' is-active' : ''}`}
+                      onClick={() => this._setAuthMethod('password')}
+                    >
+                      {this._glyph('shield', 14)}
+                      {trans.__('Password')}
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={authMethod === 'jwt'}
+                      className={`d4n-seg${authMethod === 'jwt' ? ' is-active' : ''}`}
+                      onClick={() => this._setAuthMethod('jwt')}
+                    >
+                      {this._glyph('key', 14)}
+                      {trans.__('JWT token')}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="d4n-cf__grid">
                 <div className="d4n-field">
                   <div className="d4n-field__head">
@@ -565,7 +614,9 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                         : trans.__('Username')}
                       <span className="d4n-field__optional">
                         {' '}
-                        {trans.__('optional')}
+                        {useJwt && db_type === String(ConnType.DB_TRINO)
+                          ? trans.__('optional — JWT carries identity')
+                          : trans.__('optional')}
                       </span>
                     </label>
                   </div>
@@ -582,50 +633,113 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                     onChange={this._onChange('db_user')}
                   />
                 </div>
+                {!useJwt && (
+                  <div className="d4n-field">
+                    <div className="d4n-field__head">
+                      <label htmlFor="cn-pwd" className="d4n-field__label">
+                        {useVault
+                          ? trans.__('Password Vault URL')
+                          : trans.__('Password')}
+                        <span className="d4n-field__optional">
+                          {' '}
+                          {trans.__('optional')}
+                        </span>
+                      </label>
+                    </div>
+                    <div className="d4n-input-wrap">
+                      <input
+                        id="cn-pwd"
+                        type={useVault || showPwd ? 'text' : 'password'}
+                        className="d4n-input d4n-input--suffixed d4n-mono"
+                        value={db_pass || ''}
+                        placeholder={
+                          useVault
+                            ? 'vault://path/to/secret#password'
+                            : trans.__('Leave blank for prompt')
+                        }
+                        autoComplete="new-password"
+                        onChange={this._onChange('db_pass')}
+                      />
+                      {!useVault && (
+                        <button
+                          type="button"
+                          className="d4n-input-suffix"
+                          onClick={() => this.setState({ showPwd: !showPwd })}
+                          aria-label={
+                            showPwd
+                              ? trans.__('Hide password')
+                              : trans.__('Show password')
+                          }
+                          tabIndex={-1}
+                        >
+                          {this._glyph(showPwd ? 'eye-off' : 'eye', 14)}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {useJwt && (
                 <div className="d4n-field">
                   <div className="d4n-field__head">
-                    <label htmlFor="cn-pwd" className="d4n-field__label">
+                    <label htmlFor="cn-jwt" className="d4n-field__label">
                       {useVault
-                        ? trans.__('Password Vault URL')
-                        : trans.__('Password')}
+                        ? trans.__('JWT token Vault URL')
+                        : trans.__('JWT token')}
+                    </label>
+                  </div>
+                  <textarea
+                    id="cn-jwt"
+                    className="d4n-input d4n-textarea d4n-mono"
+                    rows={3}
+                    value={db_pass || ''}
+                    placeholder={
+                      useVault ? 'vault://path/to/secret#token' : 'eyJhbGciOi…'
+                    }
+                    autoComplete="off"
+                    spellCheck={false}
+                    onChange={ev =>
+                      this.setState({
+                        db_pass: ev.target.value,
+                        testState: 'idle'
+                      })
+                    }
+                  />
+                </div>
+              )}
+
+              {useJwt && db_type === String(ConnType.DB_TRINO) && (
+                <div className="d4n-field">
+                  <div className="d4n-field__head">
+                    <label htmlFor="cn-scheme" className="d4n-field__label">
+                      {trans.__('HTTP scheme')}
                       <span className="d4n-field__optional">
                         {' '}
-                        {trans.__('optional')}
+                        {trans.__('https recommended')}
                       </span>
                     </label>
                   </div>
-                  <div className="d4n-input-wrap">
-                    <input
-                      id="cn-pwd"
-                      type={useVault || showPwd ? 'text' : 'password'}
-                      className="d4n-input d4n-input--suffixed d4n-mono"
-                      value={db_pass || ''}
-                      placeholder={
-                        useVault
-                          ? 'vault://path/to/secret#password'
-                          : trans.__('Leave blank for prompt')
+                  <div className="d4n-select-wrap">
+                    <select
+                      id="cn-scheme"
+                      className="d4n-select"
+                      value={db_http_scheme || 'https'}
+                      onChange={ev =>
+                        this.setState({
+                          db_http_scheme: ev.target.value,
+                          testState: 'idle'
+                        })
                       }
-                      autoComplete="new-password"
-                      onChange={this._onChange('db_pass')}
-                    />
-                    {!useVault && (
-                      <button
-                        type="button"
-                        className="d4n-input-suffix"
-                        onClick={() => this.setState({ showPwd: !showPwd })}
-                        aria-label={
-                          showPwd
-                            ? trans.__('Hide password')
-                            : trans.__('Show password')
-                        }
-                        tabIndex={-1}
-                      >
-                        {this._glyph(showPwd ? 'eye-off' : 'eye', 14)}
-                      </button>
-                    )}
+                    >
+                      <option value="https">https</option>
+                      <option value="http">http</option>
+                    </select>
+                    {this._glyph('chev', 14)}
                   </div>
                 </div>
-              </div>
+              )}
+
               {useVault && (
                 <div className="d4n-field__msg">
                   {trans.__(
@@ -776,6 +890,13 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
             <path d="M10 7.6V10M14.8 12.5l1.2 1.2M5.2 12.5L4 13.7" />
           </svg>
         );
+      case 'key':
+        return (
+          <svg {...p}>
+            <circle cx="6.5" cy="13.5" r="3" />
+            <path d="M8.6 11.4l8.9-8.9M14 6l2 2M11.5 8.5l1.5 1.5" />
+          </svg>
+        );
       case 'check':
         return (
           <svg {...p}>
@@ -844,6 +965,12 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
       if (!prev.portTouched) {
         next.db_port = t.defaultPort;
       }
+      // If JWT was on and the new type can't use it, fall back to password
+      // and wipe the token so it doesn't get sent in db_pass.
+      if (prev.authMethod === 'jwt' && !JWT_CAPABLE_TYPES.has(t.value)) {
+        next.authMethod = 'password';
+        next.db_pass = '';
+      }
       return next as IConnFormState;
     });
   };
@@ -865,6 +992,21 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
       return {
         authMode: mode,
         db_user: '',
+        db_pass: '',
+        testState: 'idle'
+      } as IConnFormState;
+    });
+  };
+
+  private _setAuthMethod = (method: TAuthMethod): void => {
+    this.setState(prev => {
+      if (prev.authMethod === method) {
+        return null as unknown as IConnFormState;
+      }
+      // Wipe the secret when switching methods — a stale password should not
+      // be sent as a JWT (or vice-versa) on the next submit.
+      return {
+        authMethod: method,
         db_pass: '',
         testState: 'idle'
       } as IConnFormState;
@@ -919,6 +1061,17 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
       const val = this.state[f];
       if (val !== undefined && val !== '') {
         (conn as unknown as Record<string, unknown>)[f] = val;
+      }
+    }
+    // JWT auth is meaningful only for Trino & StarRocks; for any other type
+    // the user can't have flipped the switch anyway, but be defensive.
+    if (JWT_CAPABLE_TYPES.has(db_type) && this.state.authMethod === 'jwt') {
+      conn.db_auth_type = 'jwt';
+      if (db_type === String(ConnType.DB_TRINO)) {
+        const scheme = (this.state.db_http_scheme || 'https').toLowerCase();
+        if (scheme === 'http') {
+          conn.db_http_scheme = 'http';
+        }
       }
     }
     // Advanced options — UI-captured for now; the backend can pick them up

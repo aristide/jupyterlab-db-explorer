@@ -177,6 +177,123 @@ async def test_task_store_round_trip(sqlite_conn):
     assert ok is False
 
 
+# ─── Histogram endpoint ─────────────────────────────────────────────────────
+def test_histogram_continuous_numeric(sqlite_conn):
+    """Continuous float column: n_bins equal-width bins, counts sum to non-null rows."""
+    sess = open_session(sqlite_conn, "SELECT value FROM t ORDER BY id")
+    try:
+        bins = sess.histogram('value', n_bins=10)
+        assert len(bins) == 10
+        assert sum(b['count'] for b in bins) == 250
+        # Bin edges should span [min, max] of the data.
+        assert bins[0]['min'] == pytest.approx(1.5)
+        assert bins[-1]['max'] == pytest.approx(375.0)
+    finally:
+        sess.close()
+
+
+def test_histogram_low_card_integer(sqlite_conn):
+    """Low-cardinality integer column: one bin per distinct value, not 10 wider bins."""
+    # 250 ids, but we only group on `id % 5` so distinct == 5 (<= n_bins).
+    sess = open_session(
+        sqlite_conn, "SELECT id % 5 AS bucket FROM t"
+    )
+    try:
+        bins = sess.histogram('bucket', n_bins=10)
+        # 5 distinct values → 5 bins (not 10).
+        assert len(bins) == 5
+        # Each bucket has 50 rows (250 / 5).
+        for b in bins:
+            assert b['count'] == 50
+            # min == max for low-card-integer bins.
+            assert b['min'] == b['max']
+        # Ordered ascending.
+        assert [b['min'] for b in bins] == [0.0, 1.0, 2.0, 3.0, 4.0]
+    finally:
+        sess.close()
+
+
+def test_histogram_two_mode(sqlite_conn):
+    """Two-mode integer column: 10 bins, only first and last populated."""
+    # Two distinct values, but their range is wide enough that distinct
+    # (=2) is below n_bins yet they hit the integer-fast-path anyway.
+    # Force a column with two distinct ints whose range > 2.
+    sess = open_session(
+        sqlite_conn,
+        "SELECT CASE WHEN id <= 125 THEN 2011 ELSE 2012 END AS year FROM t",
+    )
+    try:
+        bins = sess.histogram('year', n_bins=10)
+        # Distinct = 2, integral → low-card integer path returns 2 bins.
+        assert len(bins) == 2
+        assert bins[0]['min'] == 2011.0 and bins[0]['count'] == 125
+        assert bins[1]['min'] == 2012.0 and bins[1]['count'] == 125
+    finally:
+        sess.close()
+
+
+def test_histogram_single_value(sqlite_conn):
+    """min == max → single bin with full count."""
+    sess = open_session(sqlite_conn, "SELECT 42 AS k FROM t")
+    try:
+        bins = sess.histogram('k', n_bins=10)
+        assert len(bins) == 1
+        assert bins[0]['min'] == 42.0
+        assert bins[0]['max'] == 42.0
+        assert bins[0]['count'] == 250
+    finally:
+        sess.close()
+
+
+def test_histogram_all_null_numeric(sqlite_conn):
+    """All-null numeric column → []."""
+    sess = open_session(
+        sqlite_conn, "SELECT CAST(NULL AS INTEGER) AS n FROM t"
+    )
+    try:
+        bins = sess.histogram('n', n_bins=10)
+        assert bins == []
+    finally:
+        sess.close()
+
+
+def test_histogram_rejects_string(sqlite_conn):
+    """String columns must return [] — the frontend uses topN for those."""
+    sess = open_session(sqlite_conn, "SELECT name FROM t")
+    try:
+        bins = sess.histogram('name', n_bins=10)
+        assert bins == []
+    finally:
+        sess.close()
+
+
+def test_histogram_respects_filter_overlay(sqlite_conn):
+    """With an active filter, histogram should reflect only matching rows."""
+    sess = open_session(sqlite_conn, "SELECT id FROM t")
+    try:
+        sess.apply_filters([{'column': 'id', 'op': 'lt', 'value': 51}])
+        bins = sess.histogram('id', n_bins=10)
+        # Only id < 51 → 50 rows after filtering.
+        assert sum(b['count'] for b in bins) == 50
+    finally:
+        sess.close()
+
+
+async def test_task_histogram_round_trip(sqlite_conn):
+    """task.histogram delegates through the session and returns {bins:[]}."""
+    taskid = await task_mod.create_query_task(
+        sqlite_conn, "SELECT value FROM t ORDER BY id"
+    )
+    rc, _ = await task_mod.get_result(taskid)
+    assert rc is True
+    ok, payload = task_mod.histogram(taskid, 'value', 10)
+    assert ok is True
+    assert 'bins' in payload
+    assert len(payload['bins']) == 10
+    assert sum(b['count'] for b in payload['bins']) == 250
+    await task_mod.delete(taskid)
+
+
 async def test_task_store_ttl_eviction(sqlite_conn, monkeypatch):
     # Make TTL effectively zero so the very next eviction sweep drops the entry.
     monkeypatch.setenv('DB_EXPLORER_RESULT_TTL_SEC', '1')

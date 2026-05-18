@@ -276,3 +276,18 @@ export const get_query_topn = async (
     n: String(n)
   })) as any;
 };
+
+export const get_query_histogram = async (
+  taskid: string,
+  column: string,
+  n_bins = 10
+): Promise<{
+  status: string;
+  data?: { bins: Array<{ min: number; max: number; count: number }> };
+}> => {
+  return (await GET('query/histogram', {
+    taskid,
+    column,
+    n_bins: String(n_bins)
+  })) as any;
+};

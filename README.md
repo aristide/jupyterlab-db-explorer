@@ -79,6 +79,15 @@ export DB_CONN_TRINO_HOST=trino.example.com
 export DB_CONN_TRINO_PORT=8080
 export DB_CONN_TRINO_USER=trino
 export DB_CONN_TRINO_NAME=postgresql
+
+# Trino with JWT bearer token (see "JWT Authentication" below)
+export DB_CONN_TRINO_JWT_TYPE=7
+export DB_CONN_TRINO_JWT_HOST=trino.example.com
+export DB_CONN_TRINO_JWT_PORT=443
+export DB_CONN_TRINO_JWT_USER=analyst          # optional — JWT carries identity
+export DB_CONN_TRINO_JWT_PASS=eyJhbGciOi...    # the bearer token
+export DB_CONN_TRINO_JWT_AUTH_TYPE=jwt
+export DB_CONN_TRINO_JWT_HTTP_SCHEME=https     # optional, default 'https'
 ```
 
 #### Using HashiCorp Vault for Passwords
@@ -129,6 +138,102 @@ The dev `docker-compose.yaml` sets `VAULT_ADDR` and `VAULT_TOKEN=devtoken` expli
 - Secrets are cached for 5 minutes, so rotating a secret in Vault takes up to 5 minutes to take effect. Call `clear_pass()` (no args) to flush the cache immediately.
 - Failures (Vault unreachable, missing field, malformed URL) leave the original `vault://...` string in place so the resulting DB auth error is explicit rather than silent.
 - For incident response or local debugging, set `VAULT_ENABLED=false` to short-circuit all Vault calls without touching `VAULT_ADDR` or rewriting connection strings.
+
+#### JWT Authentication (Trino & StarRocks)
+
+Trino and StarRocks can be authenticated with a JWT bearer token instead of a password. The token replaces the password everywhere — in the new-connection dialog you flip the **Auth method** switch to **JWT token**, and via env vars you set `*_AUTH_TYPE=jwt` and put the token in the `*_PASS` field.
+
+##### Via the new-connection dialog
+
+1. Open the database tree's **+** button → **New connection**.
+2. In **Database type**, pick **Trino** or **StarRocks**.
+3. Fill in **Host**, **Port** (443 for Trino + JWT, 9030 for StarRocks), and optionally **Database / schema**.
+4. In the **Authentication** section, click the **JWT token** segment of the **Auth method** switch (only visible for Trino & StarRocks).
+   - The password input is replaced by a multi-line **JWT token** field — paste the full `eyJ…` bearer in there.
+   - For Trino, **Username** becomes optional — the JWT carries the identity. For StarRocks, **Username** is still required (it maps the token to a role).
+   - For Trino, an extra **HTTP scheme** dropdown appears. Leave it on **https** unless your coordinator is behind a TLS-terminating proxy and you've intentionally exposed plain HTTP.
+5. (Optional) Click **Test connection** before saving — the same validation runs against the live server so you find token/permission issues now rather than on first query.
+6. **Create** to save. The token is stored in `~/.database/db_conf.json` alongside the rest of the connection record.
+
+If your token lives in Vault, flip **Credential source → Vault reference** first; the JWT field will then accept a `vault://path#field` URL and the bearer is resolved server-side at connect time.
+
+##### Via environment variables
+
+The recipe is the same for both engines — only the type code and a couple of host/port defaults differ. For every connection you want to expose:
+
+1. **Pick a `<NAME>`** — an uppercase short tag (`PROD`, `WAREHOUSE`, `TRINO_DEV`, …). All five variables for that connection share this `<NAME>` slot. The explorer auto-discovers it at startup.
+2. **Set the type code:** `DB_CONN_<NAME>_TYPE=7` for Trino, `DB_CONN_<NAME>_TYPE=8` for StarRocks.
+3. **Set the network coordinates:** `DB_CONN_<NAME>_HOST` and `DB_CONN_<NAME>_PORT` (Trino: typically `443` over HTTPS; StarRocks: `9030`, the MySQL-protocol query port).
+4. **Set `DB_CONN_<NAME>_AUTH_TYPE=jwt`.** Without this, the `_PASS` field is treated as a normal password.
+5. **Put the bearer token in `DB_CONN_<NAME>_PASS`.** It can be the raw `eyJ…` string or a `vault://path#field` reference.
+6. **Set `DB_CONN_<NAME>_USER`** — _required_ for StarRocks (the username is what maps the JWT to a StarRocks role), _optional_ for Trino (the token's `sub` claim already carries the identity; the explorer falls back to `trino` if you omit it).
+7. **Trino only — optionally** set `DB_CONN_<NAME>_HTTP_SCHEME=http` if you're talking to a dev coordinator behind a TLS-terminating proxy. Default is `https` and that's the only safe setting in production.
+8. _(Optional)_ `DB_CONN_<NAME>_NAME` to pin a default catalog/database; leave it unset to browse everything the token has access to.
+
+**Trino (HTTPS + JWT):**
+
+```bash
+export DB_CONN_TRINO_TYPE=7
+export DB_CONN_TRINO_HOST=trino.example.com
+export DB_CONN_TRINO_PORT=443
+export DB_CONN_TRINO_USER=analyst          # optional — token carries identity
+export DB_CONN_TRINO_PASS=eyJhbGciOi...    # JWT bearer token
+export DB_CONN_TRINO_AUTH_TYPE=jwt
+# DB_CONN_TRINO_HTTP_SCHEME=https           # default; set 'http' only for dev coordinators behind a TLS terminator
+```
+
+The token is handed to the Trino client via `trino.auth.JWTAuthentication`; the URL itself never contains the bearer. JWT auth requires the `trino` extra (`pip install jupyterlab-db-explorer[trino]`).
+
+**StarRocks (3.5+):**
+
+```bash
+export DB_CONN_SR_TYPE=8
+export DB_CONN_SR_HOST=fe.example.com
+export DB_CONN_SR_PORT=9030
+export DB_CONN_SR_USER=svc_jwt             # required — maps the JWT to a StarRocks role
+export DB_CONN_SR_PASS=eyJhbGciOi...        # JWT
+export DB_CONN_SR_AUTH_TYPE=jwt
+```
+
+The token is sent through StarRocks's `mysql_clear_password` auth handshake — make sure your FE is configured to accept JWTs and **only use this over a network you trust** (or an SSL-terminating proxy), since `mysql_clear_password` does not encrypt the token in transit.
+
+**Both engines side-by-side** — copy this block to expose one of each at the same time:
+
+```bash
+# Trino
+export DB_CONN_TRINO_TYPE=7
+export DB_CONN_TRINO_HOST=trino.example.com
+export DB_CONN_TRINO_PORT=443
+export DB_CONN_TRINO_PASS=eyJhbGciOi...trino-token...
+export DB_CONN_TRINO_AUTH_TYPE=jwt
+
+# StarRocks
+export DB_CONN_SR_TYPE=8
+export DB_CONN_SR_HOST=fe.example.com
+export DB_CONN_SR_PORT=9030
+export DB_CONN_SR_USER=svc_jwt
+export DB_CONN_SR_PASS=eyJhbGciOi...starrocks-token...
+export DB_CONN_SR_AUTH_TYPE=jwt
+```
+
+**Single-connection variant** (one connection per process) drops the `DB_CONN_<NAME>_` prefix and uses `DB_AUTH_TYPE` plus, for Trino, `DB_HTTP_SCHEME`:
+
+```bash
+export DB_TYPE=7
+export DB_HOST=trino.example.com
+export DB_PORT=443
+export DB_USER=analyst
+export DB_PASS=eyJhbGciOi...
+export DB_AUTH_TYPE=jwt
+# export DB_HTTP_SCHEME=http   # Trino-only override
+```
+
+**Token fields can be Vault references** — combine `*_AUTH_TYPE=jwt` with `vault://` in `*_PASS` to keep the bearer out of the environment:
+
+```bash
+export DB_CONN_TRINO_PASS=vault://secret/trino/prod#jwt
+export DB_CONN_TRINO_AUTH_TYPE=jwt
+```
 
 #### Single Connection (Legacy)
 

@@ -288,6 +288,36 @@ class QueryTopNHandler(APIHandler):
             self.finish(json.dumps({'error': str(err)}))
 
 
+class QueryHistogramHandler(APIHandler):
+    """GET /query/histogram?taskid=&column=&n_bins=10.
+
+    Independent aggregation that bins values for a numeric column over the
+    currently-overlayed user SQL. Does not disturb the active cursor.
+    Datetime / string columns return an empty bin list.
+    """
+
+    @tornado.web.authenticated
+    async def get(self):
+        taskid = self.get_argument('taskid')
+        column = self.get_argument('column')
+        try:
+            n_bins = int(self.get_argument('n_bins', '10'))
+        except ValueError:
+            n_bins = 10
+        try:
+            loop = asyncio.get_event_loop()
+            rc, payload = await loop.run_in_executor(
+                None, task.histogram, taskid, column, n_bins
+            )
+            if rc:
+                self.finish(json.dumps({'data': payload}))
+            else:
+                self.finish(json.dumps(payload))
+        except Exception as err:
+            self.log.error(err)
+            self.finish(json.dumps({'error': str(err)}))
+
+
 class QueryStatsHandler(APIHandler):
     """GET /query/stats?taskid=…
 
@@ -328,5 +358,6 @@ def setup_handlers(web_app):
         (handler_url(base_url, "query/sort"), QuerySortHandler),
         (handler_url(base_url, "query/filter"), QueryFilterHandler),
         (handler_url(base_url, "query/topn"), QueryTopNHandler),
+        (handler_url(base_url, "query/histogram"), QueryHistogramHandler),
     ]
     web_app.add_handlers(host_pattern, handlers)

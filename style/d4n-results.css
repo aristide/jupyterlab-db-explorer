@@ -1,58 +1,424 @@
 /* ============================================================================
-   d4n-results.css — SQL Console result-table chrome.
+   d4n-results.css — SQL Console result-table chrome (Pygwalker-inspired).
 
-   Most of the result grid is rendered by @lumino/datagrid in canvas, but the
-   surrounding scaffolding (loading bar, footer status, column-header chrome
-   overlays in later phases) is plain DOM. Styles below give those bits the
-   d4n look. We deliberately scope under .d4n-rt to avoid leaking globally.
+   Outer shell (eyebrow + meta line + column-profile strip) is DOM; the body
+   grid is rendered by @lumino/datagrid (canvas). The DOM strip scrolls in
+   lockstep with the canvas grid via a message hook in ColumnProfileHeader.
+
+   Tokens are scoped under .pgw-root so no token bleeds to :root.
    ========================================================================== */
 
-.d4n-rt {
-  --rt-bg: var(--jp-layout-color1, #fff);
-  --rt-fg: var(--jp-ui-font-color1, #0b1f38);
-  --rt-fg-muted: var(--jp-ui-font-color2, #5a6b82);
-  --rt-border: var(--jp-border-color2, #e4e9f0);
-  --rt-accent: var(--jp-brand-color1, #0f3d6e);
-  --rt-accent-2: #1fa0a0;
-  --rt-magenta: #e63558;
-  --rt-success: var(--jp-success-color1, #1f8a5e);
+/* ============================================================================
+   Token layer — scoped under .pgw-root, with --jp-* variables as fallbacks
+   so JupyterLab theming continues to drive the palette.
+   ========================================================================== */
+.pgw-root {
+  --d4n-navy: #0f3d6e;
+  --d4n-navy-deep: #082b52;
+  --d4n-navy-soft: #3b5c87;
+  --d4n-teal: #1fa0a0;
+  --d4n-teal-deep: #167c7c;
+  --d4n-magenta: #e63558;
+
+  --d4n-ink: #0b1f38;
+  --d4n-graphite: #2c3e55;
+  --d4n-slate: #5a6b82;
+  --d4n-steel: #8a99ae;
+  --d4n-mist: #c8d1dd;
+  --d4n-fog: #e4e9f0;
+  --d4n-paper: #f4f6fa;
+  --d4n-white: #ffffff;
+
+  --pgw-bg: var(--jp-layout-color1, var(--d4n-white));
+  --pgw-bg-2: var(--jp-layout-color2, var(--d4n-paper));
+  --pgw-bg-3: var(--jp-layout-color3, var(--d4n-fog));
+  --pgw-border: var(--jp-border-color2, var(--d4n-fog));
+  --pgw-border-2: var(--jp-border-color1, var(--d4n-mist));
+  --pgw-fg: var(--jp-ui-font-color1, var(--d4n-ink));
+  --pgw-fg-2: var(--jp-ui-font-color2, var(--d4n-graphite));
+  --pgw-fg-3: var(--jp-ui-font-color3, var(--d4n-slate));
+  --pgw-fg-4: var(--d4n-steel);
+  --pgw-accent: var(--jp-brand-color1, var(--d4n-navy));
+  --pgw-teal: var(--d4n-teal);
+  --pgw-teal-deep: var(--d4n-teal-deep);
+  --pgw-magenta: var(--d4n-magenta);
+
+  --pgw-font-display:
+    'Montserrat', var(--jp-ui-font-family, system-ui), sans-serif;
+  --pgw-font-body:
+    'Roboto', var(--jp-content-font-family, system-ui), sans-serif;
+  --pgw-font-mono:
+    'JetBrains Mono', var(--jp-code-font-family, ui-monospace), monospace;
+
+  --pgw-r-sm: 4px;
+  --pgw-r-md: 6px;
+  --pgw-r-lg: 10px;
+  --pgw-ease: cubic-bezier(0.2, 0, 0.1, 1);
+  --pgw-dur: 180ms;
+
+  --pgw-shadow-sm:
+    0 1px 3px rgba(15, 61, 110, 0.06), 0 1px 2px rgba(15, 61, 110, 0.04);
+  --pgw-shadow-md:
+    0 4px 12px rgba(15, 61, 110, 0.08), 0 2px 4px rgba(15, 61, 110, 0.04);
+
+  --pgw-row-py: 14px;
+  --pgw-cell-px: 18px;
+  --pgw-profile-h: 156px;
+  --pgw-spark-h: 46px;
+
+  font-family: var(--pgw-font-body);
+  color: var(--pgw-fg);
+  background: var(--pgw-bg-2);
 }
 
-.d4n-rt__footer {
+.pgw-root.is-compact {
+  --pgw-row-py: 9px;
+  --pgw-cell-px: 12px;
+  --pgw-profile-h: 124px;
+  --pgw-spark-h: 36px;
+}
+
+/* ============================================================================
+   Section header — eyebrow.
+   ========================================================================== */
+.pgw-root .pgw-header {
+  display: flex;
+  align-items: center;
+  padding: 4px 4px 0;
+}
+
+.pgw-root .pgw-header__eyebrow {
+  font-family: var(--pgw-font-display);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pgw-teal-deep);
+}
+
+/* ============================================================================
+   Meta strip — "Showing 1–N of M results".
+   ========================================================================== */
+.pgw-root .pgw-meta {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+}
+
+.pgw-root .pgw-results {
+  margin: 0;
+  font-family: var(--pgw-font-body);
+  font-size: 13px;
+  color: var(--pgw-fg-2);
+}
+
+.pgw-root .pgw-results strong {
+  font-family: var(--pgw-font-mono);
+  font-weight: 500;
+  color: var(--pgw-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.pgw-root .pgw-results em {
+  font-style: normal;
+  color: var(--pgw-fg-3);
+}
+
+/* ============================================================================
+   Column-profile strip — DOM strip floating above the canvas grid. Inner
+   div is wider than the strip (one card per column at fixed 152px); the
+   strip scrolls via JS-driven transform sync with the grid's scrollX.
+   ========================================================================== */
+.pgw-profstrip {
+  display: flex;
+  overflow: hidden;
+  background: var(--pgw-bg-2);
+  border: 1px solid var(--pgw-border-2);
+  border-bottom: 0;
+  border-radius: var(--pgw-r-lg) var(--pgw-r-lg) 0 0;
+  height: var(--pgw-profile-h);
+  flex: 0 0 auto;
+}
+
+.pgw-profstrip__inner {
+  display: flex;
+  flex: 0 0 auto;
+  will-change: transform;
+  height: 100%;
+}
+
+.pgw-prof-card {
+  width: 152px;
+  min-width: 152px;
+  height: 100%;
+  padding: 14px var(--pgw-cell-px);
+  border-right: 1px solid var(--pgw-border);
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background var(--pgw-dur) var(--pgw-ease);
+}
+
+.pgw-prof-card:last-child {
+  border-right: 0;
+}
+
+.pgw-prof-card:hover {
+  background: var(--pgw-bg-3);
+}
+
+.pgw-prof {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+}
+
+.pgw-prof__head {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  border-top: 1px solid var(--rt-border);
-  background: var(--rt-bg);
-  color: var(--rt-fg-muted);
-  font:
-    500 11px/1.2 'Montserrat',
-    var(--jp-ui-font-family, system-ui),
-    sans-serif;
+  min-height: 18px;
 }
 
-.d4n-rt__footer-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--rt-success);
-}
-.d4n-rt__footer-dot.is-truncated {
-  background: var(--rt-magenta);
+.pgw-prof__viz {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 0;
 }
 
-.d4n-rt__footer-meta {
-  margin-left: auto;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+.pgw-prof__empty {
+  color: var(--pgw-fg-4);
+  font-family: var(--pgw-font-display);
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.pgw-prof__range {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--pgw-font-mono);
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--pgw-fg-3);
+  font-variant-numeric: tabular-nums;
+  margin-top: 6px;
+}
+
+/* ── Type icon chip ─────────────────────────────────────────────────────── */
+.pgw-typeicon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border-radius: var(--pgw-r-sm);
+  background: var(--pgw-bg-3);
+  color: var(--pgw-fg-3);
+  font-family: var(--pgw-font-mono);
+  font-weight: 600;
   font-size: 10.5px;
+  line-height: 1;
+}
+
+.pgw-typeicon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.pgw-typeicon--date {
+  color: var(--pgw-teal-deep);
+  background: rgba(31, 160, 160, 0.1);
+}
+
+.pgw-typeicon--num {
+  color: var(--d4n-navy);
+  background: rgba(15, 61, 110, 0.08);
+}
+
+.pgw-typeicon--cat {
+  color: var(--d4n-graphite);
+  background: rgba(44, 62, 85, 0.1);
+}
+
+.pgw-typeicon--bool {
+  color: var(--pgw-magenta);
+  background: rgba(230, 53, 88, 0.1);
+}
+
+.pgw-prof__name {
+  font-family: var(--pgw-font-display);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pgw-fg);
+  line-height: 1.2;
+  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Unique-value block (datetime, high-card text) ──────────────────────── */
+.pgw-uniq {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding-top: 6px;
+}
+
+.pgw-uniq__num {
+  font-family: var(--pgw-font-display);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--d4n-navy);
+  font-variant-numeric: tabular-nums;
+}
+
+.pgw-uniq__label {
+  font-family: var(--pgw-font-display);
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pgw-fg-3);
+}
+
+/* ── Sparkline (numeric histogram) ──────────────────────────────────────── */
+.pgw-spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: var(--pgw-spark-h);
+  width: 100%;
+}
+
+.pgw-spark__bar {
+  flex: 1;
+  background: var(--d4n-navy);
+  opacity: 0.85;
+  border-radius: 1.5px 1.5px 0 0;
+  min-height: 2px;
+  transition:
+    opacity var(--pgw-dur) var(--pgw-ease),
+    background var(--pgw-dur) var(--pgw-ease);
+}
+
+.pgw-prof:hover .pgw-spark__bar {
+  opacity: 1;
+  background: var(--d4n-teal);
+}
+
+.pgw-spark__bar--skeleton {
+  background: var(--pgw-border-2);
+  opacity: 0.5;
+}
+
+.pgw-spark__bar--muted {
+  opacity: 0.35;
+}
+
+/* ── Categorical list ───────────────────────────────────────────────────── */
+.pgw-catlist {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pgw-catrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  position: relative;
+  min-height: 22px;
+}
+
+.pgw-catrow__bar {
+  position: absolute;
+  inset: 0;
+  background: rgba(31, 160, 160, 0.1);
+  border-radius: 3px;
+  z-index: 0;
+}
+
+.pgw-catrow__bar--skeleton {
+  background: var(--pgw-bg-3);
+}
+
+.pgw-catrow__label,
+.pgw-catrow__pct {
+  position: relative;
+  z-index: 1;
+  padding: 3px 6px;
+}
+
+.pgw-catrow__label {
+  color: var(--pgw-fg);
+  font-family: var(--pgw-font-body);
+  font-weight: 500;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pgw-catrow__label--skeleton {
+  display: block;
+  min-width: 60%;
+  background: var(--pgw-bg-3);
+  border-radius: 3px;
+  color: transparent;
+}
+
+.pgw-catrow__label--skeleton::before {
+  content: '\00a0';
+}
+
+.pgw-catrow__pct {
+  color: var(--pgw-fg-3);
+  font-family: var(--pgw-font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pgw-catrow--other .pgw-catrow__label {
+  color: var(--pgw-fg-3);
+  font-style: italic;
+}
+
+.pgw-catrow--other .pgw-catrow__bar {
+  background: rgba(15, 61, 110, 0.05);
+}
+
+/* ============================================================================
+   Table wrapper (the canvas grid host)
+   ========================================================================== */
+.pgw-tablewrap {
+  background: var(--pgw-bg);
+  border: 1px solid var(--pgw-border-2);
+  border-top: 0;
+  border-radius: 0 0 var(--pgw-r-lg) var(--pgw-r-lg);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.pgw-tablewrap > .lm-Widget {
+  min-height: 220px;
 }
 
 /* ============================================================================
    Column-header popover (sort / filter / top-N) — attached to document.body
-   so its z-index sits above the grid canvas.
+   so its z-index sits above the grid canvas. Tokens stay self-contained.
    ========================================================================== */
-
 .d4n-cp {
   --cp-bg: var(--jp-layout-color1, #fff);
   --cp-bg-2: var(--jp-layout-color2, #f4f6fa);

@@ -462,6 +462,122 @@ class ResultSession:
             self._close_cursor_locked()
             self._open_cursor(self._effective_sql())
 
+    def histogram(self, column: str, n_bins: int = 10) -> List[Dict[str, Any]]:
+        """Compute a value-distribution histogram for a numeric column.
+
+        Independent aggregation against the user SQL (plus any active
+        sort/filter overlay), so the result reflects the full filtered
+        query, not just the cached page buffer. Datetime / string columns
+        return an empty list — those dtypes are profiled differently in
+        the frontend (unique-count / category list).
+
+        Numeric sub-shapes handled explicitly:
+          - all-null (count==0) → []
+          - min == max (distinct==1) → single bin [{min,max,count}]
+          - low-cardinality (distinct ≤ n_bins, integral values)
+            → one bin per distinct value
+          - continuous (distinct > n_bins, or float)
+            → n_bins equal-width bins; empty bins emitted with count=0
+        """
+        if column not in self.columns:
+            raise ValueError(f"unknown column {column!r}")
+        if self._engine is None:
+            return []
+        col_idx = self.columns.index(column)
+        stats = self.stats[col_idx]
+        if stats.dtype != 'number':
+            return []
+        if stats.count == 0:
+            return []
+        n_bins = max(1, min(int(n_bins), 100))
+
+        qcol = self._quote_ident(column)
+        base_sql = self._effective_sql()
+
+        # Trust running stats first; fall back to a min/max scan if stats
+        # were never populated (e.g. cursor hasn't been read yet).
+        col_min = stats.min
+        col_max = stats.max
+        if col_min is None or col_max is None:
+            scan_sql = (
+                f"SELECT MIN({qcol}) AS lo, MAX({qcol}) AS hi "
+                f"FROM ({base_sql}) user_q "
+                f"WHERE {qcol} IS NOT NULL"
+            )
+            with self._engine.connect() as conn:
+                row = conn.exec_driver_sql(scan_sql).fetchone()
+            if row is None or row[0] is None or row[1] is None:
+                return []
+            col_min = float(row[0])
+            col_max = float(row[1])
+        else:
+            col_min = float(col_min)
+            col_max = float(col_max)
+
+        # min == max → single bin covering the value.
+        if col_min == col_max:
+            count_sql = (
+                f"SELECT COUNT(*) FROM ({base_sql}) user_q "
+                f"WHERE {qcol} IS NOT NULL"
+            )
+            with self._engine.connect() as conn:
+                row = conn.exec_driver_sql(count_sql).fetchone()
+            total = int(row[0]) if row and row[0] is not None else 0
+            return [{'min': col_min, 'max': col_max, 'count': total}]
+
+        # Low-cardinality integer columns: emit one bin per distinct value
+        # so visually-meaningful breakdowns like month 1..12 don't get
+        # aliased into 10 wider bins.
+        distinct = stats.distinct
+        is_integral = (
+            isinstance(distinct, int)
+            and distinct <= n_bins
+            and float(int(col_min)) == col_min
+            and float(int(col_max)) == col_max
+        )
+        if is_integral:
+            group_sql = (
+                f"SELECT {qcol} AS v, COUNT(*) AS c "
+                f"FROM ({base_sql}) user_q "
+                f"WHERE {qcol} IS NOT NULL "
+                f"GROUP BY {qcol} ORDER BY {qcol} ASC"
+            )
+            with self._engine.connect() as conn:
+                rows = conn.exec_driver_sql(group_sql).fetchall()
+            return [
+                {'min': float(r[0]), 'max': float(r[0]), 'count': int(r[1])}
+                for r in rows
+            ]
+
+        # Continuous numeric: n_bins equal-width bins over [min, max].
+        step = (col_max - col_min) / n_bins
+        group_sql = (
+            f"SELECT CAST(({qcol} - {col_min}) / {step} AS INT) AS bin, "
+            f"COUNT(*) AS c "
+            f"FROM ({base_sql}) user_q "
+            f"WHERE {qcol} IS NOT NULL "
+            f"GROUP BY CAST(({qcol} - {col_min}) / {step} AS INT)"
+        )
+        with self._engine.connect() as conn:
+            rows = conn.exec_driver_sql(group_sql).fetchall()
+        counts = [0] * n_bins
+        for r in rows:
+            b = int(r[0]) if r[0] is not None else 0
+            # Clamp the rightmost edge (value == max) into the last bin.
+            if b < 0:
+                b = 0
+            if b >= n_bins:
+                b = n_bins - 1
+            counts[b] += int(r[1])
+        return [
+            {
+                'min': col_min + i * step,
+                'max': col_min + (i + 1) * step,
+                'count': counts[i],
+            }
+            for i in range(n_bins)
+        ]
+
     def top_n_values(self, column: str, n: int = 10) -> List[Dict[str, Any]]:
         """Independent aggregation query — doesn't touch the cursor."""
         if column not in self.columns:

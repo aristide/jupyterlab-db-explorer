@@ -23,6 +23,7 @@ import {
   PopoverAction
 } from './columnHeaderPopover';
 import { IFilterSpec } from '../model';
+import { ColumnDtype } from '../interfaces';
 
 export { LazyTableModel } from './lazyTableModel';
 
@@ -43,13 +44,15 @@ export class Table implements IDisposable {
 
     this._grid = new DataGrid({
       defaultSizes: {
-        rowHeight: 24,
-        columnWidth: 144,
-        rowHeaderWidth: 64,
-        // Room for the column-name row + the stats sub-row.
-        columnHeaderHeight: 44
+        rowHeight: 28,
+        columnWidth: 152,
+        rowHeaderWidth: 0,
+        // Canvas headers are hidden — the DOM column-profile strip handles
+        // them. Zero out both budgets so no blank band paints and the
+        // body's left edge aligns with the first profile card.
+        columnHeaderHeight: 0
       },
-      headerVisibility: 'all'
+      headerVisibility: 'none'
     });
 
     this.theme = 'light';
@@ -60,39 +63,41 @@ export class Table implements IDisposable {
     this._grid.mouseHandler = new BasicMouseHandler();
     this._grid.selectionModel = new BasicSelectionModel({ dataModel: model });
     this._grid.node.addEventListener('contextmenu', this._onContextMenu);
-    this._grid.node.addEventListener('click', this._onClick);
     this._popover = new ColumnHeaderPopover();
     this._popover.action.connect(this._onPopoverAction, this);
     this._contextMenu = this._createContextMenu(trans);
   }
 
-  /** Click in the column-header region opens the per-column popover. */
-  private _onClick = (event: MouseEvent): void => {
-    const hit = this._grid.hitTest(event.clientX, event.clientY);
-    if (!hit || hit.region !== 'column-header') {
+  /** Open the popover for the given column at the given client position.
+   *  Used by the DOM column-profile strip — the canvas grid no longer
+   *  paints headers so there's no in-canvas click handler. */
+  openPopoverFor(
+    column: string,
+    dtype: ColumnDtype,
+    x: number,
+    y: number
+  ): void {
+    const colIdx = this._model.columns.indexOf(column);
+    if (colIdx < 0) {
       return;
     }
-    const col = hit.column;
-    if (col < 0 || col >= this._model.columns.length) {
-      return;
-    }
-    const colName = this._model.columns[col];
+    this._lastPopoverColumn = column;
     const activeSort =
-      this._model.activeSort && this._model.activeSort.column === colName
+      this._model.activeSort && this._model.activeSort.column === column
         ? this._model.activeSort.direction
         : null;
     const activeFilter =
-      this._model.activeFilters.find(f => f.column === colName) || null;
+      this._model.activeFilters.find(f => f.column === column) || null;
     const ctx: IColumnPopoverContext = {
-      column: colName,
-      dtype: this._model.dtypes[col] || 'string',
-      stats: this._model.stats[col],
+      column,
+      dtype: dtype || this._model.dtypes[colIdx] || 'string',
+      stats: this._model.stats[colIdx],
       activeSort,
       activeFilter,
       topN: c => this._model.topN(c, 10)
     };
-    this._popover.open(ctx, event.clientX, event.clientY);
-  };
+    this._popover.open(ctx, x, y);
+  }
 
   private _onPopoverAction = (
     _sender: ColumnHeaderPopover,
@@ -149,13 +154,7 @@ export class Table implements IDisposable {
   };
 
   private _popoverColumnFromLastOpen(): string | null {
-    // The popover renders the active column name in its header; pull it back
-    // by reading the DOM since we don't keep a parallel field.
-    if (!this._popover.isAttached) {
-      return null;
-    }
-    const titleEl = this._popover.node.querySelector('.d4n-cp__title');
-    return titleEl ? titleEl.textContent : null;
+    return this._lastPopoverColumn;
   }
 
   private _createContextMenu(trans: TranslationBundle): Menu {
@@ -181,23 +180,34 @@ export class Table implements IDisposable {
   };
 
   set theme(th: string) {
-    let renderer: TextRenderer;
-    if (th === 'dark') {
-      this._grid.style = Private.DARK_STYLE;
-      renderer = new TextRenderer({ textColor: '#F3F3F3' });
-    } else {
-      this._grid.style = Private.LIGHT_STYLE;
-      renderer = new TextRenderer({ textColor: '#131313' });
-    }
-    this._updateRenderer(renderer);
-  }
-
-  private _updateRenderer(renderer: TextRenderer): void {
+    const isDark = th === 'dark';
+    this._grid.style = isDark ? Private.DARK_STYLE : Private.LIGHT_STYLE;
+    const textColor = isDark ? '#E5E7EB' : '#0B1F38';
+    const mutedColor = isDark ? '#8A929E' : '#5A6B82';
+    const bodyFont = `13px 'Roboto', system-ui, sans-serif`;
+    const monoFont = `12.5px 'JetBrains Mono', ui-monospace, monospace`;
+    const renderer = new TextRenderer({
+      textColor: ({ column }) => {
+        const dt = this._model.dtypes[column];
+        return dt === 'datetime' ? mutedColor : textColor;
+      },
+      horizontalAlignment: ({ column }) => {
+        return this._model.dtypes[column] === 'number' ? 'right' : 'left';
+      },
+      font: ({ column }) => {
+        const dt = this._model.dtypes[column];
+        return dt === 'number' || dt === 'datetime' ? monoFont : bodyFont;
+      }
+    });
+    const rowHeader = new TextRenderer({
+      textColor: mutedColor,
+      font: monoFont
+    });
     this._grid.cellRenderers.update({
       body: renderer,
       'column-header': renderer,
       'corner-header': renderer,
-      'row-header': renderer
+      'row-header': rowHeader
     });
   }
 
@@ -211,6 +221,14 @@ export class Table implements IDisposable {
     return this._grid;
   }
 
+  get grid(): DataGrid {
+    return this._grid;
+  }
+
+  get model(): LazyTableModel {
+    return this._model;
+  }
+
   get selection(): Array<any> {
     return [];
   }
@@ -221,7 +239,6 @@ export class Table implements IDisposable {
 
   dispose(): void {
     this._grid.node.removeEventListener('contextmenu', this._onContextMenu);
-    this._grid.node.removeEventListener('click', this._onClick);
     this._popover.close();
     this._grid.dispose();
   }
@@ -230,6 +247,7 @@ export class Table implements IDisposable {
   private readonly _contextMenu: Menu;
   private readonly _popover: ColumnHeaderPopover;
   private _model: LazyTableModel;
+  private _lastPopoverColumn: string | null = null;
 }
 
 /**
@@ -237,28 +255,29 @@ export class Table implements IDisposable {
  */
 namespace Private {
   /**
-   * The light theme for the data grid.
+   * The light theme for the data grid — aligned with the pgw token palette.
+   * Backgrounds, grid lines, and row-header chrome match the DOM strip.
    */
   export const LIGHT_STYLE: DataGrid.Style = {
     ...DataGrid.defaultStyle,
-    voidColor: '#F3F3F3',
-    backgroundColor: 'white',
-    headerBackgroundColor: '#EEEEEE',
-    gridLineColor: 'rgba(20, 20, 20, 0.15)',
-    headerGridLineColor: 'rgba(20, 20, 20, 0.25)',
-    rowBackgroundColor: i => (i % 2 === 0 ? '#F5F5F5' : 'white')
+    voidColor: '#F4F6FA',
+    backgroundColor: '#FFFFFF',
+    headerBackgroundColor: '#F4F6FA',
+    gridLineColor: 'rgba(15, 61, 110, 0.06)',
+    headerGridLineColor: 'rgba(15, 61, 110, 0.08)',
+    rowBackgroundColor: () => '#FFFFFF'
   };
 
   /**
-   * The dark theme for the data grid.
+   * The dark theme for the data grid — JupyterLab dark-mode values.
    */
   export const DARK_STYLE: DataGrid.Style = {
     ...DataGrid.defaultStyle,
-    voidColor: 'black',
-    backgroundColor: '#111111',
-    headerBackgroundColor: '#424242',
-    gridLineColor: 'rgba(235, 235, 235, 0.15)',
-    headerGridLineColor: 'rgba(235, 235, 235, 0.25)',
-    rowBackgroundColor: i => (i % 2 === 0 ? '#212121' : '#111111')
+    voidColor: '#181D21',
+    backgroundColor: '#1F2429',
+    headerBackgroundColor: '#181D21',
+    gridLineColor: 'rgba(255, 255, 255, 0.06)',
+    headerGridLineColor: 'rgba(255, 255, 255, 0.10)',
+    rowBackgroundColor: () => '#1F2429'
   };
 }
