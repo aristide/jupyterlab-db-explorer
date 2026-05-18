@@ -51,8 +51,14 @@ function findConnNode(dbid: string): IDbItem | null {
   if (!dbid) {
     return null;
   }
-  const conns = getSqlModel().get_list([]);
-  for (const c of conns) {
+  // Access the raw _item_list directly so we keep the `.next` field —
+  // SqlModel.get_list strips it during projection.
+  const raw = (getSqlModel() as unknown as { _item_list: IDbItem[] })
+    ._item_list;
+  if (!raw) {
+    return null;
+  }
+  for (const c of raw) {
     if (c.type === 'conn' && c.name === dbid) {
       return c;
     }
