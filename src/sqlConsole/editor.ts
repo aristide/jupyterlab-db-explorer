@@ -3,9 +3,15 @@ import {
   CodeEditor,
   CodeEditorWrapper
 } from '@jupyterlab/codeeditor';
+import { CodeMirrorEditor } from '@jupyterlab/codemirror';
+
+import { keymap } from '@codemirror/view';
 
 import { IDisposable } from '@lumino/disposable';
 import { ISignal, Signal } from '@lumino/signaling';
+
+import { buildSqlCompleter } from './completer';
+import { formatSql } from './formatter';
 
 export interface IEditor extends IDisposable {
   readonly widget: EditorWidget;
@@ -16,11 +22,17 @@ export interface IEditor extends IDisposable {
   readonly execute: ISignal<this, string>;
   readonly valueChanged: ISignal<this, string>;
   readonly updateConn: (conn: string) => void;
+  readonly format: () => void;
 }
 
 export class Editor implements IEditor, IDisposable {
-  constructor(model: CodeEditor.IModel, editorFactory: IEditorFactoryService) {
+  constructor(
+    model: CodeEditor.IModel,
+    editorFactory: IEditorFactoryService,
+    getDbid: () => string = () => ''
+  ) {
     this._model = model;
+    this._getDbid = getDbid;
     this._widget = new EditorWidget(model, editorFactory);
     this._model.sharedModel.changed.connect(() => {
       this._valueChanged.emit(this.value);
@@ -29,6 +41,26 @@ export class Editor implements IEditor, IDisposable {
     this._widget.executeCurrent.connect(() => {
       this._execute.emit(this.value);
     }, this);
+
+    // Inject CM6 extensions after the EditorView is mounted. The factory
+    // returns a CodeEditor.IEditor that — under JupyterLab 4 — is a
+    // CodeMirrorEditor exposing injectExtension(). Guard the cast so tests
+    // that stub the factory don't blow up.
+    const cm = this._widget.editor as unknown as CodeMirrorEditor;
+    if (cm && typeof cm.injectExtension === 'function') {
+      cm.injectExtension(buildSqlCompleter(this._getDbid));
+      cm.injectExtension(
+        keymap.of([
+          {
+            key: 'Shift-Alt-f',
+            run: () => {
+              this.format();
+              return true;
+            }
+          }
+        ])
+      );
+    }
   }
 
   get isDisposed(): boolean {
@@ -44,6 +76,13 @@ export class Editor implements IEditor, IDisposable {
     const editor = this.widget.editor;
     if (editor.replaceSelection) {
       editor.replaceSelection(txt);
+    }
+  }
+
+  format(): void {
+    const formatted = formatSql(this.value, this._getDbid());
+    if (formatted !== this.value) {
+      this._model.sharedModel.setSource(formatted);
     }
   }
 
@@ -131,6 +170,7 @@ export class Editor implements IEditor, IDisposable {
   private _valueChanged = new Signal<this, string>(this);
   private _widget: EditorWidget;
   private _model: CodeEditor.IModel;
+  private _getDbid: () => string;
 }
 
 export class EditorWidget extends CodeEditorWrapper {

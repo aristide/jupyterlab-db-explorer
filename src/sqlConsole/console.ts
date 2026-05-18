@@ -22,7 +22,12 @@ import { SplitPanel } from '@lumino/widgets';
 import { toArray } from '@lumino/algorithm';
 
 import { Signal } from '@lumino/signaling';
-import { saveIcon, runIcon, stopIcon } from '@jupyterlab/ui-components';
+import {
+  saveIcon,
+  runIcon,
+  stopIcon,
+  textEditorIcon
+} from '@jupyterlab/ui-components';
 
 import { IJpServices } from '../JpServices';
 import { sqlIcon as queryIcon, sqlScIcon } from '../icons';
@@ -51,12 +56,20 @@ export class SqlConsoleWidget extends SplitPanel {
     this._context = context;
     this.queryModel = queryModel;
 
-    this.editor = new Editor(model, jp_services.editorService.factoryService);
+    this.editor = new Editor(
+      model,
+      jp_services.editorService.factoryService,
+      () => this.queryModel.dbid
+    );
     this.resultsTable = new ResultsTable();
 
     this.addWidget(this.editor.widget);
     this.addWidget(this.resultsTable.widget);
-    this.setRelativeSizes([2, 1]);
+    // Hide the result panel until the first query runs — on a fresh
+    // .sql file there's no data yet, so the editor takes the full
+    // vertical space. `run()` reveals the panel and applies the
+    // working split ratio.
+    this.resultsTable.widget.hide();
 
     this.editor.execute.connect(this.run, this);
     if (this._context) {
@@ -153,6 +166,14 @@ export class SqlConsoleWidget extends SplitPanel {
     if (sql.trim() === '') {
       return;
     }
+    // First query of the session: reveal the result panel and split
+    // the editor/result area at 1:2 so the column-profile strip has
+    // room to render its full 156px card height + grid body. Without
+    // this, a default split squeezes the strip and clips the cards.
+    if (this.resultsTable.widget.isHidden) {
+      this.resultsTable.widget.show();
+      this.setRelativeSizes([1, 2]);
+    }
     this._is_running = true;
     this.resultsTable.clear();
     const rc = await this.queryModel.query(sql);
@@ -244,6 +265,14 @@ export function setup_sql_console(
           icon: saveIcon,
           onClick: () => sqlConsole.save(),
           tooltip: trans.__('save')
+        })
+      },
+      {
+        name: 'format',
+        widget: new ToolbarButton({
+          icon: textEditorIcon,
+          onClick: () => sqlConsole.editor.format(),
+          tooltip: trans.__('Format SQL (Shift+Alt+F)')
         })
       },
       {

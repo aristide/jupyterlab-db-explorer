@@ -1,0 +1,45 @@
+.cm-tooltip.cm-tooltip-autocomplete {
+  background: var(--jp-layout-color1);
+  border: 1px solid var(--jp-border-color1);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+  font-family: var(--jp-code-font-family);
+  font-size: var(--jp-code-font-size);
+}
+
+.cm-tooltip-autocomplete > ul {
+  max-height: 18em;
+  padding: 4px 0;
+}
+
+.cm-tooltip-autocomplete > ul > li {
+  padding: 2px 8px;
+  color: var(--jp-content-font-color1);
+}
+
+.cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background: var(--jp-brand-color1);
+  color: var(--jp-ui-inverse-font-color1);
+}
+
+.cm-tooltip-autocomplete > ul > li .cm-completionDetail {
+  margin-left: 8px;
+  color: var(--jp-content-font-color2);
+  font-style: italic;
+}
+
+.cm-tooltip-autocomplete > ul > li[aria-selected] .cm-completionDetail {
+  color: var(--jp-ui-inverse-font-color2);
+}
+
+.cm-completionIcon-snippet::after {
+  content: "S";
+}
+
+.cm-completionIcon-keyword::after {
+  content: "K";
+}
+
+.cm-completionIcon-type::after {
+  content: "T";
+}
