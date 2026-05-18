@@ -1,4 +1,9 @@
-import { CompletionSource, autocompletion } from '@codemirror/autocomplete';
+import {
+  Completion,
+  CompletionResult,
+  CompletionSource,
+  autocompletion
+} from '@codemirror/autocomplete';
 import {
   keywordCompletionSource,
   schemaCompletionSource,
@@ -6,8 +11,36 @@ import {
 } from '@codemirror/lang-sql';
 import { Extension } from '@codemirror/state';
 
+import { ConnType } from '../interfaces';
 import { resolveDialect, schemaForDbid } from './dialect';
+import { lookupDoc, renderDocInfo } from './docs';
 import { snippetCompletionSource } from './snippets';
+
+/** Attach an `info` (rendered HTML panel) to each completion when we have
+ *  a documented entry for it. Pure rewrap — the original options are not
+ *  mutated. */
+function attachDocs(
+  result: CompletionResult | null,
+  connType: ConnType | null
+): CompletionResult | null {
+  if (!result) {
+    return null;
+  }
+  const options: Completion[] = result.options.map(opt => {
+    if (opt.info) {
+      return opt; // snippets bring their own info
+    }
+    const doc = lookupDoc(opt.label, connType);
+    if (!doc) {
+      return opt;
+    }
+    return {
+      ...opt,
+      info: () => renderDocInfo(opt.label, doc)
+    };
+  });
+  return { ...result, options };
+}
 
 /**
  * A completion source that re-resolves the active dialect + cached schema
@@ -24,7 +57,13 @@ function dynamicSqlSource(getDbid: () => string): CompletionSource {
       schema: namespace,
       upperCaseKeywords: true
     });
-    return sch(ctx) || kw(ctx);
+    const schRes = sch(ctx);
+    const schResolved =
+      schRes instanceof Promise ? null : (schRes as CompletionResult | null);
+    const kwRes = kw(ctx);
+    const kwResolved =
+      kwRes instanceof Promise ? null : (kwRes as CompletionResult | null);
+    return attachDocs(schResolved || kwResolved, dialect.connType);
   };
 }
 

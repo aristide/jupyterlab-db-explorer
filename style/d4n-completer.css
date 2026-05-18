@@ -43,3 +43,57 @@
 .cm-completionIcon-type::after {
   content: "T";
 }
+
+/* Side-panel info tooltip — explanation, signature, example */
+.cm-tooltip.cm-completionInfo {
+  background: var(--jp-layout-color1);
+  border: 1px solid var(--jp-border-color1);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+  padding: 0;
+  max-width: 360px;
+  font-family: var(--jp-ui-font-family);
+  font-size: var(--jp-ui-font-size1);
+}
+
+.jp-sql-doc {
+  padding: 8px 10px;
+  color: var(--jp-content-font-color1);
+}
+
+.jp-sql-doc-title {
+  font-family: var(--jp-code-font-family);
+  font-size: var(--jp-code-font-size);
+  font-weight: 600;
+  color: var(--jp-brand-color1);
+  margin-bottom: 6px;
+  word-break: break-word;
+}
+
+.jp-sql-doc-summary {
+  line-height: 1.4;
+  margin-bottom: 8px;
+  color: var(--jp-content-font-color1);
+}
+
+.jp-sql-doc-example-label {
+  font-size: var(--jp-ui-font-size0);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--jp-content-font-color2);
+  margin-bottom: 4px;
+}
+
+.jp-sql-doc-example {
+  margin: 0;
+  padding: 6px 8px;
+  background: var(--jp-layout-color2);
+  border: 1px solid var(--jp-border-color2);
+  border-radius: 3px;
+  font-family: var(--jp-code-font-family);
+  font-size: var(--jp-code-font-size);
+  color: var(--jp-content-font-color1);
+  white-space: pre;
+  overflow-x: auto;
+  max-width: 100%;
+}

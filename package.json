@@ -133,6 +133,7 @@
         "extension": true,
         "outputDir": "jupyterlab_db_explorer/labextension",
         "schemaDir": "schema",
+        "webpackConfig": "./webpack.partial.config.js",
         "sharedPackages": {
             "codemirror": {
                 "bundled": false,
