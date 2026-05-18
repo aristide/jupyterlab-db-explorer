@@ -207,8 +207,11 @@ const HIVE_SPEC: SQLDialectSpec = {
 };
 
 const STARROCKS_SPEC: SQLDialectSpec = {
-  keywords: (MYSQL_KEYWORDS_FOR_STARROCKS + ' ' + STARROCKS_EXTRA_KEYWORDS)
-    .toLowerCase(),
+  keywords: (
+    MYSQL_KEYWORDS_FOR_STARROCKS +
+    ' ' +
+    STARROCKS_EXTRA_KEYWORDS
+  ).toLowerCase(),
   builtin: STARROCKS_EXTRA_BUILTINS.toLowerCase(),
   types: SHARED_TYPES.toLowerCase(),
   doubleQuotedStrings: false,

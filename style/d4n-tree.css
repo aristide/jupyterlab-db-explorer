@@ -51,11 +51,12 @@
   --tv-highlight-bg: color-mix(in srgb, #f4c95a 55%, transparent);
 
   /* Type */
-  --tv-font-display: 'Montserrat', var(--jp-ui-font-family, system-ui),
-    sans-serif;
-  --tv-font-body: 'Roboto', var(--jp-content-font-family, system-ui), sans-serif;
-  --tv-font-mono: 'JetBrains Mono', var(--jp-code-font-family, ui-monospace),
-    monospace;
+  --tv-font-display:
+    'Montserrat', var(--jp-ui-font-family, system-ui), sans-serif;
+  --tv-font-body:
+    'Roboto', var(--jp-content-font-family, system-ui), sans-serif;
+  --tv-font-mono:
+    'JetBrains Mono', var(--jp-code-font-family, ui-monospace), monospace;
 
   /* Radii & motion */
   --tv-r-sm: 4px;

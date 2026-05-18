@@ -59,11 +59,12 @@
   --cf-focus-ring: 0 0 0 3px rgba(31, 160, 160, 0.3);
 
   /* Type ------------------------------------------------------------------ */
-  --cf-font-display: 'Montserrat', var(--jp-ui-font-family, system-ui),
-    sans-serif;
-  --cf-font-body: 'Roboto', var(--jp-content-font-family, system-ui), sans-serif;
-  --cf-font-mono: 'JetBrains Mono', var(--jp-code-font-family, ui-monospace),
-    monospace;
+  --cf-font-display:
+    'Montserrat', var(--jp-ui-font-family, system-ui), sans-serif;
+  --cf-font-body:
+    'Roboto', var(--jp-content-font-family, system-ui), sans-serif;
+  --cf-font-mono:
+    'JetBrains Mono', var(--jp-code-font-family, ui-monospace), monospace;
 
   /* Radii & motion -------------------------------------------------------- */
   --cf-r-sm: 4px;

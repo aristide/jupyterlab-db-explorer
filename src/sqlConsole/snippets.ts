@@ -60,7 +60,8 @@ const DEFS: SnippetDef[] = [
   {
     label: 'cte',
     detail: 'WITH cte AS (...)',
-    summary: 'Common Table Expression — a named subquery used later in the statement.',
+    summary:
+      'Common Table Expression — a named subquery used later in the statement.',
     template:
       'WITH ${cte} AS (\n  SELECT ${cols}\n  FROM ${table}\n)\nSELECT ${cols}\nFROM ${cte};'
   },
@@ -103,8 +104,9 @@ function renderSnippetInfo(def: SnippetDef): () => HTMLElement {
     pre.className = 'jp-sql-doc-example';
     // Strip the ${...} placeholders for the preview so the example reads
     // naturally; the actual insertion still uses the placeholders.
-    pre.textContent = def.template.replace(/\$\{([^}]*)\}/g, (_m, name) =>
-      name || '...'
+    pre.textContent = def.template.replace(
+      /\$\{([^}]*)\}/g,
+      (_m, name) => name || '...'
     );
     root.appendChild(pre);
 

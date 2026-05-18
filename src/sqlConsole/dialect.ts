@@ -66,7 +66,9 @@ export function resolveDialect(dbid: string): IResolvedDialect {
     return FALLBACK;
   }
   const code =
-    typeof node.subtype === 'string' ? parseInt(node.subtype, 10) : node.subtype;
+    typeof node.subtype === 'string'
+      ? parseInt(node.subtype, 10)
+      : node.subtype;
   const entry = TABLE[code];
   if (!entry) {
     return FALLBACK;
@@ -112,9 +114,7 @@ export function schemaForDbid(dbid: string): SQLNamespace {
           { name: dbNode.name, type: 'db' } as IDbItem,
           { name: tbl.name, type: 'table' } as IDbItem
         ]);
-        dbEntry[tbl.name] = cols
-          .filter(c => c.type === 'col')
-          .map(c => c.name);
+        dbEntry[tbl.name] = cols.filter(c => c.type === 'col').map(c => c.name);
       }
       (out as Record<string, unknown>)[dbNode.name] = dbEntry;
     }

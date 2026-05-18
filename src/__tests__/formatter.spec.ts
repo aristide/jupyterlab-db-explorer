@@ -33,10 +33,7 @@ describe('formatSql', () => {
         next: false
       } as IDbItem
     ]);
-    const out = formatSql(
-      '-- conn: PG\nselect 1 from t;',
-      'PG'
-    );
+    const out = formatSql('-- conn: PG\nselect 1 from t;', 'PG');
     expect(out.split('\n')[0]).toBe('-- conn: PG');
     expect(out).toContain('SELECT');
   });

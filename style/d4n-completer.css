@@ -33,15 +33,15 @@
 }
 
 .cm-completionIcon-snippet::after {
-  content: "S";
+  content: 'S';
 }
 
 .cm-completionIcon-keyword::after {
-  content: "K";
+  content: 'K';
 }
 
 .cm-completionIcon-type::after {
-  content: "T";
+  content: 'T';
 }
 
 /* Side-panel info tooltip — explanation, signature, example */
