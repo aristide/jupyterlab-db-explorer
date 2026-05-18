@@ -56,34 +56,6 @@ jobs:
         path: lib
         retention-days: 5
 
-  publish-npm:
-    name: Publish npm package
-    needs: build-release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Download lib artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: lib
-          path: lib
-
-      - name: Publish to npm with provenance
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
   publish-python:
     name: Publish python package
     needs: build-release
