@@ -156,7 +156,7 @@ export class ResultsTable implements IDisposable {
       this._resultsLine.innerHTML =
         `Showing <strong>1</strong>–<strong>${formatN(loaded)}</strong>` +
         ` <em>of</em> <strong>${formatN(total)}</strong> <em>results</em>` +
-        ` <em>(loading…)</em>`;
+        ' <em>(loading…)</em>';
     }
   }
 

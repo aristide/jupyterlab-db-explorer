@@ -184,8 +184,8 @@ export class Table implements IDisposable {
     this._grid.style = isDark ? Private.DARK_STYLE : Private.LIGHT_STYLE;
     const textColor = isDark ? '#E5E7EB' : '#0B1F38';
     const mutedColor = isDark ? '#8A929E' : '#5A6B82';
-    const bodyFont = `13px 'Roboto', system-ui, sans-serif`;
-    const monoFont = `12.5px 'JetBrains Mono', ui-monospace, monospace`;
+    const bodyFont = "13px 'Roboto', system-ui, sans-serif";
+    const monoFont = "12.5px 'JetBrains Mono', ui-monospace, monospace";
     const renderer = new TextRenderer({
       textColor: ({ column }) => {
         const dt = this._model.dtypes[column];
