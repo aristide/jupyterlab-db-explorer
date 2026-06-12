@@ -281,6 +281,78 @@ You can use type codes or names: `mysql`, `pgsql`, `postgres`, `oracle`, `hive`,
 | 8    | StarRocks     |
 | 9    | SQL Server    |
 
+#### Reset Protection
+
+The "reset connections" action is enabled by default. To disable it (e.g. in a shared or locked-down deployment), set:
+
+```bash
+export DB_EXPLORER_ALLOW_RESET=0
+```
+
+| Variable                 | Default | Description                                                                                  |
+| ------------------------ | ------- | -------------------------------------------------------------------------------------------- |
+| `DB_EXPLORER_ALLOW_RESET` | `1`     | Allow the reset action. Truthy values: `1`/`true`/`yes`. Any other value disables resetting. |
+
+#### Result Cursor Tuning
+
+Query results are streamed through a server-side cursor and paged/cached. These optional variables tune that behaviour. All take a positive integer; an invalid or non-positive value falls back to the default.
+
+```bash
+export DB_EXPLORER_QUERY_LIMIT=100000
+export DB_EXPLORER_RESULT_PAGE_SIZE=1000
+export DB_EXPLORER_RESULT_TTL_SEC=600
+export DB_EXPLORER_MAX_CACHED_RESULTS=16
+```
+
+| Variable                        | Default  | Description                                                                                       |
+| ------------------------------- | -------- | ------------------------------------------------------------------------------------------------ |
+| `DB_EXPLORER_QUERY_LIMIT`        | `100000` | Max rows the streaming cursor scrolls through before stopping. Bounds server memory.             |
+| `DB_EXPLORER_RESULT_PAGE_SIZE`   | `1000`   | Rows fetched per page from the cursor and cached.                                                |
+| `DB_EXPLORER_RESULT_TTL_SEC`     | `600`    | Seconds an idle result session stays alive before it is evicted and its DB connection closed.    |
+| `DB_EXPLORER_MAX_CACHED_RESULTS` | `16`     | LRU bound on the number of concurrent result sessions held in the server.                        |
+
+#### Complete Environment Variable Reference
+
+The full set of environment variables read by the extension:
+
+**Multi-connection (recommended)** — `DB_CONN_<NAME>_<FIELD>`, one set per connection:
+
+| Field suffix  | Required        | Description                                                                |
+| ------------- | --------------- | ------------------------------------------------------------------------- |
+| `_TYPE`       | yes             | Database type code (see table above).                                     |
+| `_HOST`       | usually         | Host name / address.                                                      |
+| `_PORT`       | usually         | Port number.                                                              |
+| `_USER`       | engine-specific | Username. Optional for Trino+JWT; required for StarRocks+JWT.             |
+| `_PASS`       | engine-specific | Password, or JWT bearer token when `_AUTH_TYPE=jwt`. Accepts `vault://`.  |
+| `_NAME`       | no              | Default database / catalog / schema.                                      |
+| `_ID`         | no              | Explicit connection id; defaults to `<NAME>` if omitted.                  |
+| `_AUTH_TYPE`  | no              | `jwt` to use a bearer token (Trino & StarRocks). Default: password auth.  |
+| `_HTTP_SCHEME`| no              | Trino only: `https` (default) or `http`.                                  |
+
+**Single connection (legacy)** — one connection per process:
+
+| Variable          | Required | Description                                                       |
+| ----------------- | -------- | ---------------------------------------------------------------- |
+| `DB_TYPE`         | yes      | Database type code.                                              |
+| `DB_HOST`         | usually  | Host name / address.                                            |
+| `DB_PORT`         | usually  | Port number.                                                    |
+| `DB_USER`         | maybe    | Username.                                                       |
+| `DB_PASS`         | maybe    | Password or JWT token (when `DB_AUTH_TYPE=jwt`). Accepts `vault://`. |
+| `DB_NAME`         | no       | Default database / catalog / schema.                           |
+| `DB_ID`           | no       | Connection id (e.g. `default`).                                |
+| `DB_AUTH_TYPE`    | no       | `jwt` to use a bearer token. Default: password auth.           |
+| `DB_HTTP_SCHEME`  | no       | Trino only: `https` (default) or `http`.                       |
+
+**Other:**
+
+| Variable                    | Default   | Description                                                                                   |
+| --------------------------- | --------- | --------------------------------------------------------------------------------------------- |
+| `DB_<NAME>`                 | _(unset)_ | Base64-encoded JSON connection definition (see "Base64 JSON" above).                          |
+| `DB_EXPLORER_ALLOWED_TYPES` | _(unset)_ | Comma-separated list of allowed type codes or names. Unset = all types allowed.               |
+| `DB_EXPLORER_ALLOW_RESET`   | `1`       | Allow the reset action (`1`/`true`/`yes`); any other value disables it.                        |
+
+Vault variables (`VAULT_*`) and the result-cursor tuning variables (`DB_EXPLORER_QUERY_LIMIT`, `DB_EXPLORER_RESULT_PAGE_SIZE`, `DB_EXPLORER_RESULT_TTL_SEC`, `DB_EXPLORER_MAX_CACHED_RESULTS`) are documented in their own sections above.
+
 ### Edit Comments
 
 Right-click on a connection, table, or column in the database navigation tree and select "Edit Comment" to add or modify comments.
