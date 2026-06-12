@@ -8,7 +8,8 @@ import {
   IQueryRes,
   IPageRes,
   IStatsRes,
-  IDBConn
+  IDBConn,
+  ISqlVar
 } from './interfaces';
 
 export async function requestAPI<T>(
@@ -192,6 +193,28 @@ export const get_reset_allowed = async (): Promise<
       allow_reset: boolean;
     }>;
   }
+};
+
+// --- SQL variables ---
+
+export const get_variables = async (): Promise<IApiRes<ISqlVar[]>> => {
+  return await GET('variables', {});
+};
+
+export const save_variable = async (
+  v: ISqlVar
+): Promise<IApiRes<ISqlVar[]>> => {
+  return await POST('variables', {
+    name: v.name,
+    value: v.value,
+    description: v.description ?? ''
+  });
+};
+
+export const del_variable = async (
+  name: string
+): Promise<IApiRes<ISqlVar[]>> => {
+  return await DELETE('variables', { name });
 };
 
 // --- Password ---

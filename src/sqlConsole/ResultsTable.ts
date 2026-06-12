@@ -4,7 +4,6 @@
  * Wraps the @lumino/datagrid grid in a DOM scaffold modeled after the
  * Pygwalker "table" reference design:
  *   ┌────────────────────────────────────────────────────────────────┐
- *   │  RESULTS              (eyebrow + meta line "Showing 1–N of M") │
  *   │  ┌──────────────────────────────────────────────────────────┐  │
  *   │  │  Column-profile strip (one card per column, DOM)         │  │
  *   │  ├──────────────────────────────────────────────────────────┤  │
@@ -14,8 +13,12 @@
  *
  * Horizontal scrolling on the grid translates the profile strip in
  * lockstep via a message hook installed by ColumnProfileHeader.
+ *
+ * The total-row count is no longer shown here — it is surfaced in the
+ * console toolbar via the `rowsChanged` signal.
  */
 import { BoxLayout, BoxPanel, Widget } from '@lumino/widgets';
+import { ISignal, Signal } from '@lumino/signaling';
 import { IDisposable } from '@lumino/disposable';
 
 import { ITableData } from '../interfaces';
@@ -23,31 +26,31 @@ import { IQueryModel } from '../model';
 import { LazyTableModel, Table } from './Table';
 import { ColumnProfileHeader } from './ColumnProfileHeader';
 
+/** Live row-count snapshot for the result, emitted as the cursor streams. */
+export interface IRowsInfo {
+  /** Number of columns — 0 means there is no result yet. */
+  columns: number;
+  /** Total rows once the cursor is exhausted, else null. */
+  total: number | null;
+  /** Rows gathered so far. */
+  loaded: number;
+  /** True once the cursor has reached EOF or the hard cap. */
+  exhausted: boolean;
+}
+
 export class ResultsTable implements IDisposable {
   constructor() {
     this._model = new LazyTableModel();
     this._table = new Table(this._model);
 
-    // Outer panel — vertical stack: eyebrow, meta, profile strip, grid.
+    // Outer panel — vertical stack: profile strip, grid. No spacing so the
+    // column-profile strip sits flush against the grid below it.
     this._panel = new BoxPanel({
       direction: 'top-to-bottom',
-      spacing: 12
+      spacing: 0
     });
     this._panel.addClass('pgw-root');
     this._panel.addClass('d4n-rt');
-
-    this._headerWidget = new Widget({ node: document.createElement('header') });
-    this._headerWidget.addClass('pgw-header');
-    const eyebrow = document.createElement('span');
-    eyebrow.className = 'pgw-header__eyebrow';
-    eyebrow.textContent = 'Results';
-    this._headerWidget.node.appendChild(eyebrow);
-
-    this._metaWidget = new Widget({ node: document.createElement('div') });
-    this._metaWidget.addClass('pgw-meta');
-    this._resultsLine = document.createElement('p');
-    this._resultsLine.className = 'pgw-results';
-    this._metaWidget.node.appendChild(this._resultsLine);
 
     this._profileHeader = new ColumnProfileHeader(
       this._model,
@@ -67,8 +70,6 @@ export class ResultsTable implements IDisposable {
     this._tableWrap.addClass('pgw-tablewrap');
     this._tableWrap.addWidget(this._table.widget);
 
-    this._panel.addWidget(this._headerWidget);
-    this._panel.addWidget(this._metaWidget);
     this._panel.addWidget(this._profileHeader);
     this._panel.addWidget(this._tableWrap);
 
@@ -76,20 +77,22 @@ export class ResultsTable implements IDisposable {
     // `sizeBasis` to 0, so a child with stretch=0 collapses to 0 px unless
     // we hand it an explicit size basis. The profile strip's CSS height
     // is ignored when the parent applies position: absolute; height: 0.
-    BoxLayout.setStretch(this._headerWidget, 0);
-    BoxLayout.setSizeBasis(this._headerWidget, 24);
-    BoxLayout.setStretch(this._metaWidget, 0);
-    BoxLayout.setSizeBasis(this._metaWidget, 22);
     BoxLayout.setStretch(this._profileHeader, 0);
-    BoxLayout.setSizeBasis(this._profileHeader, 156);
+    BoxLayout.setSizeBasis(this._profileHeader, 108);
     BoxLayout.setStretch(this._tableWrap, 1);
 
     this._model.changed.connect(this._onModelChanged, this);
-    this._renderMeta();
+    this._emitRows();
   }
 
   get widget(): Widget {
     return this._panel;
+  }
+
+  /** Fires whenever the streamed row count changes — drives the toolbar's
+   *  "total rows" readout. */
+  get rowsChanged(): ISignal<this, IRowsInfo> {
+    return this._rowsChanged;
   }
 
   set theme(theme: string) {
@@ -119,6 +122,7 @@ export class ResultsTable implements IDisposable {
     if (this._isDisposed) {
       return;
     }
+    Signal.clearData(this);
     this._model.changed.disconnect(this._onModelChanged, this);
     this._profileHeader.dispose();
     this._table.dispose();
@@ -131,40 +135,21 @@ export class ResultsTable implements IDisposable {
   }
 
   private _onModelChanged = (): void => {
-    this._renderMeta();
+    this._emitRows();
   };
 
-  private _renderMeta(): void {
-    const total = this._model.totalRows;
-    const cols = this._model.columns.length;
-    if (cols === 0) {
-      this._resultsLine.textContent = 'No results';
-      return;
-    }
-    const loaded = this._model.loadedRows || total;
-    const exhausted = this._model.cursorExhausted;
-    const formatN = (n: number): string => n.toLocaleString('en-US');
-    if (total === 0) {
-      this._resultsLine.textContent = '0 results';
-      return;
-    }
-    if (exhausted) {
-      this._resultsLine.innerHTML =
-        `Showing <strong>1</strong>–<strong>${formatN(total)}</strong>` +
-        ` <em>of</em> <strong>${formatN(total)}</strong> <em>results</em>`;
-    } else {
-      this._resultsLine.innerHTML =
-        `Showing <strong>1</strong>–<strong>${formatN(loaded)}</strong>` +
-        ` <em>of</em> <strong>${formatN(total)}</strong> <em>results</em>` +
-        ' <em>(loading…)</em>';
-    }
+  private _emitRows(): void {
+    this._rowsChanged.emit({
+      columns: this._model.columns.length,
+      total: this._model.totalRows,
+      loaded: this._model.loadedRows || this._model.totalRows || 0,
+      exhausted: this._model.cursorExhausted
+    });
   }
 
   private _isDisposed = false;
+  private readonly _rowsChanged = new Signal<this, IRowsInfo>(this);
   private readonly _panel: BoxPanel;
-  private readonly _headerWidget: Widget;
-  private readonly _metaWidget: Widget;
-  private readonly _resultsLine: HTMLParagraphElement;
   private readonly _profileHeader: ColumnProfileHeader;
   private readonly _tableWrap: BoxPanel;
   private readonly _table: Table;

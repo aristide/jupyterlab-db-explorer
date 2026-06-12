@@ -6,6 +6,7 @@ from jupyter_server.utils import url_path_join
 import tornado
 from . import engine, db
 from . import task
+from . import variables
 
 class ConnHandler(APIHandler):
     '''
@@ -128,6 +129,37 @@ class PasswdHandler(APIHandler):
         engine.clear_pass(dbid)
         self.finish(json.dumps({'data': 'delete pass ok'}))
 
+class VariableHandler(APIHandler):
+    '''
+    User-defined SQL variables (CRUD). Values are substituted into SQL at
+    query time, falling back to os.environ for names with no custom variable.
+    '''
+    @tornado.web.authenticated
+    def get(self):
+        self.finish(json.dumps({'data': variables.get_variables()}))
+
+    @tornado.web.authenticated
+    def post(self):
+        try:
+            data = self.get_json_body()
+            vars_list = variables.save_variable(
+                data.get('name'), data.get('value'), data.get('description', ''))
+            self.finish(json.dumps({'data': vars_list}))
+        except Exception as err:
+            self.log.error(err)
+            traceback.print_exc()
+            self.finish(json.dumps({'error': str(err)}))
+
+    @tornado.web.authenticated
+    def delete(self):
+        try:
+            name = self.get_argument('name')
+            vars_list = variables.delete_variable(name)
+            self.finish(json.dumps({'data': vars_list}))
+        except Exception as err:
+            self.log.error(err)
+            self.finish(json.dumps({'error': str(err)}))
+
 class QueryHandler(APIHandler):
     @tornado.web.authenticated
     async def post(self):
@@ -137,7 +169,8 @@ class QueryHandler(APIHandler):
             if not st:
                 self.finish(json.dumps({'error': 'NEED-PASS', 'pass_info': {'db_id': qdata['dbid'], 'db_user': db_user}}))
             else:
-                taskid = await task.create_query_task(qdata['dbid'], qdata['sql'])
+                sql = variables.resolve(qdata['sql'])
+                taskid = await task.create_query_task(qdata['dbid'], sql)
                 self.finish(json.dumps({'error': 'RETRY', 'data': taskid}))
         except Exception as err:
             self.log.error(err)
@@ -352,6 +385,7 @@ def setup_handlers(web_app):
         (handler_url(base_url, "dbtables"), DbTableHandler),
         (handler_url(base_url, "columns"), TabColumnHandler),
         (handler_url(base_url, "pass"), PasswdHandler),
+        (handler_url(base_url, "variables"), VariableHandler),
         (handler_url(base_url, "query"), QueryHandler),
         (handler_url(base_url, "query/page"), QueryPageHandler),
         (handler_url(base_url, "query/stats"), QueryStatsHandler),

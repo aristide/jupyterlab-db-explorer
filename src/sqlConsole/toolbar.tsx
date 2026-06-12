@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { ReactWidget } from '@jupyterlab/apputils';
-import { Signal } from '@lumino/signaling';
+import { ISignal, Signal } from '@lumino/signaling';
 import { showErrorMessage } from '@jupyterlab/apputils';
 
 import { TranslationBundle } from '@jupyterlab/translation';
@@ -8,6 +8,7 @@ import { TranslationBundle } from '@jupyterlab/translation';
 import { getSqlModel, IQueryModel, IQueryStatus } from '../model';
 import { errorIcon } from '../icons';
 import { Loading } from '../components/loading';
+import { IRowsInfo } from './ResultsTable';
 
 // class ToolbarText extends Widget {
 //     constructor(txt: string, className?: string) {
@@ -22,6 +23,8 @@ export interface IRunStatusOptions {
   model: IQueryModel;
   trans: TranslationBundle;
   onChange: (dbid: string) => void;
+  /** Streamed row-count updates for the active result, shown after the timer. */
+  rowsChanged?: ISignal<unknown, IRowsInfo>;
 }
 
 interface IRunStatusState {
@@ -29,6 +32,7 @@ interface IRunStatusState {
   running: 0 | 1 | 2;
   time: number;
   errmsg: string;
+  rows: IRowsInfo | null;
 }
 
 class RunStatusComponent extends React.Component<
@@ -41,14 +45,16 @@ class RunStatusComponent extends React.Component<
       dbid: props.model.dbid,
       running: 0,
       time: 0,
-      errmsg: ''
+      errmsg: '',
+      rows: null
     };
   }
 
   componentDidMount = async (): Promise<void> => {
-    const { model } = this.props;
+    const { model, rowsChanged } = this.props;
     model.query_begin.connect(this._start_query, this);
     model.query_finish.connect(this._finish_query, this);
+    rowsChanged?.connect(this._on_rows, this);
     const m = getSqlModel();
     await m.get_list([]);
     m.conn_changed.connect(() => {
@@ -70,7 +76,7 @@ class RunStatusComponent extends React.Component<
    * @returns React element
    */
   render(): React.ReactElement {
-    const { dbid, running, time, errmsg } = this.state;
+    const { dbid, running, time, errmsg, rows } = this.state;
     const { trans, model } = this.props;
     return (
       <>
@@ -97,8 +103,12 @@ class RunStatusComponent extends React.Component<
         )}
         {time !== 0 && (
           <span className="jp-sql-exp-toolbar-timer">
-            {' '}
             {trans.__('elapsed time')}：{this.convertMilliseconds(time)}
+          </span>
+        )}
+        {rows && rows.columns > 0 && (
+          <span className="jp-sql-exp-toolbar-rows">
+            {this._rowsLabel(rows)}
           </span>
         )}
         {running === 2 && (
@@ -112,6 +122,18 @@ class RunStatusComponent extends React.Component<
       </>
     );
   }
+
+  private _rowsLabel(rows: IRowsInfo): string {
+    const { trans } = this.props;
+    const gathered = rows.exhausted ? (rows.total ?? rows.loaded) : rows.loaded;
+    const n = (gathered ?? 0).toLocaleString('en-US');
+    const word = gathered === 1 ? trans.__('row') : trans.__('rows');
+    return rows.exhausted ? `${n} ${word}` : `${n} ${word} …`;
+  }
+
+  private _on_rows = (_: unknown, rows: IRowsInfo): void => {
+    this.setState({ rows });
+  };
 
   private convertMilliseconds(milliseconds: number): string {
     const { trans } = this.props;
@@ -142,7 +164,7 @@ class RunStatusComponent extends React.Component<
 
   private _start_query = () => {
     this._timer_id = setInterval(this._timer_fast, 107);
-    this.setState({ running: 1, time: 0 });
+    this.setState({ running: 1, time: 0, rows: null });
   };
 
   private _finish_query = (_: IQueryModel, e: IQueryStatus) => {
@@ -200,6 +222,7 @@ export class RunStatus extends ReactWidget {
     this._queryModel = options.model;
     this._trans = options.trans;
     this._onChange = options.onChange;
+    this._rowsChanged = options.rowsChanged;
   }
 
   render(): JSX.Element {
@@ -208,6 +231,7 @@ export class RunStatus extends ReactWidget {
         model={this._queryModel}
         trans={this._trans}
         onChange={this._onChange}
+        rowsChanged={this._rowsChanged}
       />
     );
   }
@@ -215,4 +239,5 @@ export class RunStatus extends ReactWidget {
   private readonly _queryModel: IQueryModel;
   private readonly _trans: TranslationBundle;
   private readonly _onChange: (dbid: string) => void;
+  private readonly _rowsChanged?: ISignal<unknown, IRowsInfo>;
 }

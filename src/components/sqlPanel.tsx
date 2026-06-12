@@ -5,20 +5,24 @@ import { IDBConn } from '../interfaces';
 import { IJpServices } from '../JpServices';
 import { ConnForm } from './new_conn';
 import { DbTree } from './dbTree';
+import { VariablesPanel } from './variablesPanel';
 
 export interface ISqlPanelProps {
   model: SqlModel;
   jp_services: IJpServices;
 }
 
+type TabId = 'connections' | 'variables';
+
 export interface ISqlPanelState {
+  activeTab: TabId;
   showNewConn: boolean;
 }
 
 export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
   constructor(props: ISqlPanelProps) {
     super(props);
-    this.state = { showNewConn: false };
+    this.state = { activeTab: 'connections', showNewConn: false };
   }
 
   componentDidMount(): void {
@@ -32,6 +36,40 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
   }
 
   render(): React.ReactElement {
+    const { trans } = this.props.jp_services;
+    const { activeTab } = this.state;
+    return (
+      <div className="d4n-shell">
+        <div className="d4n-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'connections'}
+            className={`d4n-tab${activeTab === 'connections' ? ' is-active' : ''}`}
+            onClick={() => this.setState({ activeTab: 'connections' })}
+          >
+            {trans.__('Connections')}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'variables'}
+            className={`d4n-tab${activeTab === 'variables' ? ' is-active' : ''}`}
+            onClick={() => this.setState({ activeTab: 'variables' })}
+          >
+            {trans.__('Variables')}
+          </button>
+        </div>
+        <div className="d4n-shell__body">
+          {activeTab === 'connections'
+            ? this._renderConnections()
+            : this._renderVariables()}
+        </div>
+      </div>
+    );
+  }
+
+  private _renderConnections(): React.ReactElement {
     if (this.state.showNewConn) {
       return this._renderNewConnForm();
     }
@@ -40,6 +78,15 @@ export class SqlPanel extends React.Component<ISqlPanelProps, ISqlPanelState> {
         model={this.props.model}
         jp_services={this.props.jp_services}
         onAddConn={this._add}
+      />
+    );
+  }
+
+  private _renderVariables(): React.ReactElement {
+    return (
+      <VariablesPanel
+        model={this.props.model}
+        jp_services={this.props.jp_services}
       />
     );
   }

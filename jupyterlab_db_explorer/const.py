@@ -1,5 +1,9 @@
 DB_ROOT = '~/.database/'
 
+# Store for user-defined SQL variables (name -> {value, description}).
+# Referenced in SQL as ${name}; resolved at query time, falling back to os.environ.
+VAR_CFG = DB_ROOT + 'variables.json'
+
 # Environment variable names for single connection
 ENV_DB_TYPE = 'DB_TYPE'
 ENV_DB_HOST = 'DB_HOST'

@@ -18,7 +18,10 @@ import {
   edit_conn,
   del_conn,
   test_conn,
-  get_reset_allowed
+  get_reset_allowed,
+  get_variables,
+  save_variable,
+  del_variable
 } from './handler';
 import {
   IDbItem,
@@ -30,7 +33,8 @@ import {
   IPageData,
   IStatsData,
   IHistogramBin,
-  IDBConn
+  IDBConn,
+  ISqlVar
 } from './interfaces';
 
 export type SortDirection = 'ASC' | 'DESC';
@@ -248,6 +252,27 @@ export class SqlModel {
     }
   };
 
+  get_variables = async (): Promise<ISqlVar[]> => {
+    const rc = await get_variables();
+    return rc && rc.status === 'OK' && rc.data ? rc.data : [];
+  };
+
+  add_variable = async (v: ISqlVar): Promise<string> => {
+    const rc = await save_variable(v);
+    if (rc.status === 'OK') {
+      this.variables_changed.emit(v.name);
+      return '';
+    }
+    return rc.message || 'could not save variable';
+  };
+
+  del_variable = async (name: string): Promise<void> => {
+    const rc = await del_variable(name);
+    if (rc.status === 'OK') {
+      this.variables_changed.emit(name);
+    }
+  };
+
   set_pass = async (pass_info: IPass): Promise<void> => {
     const rc = await set_pass(pass_info);
     if (rc.status === 'OK') {
@@ -277,6 +302,10 @@ export class SqlModel {
     return this._conn_create;
   }
 
+  get variables_changed(): Signal<SqlModel, string> {
+    return this._variables_changed;
+  }
+
   private _item_list: IDbItem[] = [];
   private _allowed_types: string[] | null = null;
   private _vault_enabled = false;
@@ -284,6 +313,7 @@ export class SqlModel {
   private _passwd_settled = new Signal<SqlModel, string>(this);
   private _conn_changed = new Signal<SqlModel, string>(this);
   private _conn_create = new Signal<SqlModel, IDBConn>(this);
+  private _variables_changed = new Signal<SqlModel, string>(this);
 }
 
 /**

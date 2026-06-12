@@ -61,10 +61,10 @@
   --pgw-shadow-md:
     0 4px 12px rgba(15, 61, 110, 0.08), 0 2px 4px rgba(15, 61, 110, 0.04);
 
-  --pgw-row-py: 14px;
-  --pgw-cell-px: 18px;
-  --pgw-profile-h: 156px;
-  --pgw-spark-h: 46px;
+  --pgw-row-py: 12px;
+  --pgw-cell-px: 16px;
+  --pgw-profile-h: 108px;
+  --pgw-spark-h: 38px;
 
   font-family: var(--pgw-font-body);
   color: var(--pgw-fg);
@@ -72,32 +72,17 @@
 }
 
 .pgw-root.is-compact {
-  --pgw-row-py: 9px;
+  --pgw-row-py: 8px;
   --pgw-cell-px: 12px;
-  --pgw-profile-h: 124px;
-  --pgw-spark-h: 36px;
+  --pgw-profile-h: 88px;
+  --pgw-spark-h: 30px;
 }
 
 /* ============================================================================
    Section header — eyebrow.
    ========================================================================== */
-.pgw-root .pgw-header {
-  display: flex;
-  align-items: center;
-  padding: 4px 4px 0;
-}
-
-.pgw-root .pgw-header__eyebrow {
-  font-family: var(--pgw-font-display);
-  font-weight: 600;
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--pgw-teal-deep);
-}
-
 /* ============================================================================
-   Meta strip — "Showing 1–N of M results".
+   Meta strip — total rows gathered from the query run, e.g. "1,234 rows".
    ========================================================================== */
 .pgw-root .pgw-meta {
   display: flex;
@@ -132,12 +117,16 @@
 .pgw-profstrip {
   display: flex;
   overflow: hidden;
-  background: var(--pgw-bg-2);
+  background: var(--d4n-paper); /* #F4F6FA */
   border: 1px solid var(--pgw-border-2);
+  border-top: 1px solid var(--pgw-border-2);
   border-bottom: 0;
-  border-radius: var(--pgw-r-lg) var(--pgw-r-lg) 0 0;
+  border-radius: 0;
   height: var(--pgw-profile-h);
   flex: 0 0 auto;
+}
+.pgw-root.is-dark .pgw-profstrip {
+  background: var(--jp-layout-color2, #181d21);
 }
 
 .pgw-profstrip__inner {
@@ -151,7 +140,7 @@
   width: 152px;
   min-width: 152px;
   height: 100%;
-  padding: 14px var(--pgw-cell-px);
+  padding: 11px var(--pgw-cell-px) 12px;
   border-right: 1px solid var(--pgw-border);
   cursor: pointer;
   box-sizing: border-box;
@@ -169,7 +158,7 @@
 .pgw-prof {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 7px;
   height: 100%;
 }
 

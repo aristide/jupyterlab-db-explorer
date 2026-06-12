@@ -289,8 +289,8 @@ The "reset connections" action is enabled by default. To disable it (e.g. in a s
 export DB_EXPLORER_ALLOW_RESET=0
 ```
 
-| Variable                 | Default | Description                                                                                  |
-| ------------------------ | ------- | -------------------------------------------------------------------------------------------- |
+| Variable                  | Default | Description                                                                                  |
+| ------------------------- | ------- | -------------------------------------------------------------------------------------------- |
 | `DB_EXPLORER_ALLOW_RESET` | `1`     | Allow the reset action. Truthy values: `1`/`true`/`yes`. Any other value disables resetting. |
 
 #### Result Cursor Tuning
@@ -304,12 +304,12 @@ export DB_EXPLORER_RESULT_TTL_SEC=600
 export DB_EXPLORER_MAX_CACHED_RESULTS=16
 ```
 
-| Variable                        | Default  | Description                                                                                       |
-| ------------------------------- | -------- | ------------------------------------------------------------------------------------------------ |
-| `DB_EXPLORER_QUERY_LIMIT`        | `100000` | Max rows the streaming cursor scrolls through before stopping. Bounds server memory.             |
-| `DB_EXPLORER_RESULT_PAGE_SIZE`   | `1000`   | Rows fetched per page from the cursor and cached.                                                |
-| `DB_EXPLORER_RESULT_TTL_SEC`     | `600`    | Seconds an idle result session stays alive before it is evicted and its DB connection closed.    |
-| `DB_EXPLORER_MAX_CACHED_RESULTS` | `16`     | LRU bound on the number of concurrent result sessions held in the server.                        |
+| Variable                         | Default  | Description                                                                                   |
+| -------------------------------- | -------- | --------------------------------------------------------------------------------------------- |
+| `DB_EXPLORER_QUERY_LIMIT`        | `100000` | Max rows the streaming cursor scrolls through before stopping. Bounds server memory.          |
+| `DB_EXPLORER_RESULT_PAGE_SIZE`   | `1000`   | Rows fetched per page from the cursor and cached.                                             |
+| `DB_EXPLORER_RESULT_TTL_SEC`     | `600`    | Seconds an idle result session stays alive before it is evicted and its DB connection closed. |
+| `DB_EXPLORER_MAX_CACHED_RESULTS` | `16`     | LRU bound on the number of concurrent result sessions held in the server.                     |
 
 #### Complete Environment Variable Reference
 
@@ -317,41 +317,69 @@ The full set of environment variables read by the extension:
 
 **Multi-connection (recommended)** — `DB_CONN_<NAME>_<FIELD>`, one set per connection:
 
-| Field suffix  | Required        | Description                                                                |
-| ------------- | --------------- | ------------------------------------------------------------------------- |
-| `_TYPE`       | yes             | Database type code (see table above).                                     |
-| `_HOST`       | usually         | Host name / address.                                                      |
-| `_PORT`       | usually         | Port number.                                                              |
-| `_USER`       | engine-specific | Username. Optional for Trino+JWT; required for StarRocks+JWT.             |
-| `_PASS`       | engine-specific | Password, or JWT bearer token when `_AUTH_TYPE=jwt`. Accepts `vault://`.  |
-| `_NAME`       | no              | Default database / catalog / schema.                                      |
-| `_ID`         | no              | Explicit connection id; defaults to `<NAME>` if omitted.                  |
-| `_AUTH_TYPE`  | no              | `jwt` to use a bearer token (Trino & StarRocks). Default: password auth.  |
-| `_HTTP_SCHEME`| no              | Trino only: `https` (default) or `http`.                                  |
+| Field suffix   | Required        | Description                                                              |
+| -------------- | --------------- | ------------------------------------------------------------------------ |
+| `_TYPE`        | yes             | Database type code (see table above).                                    |
+| `_HOST`        | usually         | Host name / address.                                                     |
+| `_PORT`        | usually         | Port number.                                                             |
+| `_USER`        | engine-specific | Username. Optional for Trino+JWT; required for StarRocks+JWT.            |
+| `_PASS`        | engine-specific | Password, or JWT bearer token when `_AUTH_TYPE=jwt`. Accepts `vault://`. |
+| `_NAME`        | no              | Default database / catalog / schema.                                     |
+| `_ID`          | no              | Explicit connection id; defaults to `<NAME>` if omitted.                 |
+| `_AUTH_TYPE`   | no              | `jwt` to use a bearer token (Trino & StarRocks). Default: password auth. |
+| `_HTTP_SCHEME` | no              | Trino only: `https` (default) or `http`.                                 |
 
 **Single connection (legacy)** — one connection per process:
 
-| Variable          | Required | Description                                                       |
-| ----------------- | -------- | ---------------------------------------------------------------- |
-| `DB_TYPE`         | yes      | Database type code.                                              |
-| `DB_HOST`         | usually  | Host name / address.                                            |
-| `DB_PORT`         | usually  | Port number.                                                    |
-| `DB_USER`         | maybe    | Username.                                                       |
-| `DB_PASS`         | maybe    | Password or JWT token (when `DB_AUTH_TYPE=jwt`). Accepts `vault://`. |
-| `DB_NAME`         | no       | Default database / catalog / schema.                           |
-| `DB_ID`           | no       | Connection id (e.g. `default`).                                |
-| `DB_AUTH_TYPE`    | no       | `jwt` to use a bearer token. Default: password auth.           |
-| `DB_HTTP_SCHEME`  | no       | Trino only: `https` (default) or `http`.                       |
+| Variable         | Required | Description                                                          |
+| ---------------- | -------- | -------------------------------------------------------------------- |
+| `DB_TYPE`        | yes      | Database type code.                                                  |
+| `DB_HOST`        | usually  | Host name / address.                                                 |
+| `DB_PORT`        | usually  | Port number.                                                         |
+| `DB_USER`        | maybe    | Username.                                                            |
+| `DB_PASS`        | maybe    | Password or JWT token (when `DB_AUTH_TYPE=jwt`). Accepts `vault://`. |
+| `DB_NAME`        | no       | Default database / catalog / schema.                                 |
+| `DB_ID`          | no       | Connection id (e.g. `default`).                                      |
+| `DB_AUTH_TYPE`   | no       | `jwt` to use a bearer token. Default: password auth.                 |
+| `DB_HTTP_SCHEME` | no       | Trino only: `https` (default) or `http`.                             |
 
 **Other:**
 
-| Variable                    | Default   | Description                                                                                   |
-| --------------------------- | --------- | --------------------------------------------------------------------------------------------- |
-| `DB_<NAME>`                 | _(unset)_ | Base64-encoded JSON connection definition (see "Base64 JSON" above).                          |
-| `DB_EXPLORER_ALLOWED_TYPES` | _(unset)_ | Comma-separated list of allowed type codes or names. Unset = all types allowed.               |
-| `DB_EXPLORER_ALLOW_RESET`   | `1`       | Allow the reset action (`1`/`true`/`yes`); any other value disables it.                        |
+| Variable                    | Default   | Description                                                                     |
+| --------------------------- | --------- | ------------------------------------------------------------------------------- |
+| `DB_<NAME>`                 | _(unset)_ | Base64-encoded JSON connection definition (see "Base64 JSON" above).            |
+| `DB_EXPLORER_ALLOWED_TYPES` | _(unset)_ | Comma-separated list of allowed type codes or names. Unset = all types allowed. |
+| `DB_EXPLORER_ALLOW_RESET`   | `1`       | Allow the reset action (`1`/`true`/`yes`); any other value disables it.         |
 
 Vault variables (`VAULT_*`) and the result-cursor tuning variables (`DB_EXPLORER_QUERY_LIMIT`, `DB_EXPLORER_RESULT_PAGE_SIZE`, `DB_EXPLORER_RESULT_TTL_SEC`, `DB_EXPLORER_MAX_CACHED_RESULTS`) are documented in their own sections above.
+
+### SQL Variables
+
+You can parametrize SQL with variables using the `${name}` syntax. When a query
+runs, each `${name}` is substituted server-side before execution — so it works
+for the main query as well as the sort, filter, and stats overlays.
+
+```sql
+SELECT *
+FROM ${schema}.orders
+WHERE created >= '${start_date}'
+  AND region = ${region_id}
+```
+
+A `${name}` resolves in this order:
+
+1. A **custom variable** you define in the **Variables** tab (beside the
+   connection list in the sidebar). Each variable has a name, a value, and an
+   optional description. Use the **+** button to add one, and the row actions to
+   edit or delete it.
+2. Otherwise, a **system environment variable** of the same name from the
+   Jupyter server process (e.g. `${REGION_ID}` reads `os.environ['REGION_ID']`).
+
+If a `${name}` matches neither, the query fails with a clear error naming the
+undefined variable(s). A `${...}` whose contents are not a valid identifier
+(e.g. `${bad name}`) is left untouched.
+
+Custom variables are stored in `~/.database/variables.json`.
 
 ### Edit Comments
 

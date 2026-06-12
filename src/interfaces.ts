@@ -41,6 +41,13 @@ export interface IPass {
   db_pass: string;
 }
 
+/** A user-defined SQL variable, referenced in SQL as `${name}`. */
+export interface ISqlVar {
+  name: string;
+  value: string;
+  description?: string;
+}
+
 export type TApiStatus = 'OK' | 'NEED-PASS' | 'RETRY' | 'ERR';
 
 export interface IParam {

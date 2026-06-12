@@ -3,3 +3,36 @@
 
     https://jupyterlab.readthedocs.io/en/stable/developer/css.html
 */
+
+/* ── SQL console toolbar status (connector · elapsed time · total rows) ───── */
+.jp-sql-exp-toolbar-text {
+  font-weight: 600;
+  color: var(--jp-ui-font-color1);
+}
+
+/* Space between the connection name and the elapsed-time readout. */
+.jp-sql-exp-toolbar-timer {
+  margin-left: 16px;
+  color: var(--jp-ui-font-color2);
+  white-space: nowrap;
+}
+
+/* Total rows, shown right after the elapsed time. */
+.jp-sql-exp-toolbar-rows {
+  margin-left: 14px;
+  color: var(--jp-ui-font-color1);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.jp-sql-exp-toolbar-errmsg {
+  margin-left: 14px;
+  color: var(--jp-error-color1, #e63558);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.jp-sql-exp-toolbar-icon {
+  margin-left: 8px;
+  vertical-align: middle;
+}

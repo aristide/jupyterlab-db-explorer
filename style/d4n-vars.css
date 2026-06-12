@@ -1,0 +1,302 @@
+/* ============================================================================
+ * SQL Variables panel + sidebar tab strip (Data4Now design system)
+ *   • Tab strip lives outside .d4n-tv, so it bridges to --jp-* directly.
+ *   • Variable rows live inside a .d4n-tv section and reuse its --tv-* tokens.
+ * ========================================================================== */
+
+/* ── Shell: tab strip above the active panel ─────────────────────────────── */
+.d4n-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.d4n-shell__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* The active panel (.d4n-tv tree, .d4n-cf form) fills the body so its own
+   header/footer pin to the top/bottom and only the middle scrolls. */
+.d4n-shell__body > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Tab strip — uppercase, teal-underlined segmented strip on a recessed bar
+   (Data4Now redesign export). */
+.d4n-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 0 14px;
+  background: var(--jp-layout-color2, #f4f6fa);
+  border-bottom: 1px solid var(--jp-border-color2, #e4e9f0);
+}
+.d4n-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--jp-ui-font-color3, #5a6b82);
+  font-family: 'Montserrat', var(--jp-ui-font-family, system-ui), sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 13px 4px 12px;
+  margin-right: 22px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 160ms cubic-bezier(0.2, 0, 0.1, 1);
+}
+.d4n-tab:hover {
+  color: var(--jp-ui-font-color1, #0b1f38);
+}
+.d4n-tab.is-active {
+  color: var(--d4n-teal-deep, #167c7c);
+  border-bottom-color: var(--d4n-teal, #1fa0a0);
+}
+.d4n-tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(31, 160, 160, 0.3);
+  border-radius: 4px;
+}
+
+/* ── Variables header icon (teal {·} tile, per Data4Now export) ───────────── */
+.d4n-tv .d4n-tv__icon--var {
+  background: var(--tv-accent-2, #1fa0a0);
+}
+.d4n-tv .d4n-var-glyph {
+  font-family: var(--tv-font-mono);
+  font-weight: 500;
+  font-size: 16px;
+  letter-spacing: -0.04em;
+  color: #fff;
+}
+
+/* Primary (filled navy) icon button — the toolbar "add" affordance. */
+.d4n-tv .d4n-tv-iconbtn--primary {
+  background: var(--tv-accent);
+  border: 1px solid var(--tv-accent);
+  color: #fff;
+}
+.d4n-tv .d4n-tv-iconbtn--primary:hover {
+  background: var(--tv-accent-deep);
+  border-color: var(--tv-accent-deep);
+  color: #fff;
+}
+
+/* ── Variable rows (inside .d4n-tv) ──────────────────────────────────────── */
+.d4n-tv .d4n-var {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--tv-border);
+  position: relative;
+}
+.d4n-tv .d4n-var:hover {
+  background: var(--tv-bg-2);
+}
+/* {·} badge tile, mirroring the connection-row badge. */
+.d4n-tv .d4n-var__badge {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border-radius: var(--tv-r-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--tv-accent-2) 12%, transparent);
+  color: var(--tv-accent-2-deep, #167c7c);
+  font-family: var(--tv-font-mono);
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: -0.04em;
+}
+.d4n-tv .d4n-var__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.d4n-tv .d4n-var__name {
+  font-family: var(--tv-font-mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--tv-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.d4n-tv .d4n-var__name::before {
+  content: '${';
+  color: var(--tv-fg-3);
+}
+.d4n-tv .d4n-var__name::after {
+  content: '}';
+  color: var(--tv-fg-3);
+}
+.d4n-tv .d4n-var__value {
+  font-family: var(--tv-font-mono);
+  font-size: 12px;
+  color: var(--tv-fg-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.d4n-tv .d4n-var__desc {
+  font-size: 11px;
+  color: var(--tv-fg-3);
+  font-family: var(--tv-font-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Row actions — always present (dimmed), brightened on hover/focus. */
+.d4n-tv .d4n-var__actions {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+  opacity: 0.45;
+  transition: opacity 120ms ease;
+}
+.d4n-tv .d4n-var:hover .d4n-var__actions,
+.d4n-tv .d4n-var:focus-within .d4n-var__actions {
+  opacity: 1;
+}
+.d4n-tv .d4n-var__confirm {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.d4n-tv .d4n-var__confirm-q {
+  font-size: 11px;
+  color: var(--tv-fg-2);
+}
+
+.d4n-tv .d4n-var-mini {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--tv-fg-3);
+  width: 22px;
+  height: 22px;
+  border-radius: var(--tv-r-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+.d4n-tv .d4n-var-mini:hover {
+  background: var(--tv-bg-3);
+  color: var(--tv-accent);
+}
+.d4n-tv .d4n-var-mini--danger:hover {
+  background: color-mix(in srgb, var(--tv-danger) 14%, transparent);
+  color: var(--tv-danger);
+}
+.d4n-tv .d4n-var-mini:focus-visible {
+  outline: none;
+  box-shadow: var(--tv-focus-ring);
+}
+
+/* ── Variables empty state — dashed CTA card (Data4Now export) ────────────── */
+.d4n-tv .d4n-var-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  margin: 22px 16px;
+  padding: 28px 22px;
+  border: 1px dashed var(--tv-border-2);
+  border-radius: var(--tv-r-lg);
+  background: var(--tv-bg-2);
+}
+.d4n-tv .d4n-var-empty__icon {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--tv-r-md);
+  background: var(--tv-bg-3);
+  color: var(--tv-fg-3);
+}
+.d4n-tv .d4n-var-empty__icon svg {
+  width: 19px;
+  height: 19px;
+}
+.d4n-tv .d4n-var-empty__title {
+  font-family: var(--tv-font-display);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--tv-fg-2);
+}
+.d4n-tv .d4n-var-empty__text {
+  font-family: var(--tv-font-body);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--tv-fg-3);
+  max-width: 230px;
+}
+.d4n-tv .d4n-var-empty__text code {
+  font-family: var(--tv-font-mono);
+  font-size: 0.92em;
+  background: var(--tv-bg-3);
+  color: var(--tv-accent);
+  padding: 0.1em 0.4em;
+  border-radius: var(--tv-r-sm);
+}
+.d4n-tv .d4n-var-empty__cta {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 2px;
+  padding: 8px 14px;
+  font-family: var(--tv-font-display);
+  font-weight: 600;
+  font-size: 12.5px;
+  color: #fff;
+  background: var(--tv-accent);
+  border: 0;
+  border-radius: var(--tv-r-md);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.d4n-tv .d4n-var-empty__cta svg {
+  width: 15px;
+  height: 15px;
+}
+.d4n-tv .d4n-var-empty__cta:hover {
+  background: var(--tv-accent-deep);
+}
+.d4n-tv .d4n-var-empty__cta:focus-visible {
+  outline: none;
+  box-shadow: var(--tv-focus-ring);
+}
+
+/* ── Variable form — teal {·} brand tile on the form header ───────────────── */
+.d4n-cf .d4n-cf__icon--var {
+  background: var(--cf-accent-2, #1fa0a0);
+}
+.d4n-cf .d4n-cf__icon--var .d4n-var-glyph {
+  font-family: var(--cf-font-mono);
+  font-weight: 500;
+  font-size: 16px;
+  letter-spacing: -0.04em;
+  color: #fff;
+}

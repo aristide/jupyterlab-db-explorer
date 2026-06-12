@@ -41,7 +41,63 @@ import { RunStatus } from './toolbar';
 let sqlConsoleFactory: SqlConsoleWidgetFactory;
 let toolbarFactory: any;
 
+// Set in setup_sql_console; used to locate the SQL console the user last
+// worked in so the Variables panel can insert ${name} into it.
+let _consoleTracker: WidgetTracker<IDocumentWidget<SqlConsoleWidget>> | null =
+  null;
+let _consoleApp: IJpServices['app'] | null = null;
+
 export const SQL_CONSOLE_FACTORY = 'sql-console';
+
+/**
+ * Return the most relevant open SQL console, or null if none is open.
+ * Prefers the last-focused `.sql` document console (the tracker's current
+ * widget), then falls back to any SQL console in the main area.
+ */
+export function getActiveSqlConsole(): SqlConsoleWidget | null {
+  const cur = _consoleTracker?.currentWidget;
+  if (cur && !cur.isDisposed) {
+    return cur.content;
+  }
+  if (_consoleApp) {
+    const active: any = _consoleApp.shell.currentWidget;
+    if (active instanceof SqlConsoleWidget) {
+      return active;
+    }
+    if (active && active.content instanceof SqlConsoleWidget) {
+      return active.content;
+    }
+    for (const w of toArray(_consoleApp.shell.widgets('main'))) {
+      const content: any = (w as any).content ?? w;
+      if (content instanceof SqlConsoleWidget) {
+        return content;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Insert `text` at the cursor of the active SQL console and focus it.
+ * Returns false when no SQL console is open.
+ */
+export function insertIntoActiveSqlConsole(text: string): boolean {
+  const sqlConsole = getActiveSqlConsole();
+  if (!sqlConsole) {
+    return false;
+  }
+  sqlConsole.editor.appendText(text);
+  if (_consoleApp) {
+    const owner = toArray(_consoleApp.shell.widgets('main')).find(
+      w => w === sqlConsole || (w as any).content === sqlConsole
+    );
+    if (owner) {
+      _consoleApp.shell.activateById(owner.id);
+    }
+  }
+  sqlConsole.editor.widget.editor.focus();
+  return true;
+}
 
 export class SqlConsoleWidget extends SplitPanel {
   constructor(
@@ -186,7 +242,7 @@ export class SqlConsoleWidget extends SplitPanel {
 
   readonly editor: IEditor;
   readonly queryModel: IQueryModel;
-  private readonly resultsTable: ResultsTable;
+  readonly resultsTable: ResultsTable;
   private _is_running = false;
   private readonly _jp_services: IJpServices;
   private _context?: DocumentRegistry.CodeContext;
@@ -245,6 +301,8 @@ export function setup_sql_console(
   tracker: WidgetTracker<IDocumentWidget<SqlConsoleWidget>>
 ): void {
   const { trans, app } = jp_services;
+  _consoleTracker = tracker;
+  _consoleApp = app;
 
   const sqlFileType: DocumentRegistry.IFileType = {
     name: 'sql',
@@ -296,7 +354,8 @@ export function setup_sql_console(
         widget: new RunStatus({
           model: sqlConsole.queryModel,
           trans: jp_services.trans,
-          onChange: (dbid: string) => sqlConsole.setDbid(dbid)
+          onChange: (dbid: string) => sqlConsole.setDbid(dbid),
+          rowsChanged: sqlConsole.resultsTable.rowsChanged
         })
       }
     ];
