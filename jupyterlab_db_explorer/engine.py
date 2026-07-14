@@ -699,6 +699,91 @@ def _pg_connect_args(db):
     return args
 
 
+def _warn_ignored_options(dbid, db, label, ssl_supported=False,
+                          timeout_supported=False, hint=''):
+    """Log when advanced options are set but the driver cannot honor them.
+
+    'disable'/'allow'/'prefer' SSL modes match the driver's plain-TCP
+    behavior, so only the TLS-requesting modes warrant a warning.
+    """
+    suffix = f" ({hint})" if hint else ""
+    if not ssl_supported and _get_ssl_mode(db) in ('require', 'verify-ca', 'verify-full'):
+        logger.warning(
+            "Connection %r: SSL mode %r is not supported for %s and is "
+            "ignored%s.", dbid, _get_ssl_mode(db), label, suffix,
+        )
+    if not timeout_supported and _get_conn_timeout(db) is not None:
+        logger.warning(
+            "Connection %r: connect timeout is not supported for %s and is "
+            "ignored%s.", dbid, label, suffix,
+        )
+
+
+def _hive_tls_engine(dbid, db, db_host, db_port, db_name, db_user, db_pass):
+    """Hive (LDAP/password auth) over TLS.
+
+    pyhive has no SSL parameters for the binary SASL transport, and its
+    thrift_transport argument conflicts with the host/port/auth/password
+    kwargs the SQLAlchemy hive dialect always passes — so build the
+    SASL-PLAIN-over-TSSLSocket transport ourselves and hand SQLAlchemy a
+    `creator`, which bypasses the dialect's connect arguments entirely.
+    A fresh transport is built per pooled connection (a thrift transport
+    is a single socket).
+
+    SSL-mode mapping mirrors the other dialects: require → TLS without
+    certificate verification; verify-ca → verify against the system trust
+    store (or `ssl_ca=/path` extra option); verify-full → plus hostname
+    verification (thrift passes the host as server_hostname).
+    """
+    try:
+        from pyhive.hive import Connection as HiveConnection, get_installed_sasl
+        from thrift.transport import TSSLSocket
+        import thrift_sasl
+    except ImportError as exc:
+        raise RuntimeError(
+            "Hive over TLS requires pyhive[hive]>=0.7 "
+            "(pip install jupyterlab-db-explorer[hive])."
+        ) from exc
+    import ssl as ssl_module
+
+    ssl_mode = _get_ssl_mode(db)
+    opts = _get_conn_opts(db)
+    ca_path = opts.pop('ssl_ca', None)
+    timeout = _get_conn_timeout(db)
+    host = db_host
+    port = int(db_port)
+    database = db_name or 'default'
+    # SASL PLAIN needs a non-empty password even for LDAP-less servers.
+    password = db_pass or 'x'
+
+    def creator():
+        ctx = ssl_module.create_default_context(cafile=ca_path)
+        if ssl_mode == 'require':
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl_module.CERT_NONE
+        elif ssl_mode == 'verify-ca':
+            ctx.check_hostname = False
+        socket = TSSLSocket.TSSLSocket(host=host, port=port, ssl_context=ctx)
+        if timeout is not None:
+            socket.setTimeout(timeout * 1000)
+        transport = thrift_sasl.TSaslClientTransport(
+            lambda: get_installed_sasl(
+                host=host, sasl_auth='PLAIN',
+                username=db_user, password=password,
+            ),
+            'PLAIN', socket,
+        )
+        return HiveConnection(
+            username=db_user, database=database,
+            thrift_transport=transport, **opts,
+        )
+
+    # The URL only selects the dialect — the creator makes the connection,
+    # so no credentials belong in it.
+    sqlstr = f"hive://{host}:{port}/{database}"
+    return sqlalchemy.create_engine(sqlstr, creator=creator)
+
+
 # ---------------------------------------------------------------------------
 # Engine creation
 # ---------------------------------------------------------------------------
@@ -743,6 +828,9 @@ def _getSQL_engine(dbid, db, usedb=None):
         db_port = db.get('db_port', 10000)
         principal = db['principal']
         os.system(f"kinit -kt /opt/conda/etc/keytab_{dbid} {principal}")
+        # GSSAPI over the TLS transport is untested territory — only the
+        # LDAP/password Hive path supports SSL modes for now.
+        _warn_ignored_options(dbid, db, 'Kerberos Hive')
         kerb_suffix = f"/{db_name}" if db_name else ""
         sqlstr = f"hive://{db_host}:{db_port}{kerb_suffix}"
         kerb_args = {'auth': 'KERBEROS', 'kerberos_service_name': 'hive'}
@@ -755,6 +843,7 @@ def _getSQL_engine(dbid, db, usedb=None):
     # Resolve user/pass
     db_user = None
     db_pass_encoded = None
+    db_pass_plain = None
     jwt_token = None
     if use_jwt:
         # JWT: token sits in db_pass; identity from db_user when present.
@@ -777,10 +866,12 @@ def _getSQL_engine(dbid, db, usedb=None):
         # silently attempting an empty password.
         if db_user_raw and 'db_pass' in db:
             db_user = db_user_raw
+            db_pass_plain = db_pass_raw
             db_pass_encoded = quote_plus(db_pass_raw)
         elif dbid in _temp_pass_store:
             db_user = _temp_pass_store[dbid]['user'] or db_user_raw
-            db_pass_encoded = quote_plus(_temp_pass_store[dbid]['pwd'])
+            db_pass_plain = _temp_pass_store[dbid]['pwd']
+            db_pass_encoded = quote_plus(db_pass_plain)
         else:
             db_user_hint = db.get('db_user', None)
             input_passwd(dbid, db_user_hint)
@@ -822,11 +913,30 @@ def _getSQL_engine(dbid, db, usedb=None):
         db_port = db.get('db_port', 1521)
         if not db_name:
             raise ValueError("Oracle requires a database/service name")
+        # cx_Oracle has no SSL/timeout connect kwargs — both live inside the
+        # DSN. A full descriptor supplied as the extra connection param
+        # `dsn=(DESCRIPTION=...)` overrides the URL-built one (see README).
+        _warn_ignored_options(
+            dbid, db, 'Oracle',
+            hint="use a dsn=(DESCRIPTION=...) extra connection param for "
+                 "TCPS and connect timeouts",
+        )
         sqlstr = f"oracle+cx_Oracle://{db_user}:{db_pass_encoded}@{db_host}:{db_port}/{db_name}"
         connect_args = _get_conn_opts(db)
 
     elif db['db_type'] == DB_HIVE_LDAP:
         db_port = db.get('db_port', 10000)
+        if _get_ssl_mode(db) in ('require', 'verify-ca', 'verify-full'):
+            return _hive_tls_engine(
+                dbid, db, db_host, db_port, db_name, db_user, db_pass_plain,
+            )
+        # Plain SASL transport: pyhive exposes no timeout knob there — only
+        # the TLS path owns its socket and can set one.
+        _warn_ignored_options(
+            dbid, db, 'Hive without TLS', ssl_supported=True,
+            hint="set an SSL mode to enable the TLS transport, which honors "
+                 "the timeout",
+        )
         sqlstr = f"hive://{db_user}:{db_pass_encoded}@{db_host}:{db_port}{db_suffix}"
         hive_args = {'auth': 'LDAP'}
         hive_args.update(_get_conn_opts(db))

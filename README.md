@@ -278,11 +278,11 @@ else → http), which preserves plain-HTTP no-auth dev setups.
 The connection form's **Advanced options** (also available as env vars) are
 honored per dialect:
 
-| Option            | Env field                      | Effect                                                                                                                                                                                                                      |
-| ----------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SSL mode          | `_SSL_MODE` / `DB_SSL_MODE`    | libpq-style: `disable`, `allow`, `prefer` (default), `require`, `verify-ca`, `verify-full`. See mapping below.                                                                                                              |
-| Connect timeout   | `_TIMEOUT` / `DB_CONN_TIMEOUT` | Seconds. Trino: `request_timeout` (a per-HTTP-request connect+read deadline, so it also bounds each result-page fetch); PostgreSQL/MySQL/StarRocks: `connect_timeout`; SQL Server: login `timeout`; SQLite: lock `timeout`. |
-| Extra conn params | `_OPTS` / `DB_CONN_OPTS`       | `key=value` pairs (one per line, or `;`-separated in env vars) merged into the driver's `connect_args` last — they override anything derived from the other two options.                                                    |
+| Option            | Env field                      | Effect                                                                                                                                                                                                                                                                       |
+| ----------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SSL mode          | `_SSL_MODE` / `DB_SSL_MODE`    | libpq-style: `disable`, `allow`, `prefer` (default), `require`, `verify-ca`, `verify-full`. See mapping below.                                                                                                                                                               |
+| Connect timeout   | `_TIMEOUT` / `DB_CONN_TIMEOUT` | Seconds. Trino: `request_timeout` (a per-HTTP-request connect+read deadline, so it also bounds each result-page fetch); PostgreSQL/MySQL/StarRocks: `connect_timeout`; SQL Server: login `timeout`; SQLite: lock `timeout`; Hive: thrift socket timeout, TLS transport only. |
+| Extra conn params | `_OPTS` / `DB_CONN_OPTS`       | `key=value` pairs (one per line, or `;`-separated in env vars) merged into the driver's `connect_args` last — they override anything derived from the other two options.                                                                                                     |
 
 SSL-mode mapping per engine:
 
@@ -298,7 +298,26 @@ SSL-mode mapping per engine:
 - **SQL Server** — `verify-ca`/`verify-full` → `Encrypt=yes` with full
   verification; `disable` → `Encrypt=no`; anything else keeps the historical
   `TrustServerCertificate=yes` (encrypted, self-signed accepted).
-- **Oracle / Hive / SQLite** — SSL mode is ignored; extra params still apply.
+- **Hive (LDAP/password auth)** — `require`/`verify-ca`/`verify-full` switch
+  the connection to a SASL-PLAIN-over-TLS thrift transport with the same
+  semantics as MySQL above (`ssl_ca=/path/to/ca.pem` extra param for a custom
+  CA). The connect timeout applies on this TLS transport. Requires
+  `pyhive[hive]` ≥ 0.7 (pinned by the `[hive]` extra). Kerberos Hive does not
+  support SSL modes yet — a warning is logged if one is set.
+- **Oracle** — cx_Oracle has no SSL/timeout connect arguments; both live
+  inside the DSN, so SSL mode and timeout are ignored (with a warning).
+  **Workaround that works today**: supply a full descriptor as an extra
+  connection param — it overrides the URL-built DSN:
+
+  ```
+  dsn=(DESCRIPTION=(TRANSPORT_CONNECT_TIMEOUT=5)(ADDRESS=(PROTOCOL=TCPS)(HOST=oracle.corp)(PORT=2484))(CONNECT_DATA=(SERVICE_NAME=svc)))
+  ```
+
+  `PROTOCOL=TCPS` enables TLS (the cert must be trusted by the client wallet
+  or system store) and `TRANSPORT_CONNECT_TIMEOUT` is the connect timeout in
+  seconds.
+
+- **SQLite** — SSL mode does not apply; extra params and the lock timeout do.
 
 #### Single Connection (Legacy)
 

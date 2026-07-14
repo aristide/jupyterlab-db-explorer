@@ -2,6 +2,14 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## 0.5.2
+
+- **Hive over TLS (LDAP/password auth).** SSL modes `require`/`verify-ca`/`verify-full` now build a SASL-PLAIN-over-`TSSLSocket` thrift transport (pyhive has no SSL parameters and its `thrift_transport` argument conflicts with the SQLAlchemy dialect's kwargs, so the engine is created with a `creator` that builds a fresh transport per pooled connection). Certificate semantics match the other engines: `require` = TLS without verification, `verify-ca` = system trust store or `ssl_ca=/path` extra param, `verify-full` = plus hostname verification. The connect timeout applies as the thrift socket timeout on this transport. Requires `pyhive[hive]>=0.7` (extra bumped).
+- **No more silently ignored options.** Oracle (SSL mode + timeout), Kerberos Hive (SSL mode + timeout), and plain-transport Hive (timeout) now log an explicit warning when an advanced option is set that the driver cannot honor.
+- **Oracle TLS documented.** A full `dsn=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCPS)...))` descriptor in Extra connection params overrides the URL-built DSN (connect_args win the merge), enabling Oracle over TLS and descriptor-level connect timeouts today — recipe added to the README.
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## 0.5.1
 
 - **Fix Trino LDAP/password connections over TLS.** The password path built the SQLAlchemy URL with the credentials embedded and no `connect_args`; the trino dialect ignores `http_scheme` in the URL query and picks plain HTTP for any port other than 443, so metadata reflection sent cleartext HTTP to TLS-only coordinators and failed with a TLS alert ("load failed"). Credentials now go through `trino.auth.BasicAuthentication` and the scheme through `connect_args`, mirroring the JWT path. Default scheme with a password or JWT is `https`; credential-less connections keep the client's port-based default.

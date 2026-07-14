@@ -42,7 +42,9 @@ test = [
 ]
 mysql = ["pymysql>=1.0"]
 pgsql = ["psycopg2"]
-hive  = ["pyhive[hive]>=0.6.5"]
+# >=0.7.0 for get_installed_sasl (cyrus/pure-sasl compatibility shim),
+# used by the Hive-over-TLS transport.
+hive  = ["pyhive[hive]>=0.7.0"]
 trino = ["trino"]
 starrocks = ["pymysql>=1.0"]
 sqlserver = ["pyodbc"]
