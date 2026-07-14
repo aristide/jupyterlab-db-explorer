@@ -235,6 +235,71 @@ export DB_CONN_TRINO_PASS=vault://secret/trino/prod#jwt
 export DB_CONN_TRINO_AUTH_TYPE=jwt
 ```
 
+#### Trino with LDAP / Password Authentication (TLS)
+
+Trino password authenticators (LDAP, file-based, …) require TLS. The explorer
+passes both the scheme and the credentials to the Trino client via
+`connect_args` (`trino.auth.BasicAuthentication`) — never in the SQLAlchemy
+URL, where the trino dialect would silently fall back to plain HTTP for any
+port other than 443. Password auth requires the `trino` extra
+(`pip install jupyterlab-db-explorer[trino]`).
+
+Via the dialog: pick **Trino**, fill in host/port (often `8443`), enter the
+LDAP username and password (or a `vault://` reference). The **HTTP scheme**
+selector follows the connection automatically — it switches to **https** as
+soon as a password or JWT is in play, or when the port is a conventional TLS
+port (`443`/`8443`). If the coordinator uses a self-signed
+certificate, open **Advanced options** and set **SSL mode** to `require`
+(TLS without certificate verification), or keep full verification and point
+at your CA bundle with an extra connection param: `verify=/path/to/ca.pem`.
+
+Leaving the password blank stores a password-less connection: for an https
+Trino connection with a username the explorer will then prompt for the LDAP
+password on first use and keep it in memory only (never on disk).
+
+```bash
+export DB_CONN_STATIN_TYPE=7
+export DB_CONN_STATIN_HOST=trino.corp.example
+export DB_CONN_STATIN_PORT=8443
+export DB_CONN_STATIN_USER=aristide
+export DB_CONN_STATIN_PASS=ldap-password           # or vault://…
+export DB_CONN_STATIN_HTTP_SCHEME=https            # implied by _PASS; explicit is clearer
+export DB_CONN_STATIN_SSL_MODE=require             # only for self-signed certs
+```
+
+The scheme default, in precedence order: an explicit `_HTTP_SCHEME` always
+wins; otherwise the SSL mode decides (`disable` → http; `require`/`verify-ca`/
+`verify-full` → https); otherwise `https` whenever a password or JWT is
+configured; otherwise the Trino client decides by port (443 → https, anything
+else → http), which preserves plain-HTTP no-auth dev setups.
+
+#### Advanced Connection Options (all engines)
+
+The connection form's **Advanced options** (also available as env vars) are
+honored per dialect:
+
+| Option            | Env field                        | Effect                                                                                                                                                                     |
+| ----------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| SSL mode          | `_SSL_MODE` / `DB_SSL_MODE`      | libpq-style: `disable`, `allow`, `prefer` (default), `require`, `verify-ca`, `verify-full`. See mapping below.                                                             |
+| Connect timeout   | `_TIMEOUT` / `DB_CONN_TIMEOUT`   | Seconds. Trino: `request_timeout` (a per-HTTP-request connect+read deadline, so it also bounds each result-page fetch); PostgreSQL/MySQL/StarRocks: `connect_timeout`; SQL Server: login `timeout`; SQLite: lock `timeout`. |
+| Extra conn params | `_OPTS` / `DB_CONN_OPTS`         | `key=value` pairs (one per line, or `;`-separated in env vars) merged into the driver's `connect_args` last — they override anything derived from the other two options.   |
+
+SSL-mode mapping per engine:
+
+- **PostgreSQL** — passed through verbatim as libpq `sslmode`.
+- **Trino** — `require` → https with `verify=False` (self-signed certs);
+  `verify-ca`/`verify-full` → https with full verification; `disable` → http.
+  A custom CA: `verify=/path/to/ca.pem` in the extra params.
+- **MySQL / StarRocks** — `disable` → `ssl_disabled`; `require` → TLS
+  enforced, no certificate verification; `verify-ca` → certificate
+  verification against the system trust store (or a custom CA via
+  `ssl_ca=/path/to/ca.pem`); `verify-full` → the same plus hostname
+  verification. Requires pymysql ≥ 1.0 (now pinned by the extras).
+- **SQL Server** — `verify-ca`/`verify-full` → `Encrypt=yes` with full
+  verification; `disable` → `Encrypt=no`; anything else keeps the historical
+  `TrustServerCertificate=yes` (encrypted, self-signed accepted).
+- **Oracle / Hive / SQLite** — SSL mode is ignored; extra params still apply.
+
 #### Single Connection (Legacy)
 
 For a single connection, use the individual `DB_*` variables:
@@ -327,7 +392,10 @@ The full set of environment variables read by the extension:
 | `_NAME`        | no              | Default database / catalog / schema.                                     |
 | `_ID`          | no              | Explicit connection id; defaults to `<NAME>` if omitted.                 |
 | `_AUTH_TYPE`   | no              | `jwt` to use a bearer token (Trino & StarRocks). Default: password auth. |
-| `_HTTP_SCHEME` | no              | Trino only: `https` (default) or `http`.                                 |
+| `_HTTP_SCHEME` | no              | Trino only: `https`/`http`. Default: `https` with password/JWT auth, else decided by port. |
+| `_SSL_MODE`    | no              | `disable`/`allow`/`prefer`/`require`/`verify-ca`/`verify-full` (see "Advanced Connection Options"). |
+| `_TIMEOUT`     | no              | Connect timeout in seconds.                                              |
+| `_OPTS`        | no              | Extra driver connect params, `key=value` pairs separated by `;` or newlines. |
 
 **Single connection (legacy)** — one connection per process:
 
@@ -341,7 +409,10 @@ The full set of environment variables read by the extension:
 | `DB_NAME`        | no       | Default database / catalog / schema.                                 |
 | `DB_ID`          | no       | Connection id (e.g. `default`).                                      |
 | `DB_AUTH_TYPE`   | no       | `jwt` to use a bearer token. Default: password auth.                 |
-| `DB_HTTP_SCHEME` | no       | Trino only: `https` (default) or `http`.                             |
+| `DB_HTTP_SCHEME` | no       | Trino only: `https`/`http`. Default: `https` with password/JWT auth, else decided by port. |
+| `DB_SSL_MODE`    | no       | SSL mode (see "Advanced Connection Options").                        |
+| `DB_CONN_TIMEOUT`| no       | Connect timeout in seconds.                                          |
+| `DB_CONN_OPTS`   | no       | Extra driver connect params (`key=value`, `;`- or newline-separated).|
 
 **Other:**
 

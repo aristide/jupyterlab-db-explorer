@@ -29,8 +29,16 @@ export interface IDBConn {
   db_pass?: string;
   /** 'password' (default) or 'jwt' — only Trino & StarRocks honour 'jwt'. */
   db_auth_type?: string;
-  /** Trino-only: 'https' (default for JWT) or 'http'. */
+  /** Trino-only: 'https' or 'http'. Backend defaults to https whenever
+   *  credentialed auth (password/JWT) is in play. */
   db_http_scheme?: string;
+  /** libpq-style SSL mode (disable/allow/prefer/require/verify-ca/
+   *  verify-full); mapped per-dialect by engine.py. */
+  db_ssl_mode?: string;
+  /** Connect timeout in seconds. */
+  db_conn_timeout?: string;
+  /** Extra DBAPI connect params — 'key=value' pairs, one per line. */
+  db_conn_opts?: string;
   name?: string;
   errmsg?: string;
 }

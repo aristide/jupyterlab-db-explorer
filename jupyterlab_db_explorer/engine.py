@@ -18,6 +18,7 @@ from .const import (
     ENV_DB_TYPE, ENV_DB_HOST, ENV_DB_PORT,
     ENV_DB_USER, ENV_DB_PASS, ENV_DB_NAME, ENV_DB_ID,
     ENV_DB_AUTH_TYPE, ENV_DB_HTTP_SCHEME,
+    ENV_DB_SSL_MODE, ENV_DB_CONN_TIMEOUT, ENV_DB_CONN_OPTS,
     ENV_ALLOW_RESET, ENV_ALLOWED_TYPES,
     ENV_DB_CONN_PREFIX,
     ENV_DB_CONN_SUFFIX_TYPE, ENV_DB_CONN_SUFFIX_HOST,
@@ -25,6 +26,8 @@ from .const import (
     ENV_DB_CONN_SUFFIX_PASS, ENV_DB_CONN_SUFFIX_NAME,
     ENV_DB_CONN_SUFFIX_ID,
     ENV_DB_CONN_SUFFIX_AUTH_TYPE, ENV_DB_CONN_SUFFIX_HTTP_SCHEME,
+    ENV_DB_CONN_SUFFIX_SSL_MODE, ENV_DB_CONN_SUFFIX_TIMEOUT,
+    ENV_DB_CONN_SUFFIX_OPTS,
 )
 
 DB_CFG = DB_ROOT + 'db_conf.json'
@@ -221,10 +224,10 @@ def _getDBlist_from_env():
         if e[0:3] == 'DB_' and e not in (
             ENV_DB_TYPE, ENV_DB_HOST, ENV_DB_PORT,
             ENV_DB_USER, ENV_DB_PASS, ENV_DB_NAME, ENV_DB_ID,
-            ENV_DB_AUTH_TYPE, ENV_DB_HTTP_SCHEME,
-            ENV_ALLOW_RESET, ENV_ALLOWED_TYPES, 'DB_EXPLORER_ALLOW_RESET',
-            'DB_EXPLORER_ALLOWED_TYPES'
-        ) and not e.startswith(ENV_DB_CONN_PREFIX):
+            ENV_DB_AUTH_TYPE, ENV_DB_HTTP_SCHEME, ENV_DB_SSL_MODE,
+            ENV_ALLOW_RESET, ENV_ALLOWED_TYPES,
+        ) and not e.startswith(ENV_DB_CONN_PREFIX) \
+                and not e.startswith('DB_EXPLORER_'):
             dbs.append(e[3:])
     return dbs
 
@@ -257,6 +260,9 @@ def _getConns_from_env():
         ENV_DB_CONN_SUFFIX_ID: 'db_id',
         ENV_DB_CONN_SUFFIX_AUTH_TYPE: 'db_auth_type',
         ENV_DB_CONN_SUFFIX_HTTP_SCHEME: 'db_http_scheme',
+        ENV_DB_CONN_SUFFIX_SSL_MODE: 'db_ssl_mode',
+        ENV_DB_CONN_SUFFIX_TIMEOUT: 'db_conn_timeout',
+        ENV_DB_CONN_SUFFIX_OPTS: 'db_conn_opts',
     }
     # Longest suffix first so '_AUTH_TYPE' wins over '_TYPE' on
     # DB_CONN_PROD_AUTH_TYPE — otherwise that variable would be parsed as
@@ -308,6 +314,9 @@ def load_from_env_single():
         'db_id':   ENV_DB_ID,
         'db_auth_type':   ENV_DB_AUTH_TYPE,
         'db_http_scheme': ENV_DB_HTTP_SCHEME,
+        'db_ssl_mode':    ENV_DB_SSL_MODE,
+        'db_conn_timeout': ENV_DB_CONN_TIMEOUT,
+        'db_conn_opts':   ENV_DB_CONN_OPTS,
     }
     for key, env_name in mapping.items():
         val = os.environ.get(env_name)
@@ -504,8 +513,209 @@ def get_allowed_types():
 
 
 # ---------------------------------------------------------------------------
+# Advanced connection options: SSL mode / connect timeout / extra params
+# ---------------------------------------------------------------------------
+
+_SSL_MODES = ('disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full')
+
+
+def _get_ssl_mode(db):
+    """Normalized db_ssl_mode, or None when unset or unrecognized."""
+    mode = str(db.get('db_ssl_mode') or '').strip().lower()
+    return mode if mode in _SSL_MODES else None
+
+
+def _get_conn_timeout(db):
+    """db_conn_timeout as a positive int (seconds), or None."""
+    raw = str(db.get('db_conn_timeout') or '').strip()
+    if not raw:
+        return None
+    try:
+        val = int(raw)
+    except ValueError:
+        logger.warning("Ignoring non-numeric db_conn_timeout: %r", raw)
+        return None
+    return val if val > 0 else None
+
+
+def _coerce_opt_value(value):
+    """Coerce an option value to bool/int/float when it looks like one.
+
+    Only 'true'/'false' become booleans — 'yes'/'no'/'on'/'off' stay strings
+    because several drivers take them verbatim (e.g. ODBC keywords like
+    MultiSubnetFailover=yes must not arrive as Python True).
+    """
+    lowered = value.lower()
+    if lowered == 'true':
+        return True
+    if lowered == 'false':
+        return False
+    try:
+        return int(value)
+    except ValueError:
+        pass
+    try:
+        return float(value)
+    except ValueError:
+        pass
+    return value
+
+
+def _get_conn_opts(db):
+    """Parse db_conn_opts into a dict destined for the DBAPI connect_args.
+
+    Format: 'key=value' pairs separated by newlines or ';'. Blank lines and
+    '#' comments are skipped. Only the first '=' splits, so values may
+    themselves contain '=' (e.g. options=-c search_path=raw). Malformed
+    entries are logged and ignored rather than failing the connection.
+    """
+    raw = db.get('db_conn_opts') or ''
+    opts = {}
+    for chunk in re.split(r'[\n;]', str(raw)):
+        line = chunk.strip()
+        if not line or line.startswith('#'):
+            continue
+        key, sep, value = line.partition('=')
+        key = key.strip()
+        if not sep or not key:
+            # Don't log the content: a ';' inside a secret-bearing value
+            # produces fragments of the secret in these malformed chunks.
+            logger.warning("Ignoring a malformed connection option entry "
+                           "(missing '=' separator or empty key)")
+            continue
+        opts[key] = _coerce_opt_value(value.strip())
+    return opts
+
+
+def _trino_scheme(db, secured):
+    """Effective Trino http_scheme, or None to let the client decide by port
+    (443 → https, anything else → http — the historical no-auth behavior).
+
+    An explicit db_http_scheme always wins; otherwise the SSL mode decides;
+    otherwise default to https whenever credentialed auth is in play, since
+    Trino requires TLS for password and JWT auth on standard deployments.
+    """
+    scheme = str(db.get('db_http_scheme') or '').strip().lower()
+    if scheme in ('http', 'https'):
+        return scheme
+    ssl_mode = _get_ssl_mode(db)
+    if ssl_mode == 'disable':
+        return 'http'
+    if ssl_mode in ('require', 'verify-ca', 'verify-full'):
+        return 'https'
+    return 'https' if secured else None
+
+
+def _trino_connect_args(db, secured):
+    """connect_args shared by the Trino password/LDAP and JWT paths.
+
+    The SQLAlchemy trino dialect only honours http_scheme via connect_args —
+    it ignores ?http_scheme= in the URL query and picks plain HTTP for any
+    port other than 443 — so everything TLS-related must be passed here.
+
+    SSL-mode mapping (libpq-style names):
+      require              → verify=False (TLS without certificate
+                             verification; self-signed coordinator certs)
+      verify-ca / -full    → default full verification; a custom CA bundle
+                             can be supplied via the extra connection option
+                             `verify=/path/to/ca.pem`
+      disable              → plain http (unless db_http_scheme says otherwise)
+    Extra connection options are merged last, so power users can override any
+    of the derived values (e.g. verify, request_timeout, source).
+    """
+    args = {}
+    scheme = _trino_scheme(db, secured)
+    if scheme:
+        args['http_scheme'] = scheme
+    if scheme == 'https' and _get_ssl_mode(db) == 'require':
+        args['verify'] = False
+    timeout = _get_conn_timeout(db)
+    if timeout is not None:
+        args['request_timeout'] = float(timeout)
+    args.update(_get_conn_opts(db))
+    return args
+
+
+def _pymysql_connect_args(db):
+    """connect_args for the pymysql-backed types (MySQL, StarRocks).
+
+    Requires pymysql >= 1.0 (ssl_disabled, SSLContext passthrough, and the
+    boolean verify_mode dict key). SSL-mode mapping (libpq-style names):
+      disable       → ssl_disabled=True
+      require       → TLS enforced, no certificate verification. The dict
+                      must be truthy — pymysql gates TLS on `if ssl:`, so an
+                      empty dict would silently mean "no TLS at all".
+      verify-ca     → TLS + certificate verification against the system trust
+                      store, or a custom CA via the extra connection option
+                      `ssl_ca=/path/to/ca.pem`. Built as an ssl.SSLContext
+                      because pymysql's dict path force-disables hostname
+                      checking when no custom CA is given.
+      verify-full   → same plus hostname verification.
+      allow/prefer  → pymysql default (no TLS), the historical behavior
+    """
+    args = {}
+    ssl_mode = _get_ssl_mode(db)
+    opts = _get_conn_opts(db)
+    if ssl_mode == 'disable':
+        args['ssl_disabled'] = True
+    elif ssl_mode == 'require':
+        # Truthy dict → CLIENT.SSL is negotiated; verify_mode False →
+        # ssl.CERT_NONE. check_hostname must be explicitly False: if a CA is
+        # also supplied, pymysql would otherwise default it to True, and
+        # Python's ssl module rejects check_hostname with CERT_NONE.
+        args['ssl'] = {'verify_mode': False, 'check_hostname': False}
+        if 'ssl_ca' in opts:
+            args['ssl']['ca'] = opts.pop('ssl_ca')
+    elif ssl_mode in ('verify-ca', 'verify-full'):
+        import ssl as ssl_module
+        ca_path = opts.pop('ssl_ca', None)
+        ctx = ssl_module.create_default_context(cafile=ca_path)
+        # MySQL's auto-generated self-signed certs fail Python 3.13's
+        # VERIFY_X509_STRICT default; relax it like pymysql itself does.
+        if hasattr(ssl_module, 'VERIFY_X509_STRICT'):
+            ctx.verify_flags &= ~ssl_module.VERIFY_X509_STRICT
+        ctx.check_hostname = ssl_mode == 'verify-full'
+        args['ssl'] = ctx
+    timeout = _get_conn_timeout(db)
+    if timeout is not None:
+        args['connect_timeout'] = timeout
+    args.update(opts)
+    return args
+
+
+def _pg_connect_args(db):
+    """connect_args for psycopg2. The form's SSL modes are exactly libpq's
+    sslmode values, so they pass straight through; extra connection options
+    land as libpq keywords (application_name, sslrootcert, keepalives_idle…).
+    """
+    args = {}
+    ssl_mode = _get_ssl_mode(db)
+    if ssl_mode:
+        args['sslmode'] = ssl_mode
+    timeout = _get_conn_timeout(db)
+    if timeout is not None:
+        args['connect_timeout'] = timeout
+    args.update(_get_conn_opts(db))
+    return args
+
+
+# ---------------------------------------------------------------------------
 # Engine creation
 # ---------------------------------------------------------------------------
+
+def input_passwd(dbid, db_user=None):
+    """Engine creation runs server-side and cannot prompt interactively.
+
+    Callers treat a None engine as 'credentials missing'; the UI drives the
+    actual prompt through check_pass/set_pass. Log so notebook/BATCH callers
+    can see why no engine was created.
+    """
+    logger.warning(
+        "Connection %r needs a password (user=%r) and no interactive prompt "
+        "is available here — use the DB Explorer panel to enter it.",
+        dbid, db_user,
+    )
+
 
 def _getSQL_engine(dbid, db, usedb=None):
     db_host = db.get('db_host', '')
@@ -535,7 +745,9 @@ def _getSQL_engine(dbid, db, usedb=None):
         os.system(f"kinit -kt /opt/conda/etc/keytab_{dbid} {principal}")
         kerb_suffix = f"/{db_name}" if db_name else ""
         sqlstr = f"hive://{db_host}:{db_port}{kerb_suffix}"
-        return sqlalchemy.create_engine(sqlstr, connect_args={'auth': 'KERBEROS', 'kerberos_service_name': 'hive'})
+        kerb_args = {'auth': 'KERBEROS', 'kerberos_service_name': 'hive'}
+        kerb_args.update(_get_conn_opts(db))
+        return sqlalchemy.create_engine(sqlstr, connect_args=kerb_args)
 
     # Types that can connect without any credentials at all
     _NO_AUTH_TYPES = (DB_SQLITE, DB_HIVE_KERBEROS, DB_TRINO)
@@ -559,26 +771,43 @@ def _getSQL_engine(dbid, db, usedb=None):
             input_passwd(dbid, db_user_hint)
             return
     elif db['db_type'] not in _NO_AUTH_TYPES:
-        if db_user_raw:
+        # Stored credentials are used only when both are configured; a stored
+        # username with no stored password falls through to the temp store
+        # (filled by the UI prompt) — mirroring check_pass — instead of
+        # silently attempting an empty password.
+        if db_user_raw and 'db_pass' in db:
             db_user = db_user_raw
             db_pass_encoded = quote_plus(db_pass_raw)
         elif dbid in _temp_pass_store:
-            db_user = _temp_pass_store[dbid]['user']
+            db_user = _temp_pass_store[dbid]['user'] or db_user_raw
             db_pass_encoded = quote_plus(_temp_pass_store[dbid]['pwd'])
         else:
             db_user_hint = db.get('db_user', None)
             input_passwd(dbid, db_user_hint)
             return
     elif db['db_type'] == DB_TRINO:
-        # Trino requires at least a username; default to 'trino' if not provided
-        db_user = db_user_raw or 'trino'
-        db_pass_encoded = quote_plus(db_pass_raw) if db_pass_raw else ''
+        # Trino can run without any auth, so it never *requires* stored
+        # credentials — but when the connection is unambiguously TLS
+        # (LDAP-style setups) and a username is configured without a
+        # password, honor the same prompt + temp-store flow as other types.
+        db_user = db_user_raw or None
+        trino_pass = db_pass_raw or ''
+        if not trino_pass and dbid in _temp_pass_store:
+            db_user = db_user or _temp_pass_store[dbid].get('user') or None
+            trino_pass = _temp_pass_store[dbid]['pwd']
+        if db_user and not trino_pass and _trino_scheme(db, secured=False) == 'https':
+            input_passwd(dbid, db.get('db_user', None))
+            return
+        # Trino requires at least a username; default to 'trino'.
+        db_user = db_user or 'trino'
 
     db_suffix = f"/{db_name}" if db_name else ""
+    connect_args = {}
 
     if db['db_type'] == DB_MYSQL:
         db_port = db.get('db_port', 3306)
         sqlstr = f"mysql+pymysql://{db_user}:{db_pass_encoded}@{db_host}:{db_port}{db_suffix}"
+        connect_args = _pymysql_connect_args(db)
 
     elif db['db_type'] == DB_PGSQL:
         # PostgreSQL always needs a connect-time database; default to the
@@ -587,29 +816,37 @@ def _getSQL_engine(dbid, db, usedb=None):
         db_port = db.get('db_port', 5432)
         pg_db = db_name or 'postgres'
         sqlstr = f"postgresql://{db_user}:{db_pass_encoded}@{db_host}:{db_port}/{pg_db}"
+        connect_args = _pg_connect_args(db)
 
     elif db['db_type'] == DB_ORACLE:
         db_port = db.get('db_port', 1521)
         if not db_name:
             raise ValueError("Oracle requires a database/service name")
         sqlstr = f"oracle+cx_Oracle://{db_user}:{db_pass_encoded}@{db_host}:{db_port}/{db_name}"
+        connect_args = _get_conn_opts(db)
 
     elif db['db_type'] == DB_HIVE_LDAP:
         db_port = db.get('db_port', 10000)
         sqlstr = f"hive://{db_user}:{db_pass_encoded}@{db_host}:{db_port}{db_suffix}"
-        return sqlalchemy.create_engine(sqlstr, connect_args={'auth': 'LDAP'})
+        hive_args = {'auth': 'LDAP'}
+        hive_args.update(_get_conn_opts(db))
+        return sqlalchemy.create_engine(sqlstr, connect_args=hive_args)
 
     elif db['db_type'] == DB_SQLITE:
+        sqlite_args = _get_conn_opts(db)
+        timeout = _get_conn_timeout(db)
+        if timeout is not None:
+            sqlite_args.setdefault('timeout', timeout)
         if db_name == ':memory:':
             sqlstr = "sqlite+pysqlite:///:memory:"
-            return sqlalchemy.create_engine(sqlstr)
+            return sqlalchemy.create_engine(sqlstr, connect_args=sqlite_args)
         if db_name[0] != '/':
             db_name = os.path.expanduser(DB_ROOT + db_name)
         dir_name = os.path.dirname(db_name)
         if dir_name and not os.path.isdir(dir_name):
             os.makedirs(dir_name, exist_ok=True)
         sqlstr = f"sqlite+pysqlite:///{db_name}"
-        return sqlalchemy.create_engine(sqlstr)
+        return sqlalchemy.create_engine(sqlstr, connect_args=sqlite_args)
 
     elif db['db_type'] == DB_TRINO:
         db_port = db.get('db_port', 8080)
@@ -619,7 +856,7 @@ def _getSQL_engine(dbid, db, usedb=None):
             # back to 'trino'. Password slot is empty: the bearer goes into
             # connect_args.
             trino_user = db_user or 'trino'
-            sqlstr = f"trino://{trino_user}@{db_host}:{db_port}{db_suffix}"
+            sqlstr = f"trino://{quote_plus(trino_user)}@{db_host}:{db_port}{db_suffix}"
             try:
                 from trino.auth import JWTAuthentication
             except ImportError as exc:
@@ -627,19 +864,47 @@ def _getSQL_engine(dbid, db, usedb=None):
                     "Trino JWT auth requires the 'trino' package "
                     "(pip install jupyterlab-db-explorer[trino])."
                 ) from exc
-            http_scheme = (db.get('db_http_scheme') or 'https').lower()
-            if http_scheme not in ('http', 'https'):
-                http_scheme = 'https'
+            trino_args = _trino_connect_args(db, secured=True)
+            # Raw username via connect_args: the URL slot is decoded twice
+            # (SQLAlchemy unquotes, then the dialect unquote_plus's), which
+            # would turn any '+' in the identity into a space.
+            trino_args.setdefault('user', trino_user)
+            trino_args['auth'] = JWTAuthentication(jwt_token)
             return sqlalchemy.create_engine(
                 sqlstr,
-                connect_args={
-                    'auth': JWTAuthentication(jwt_token),
-                    'http_scheme': http_scheme,
-                },
+                connect_args=trino_args,
                 pool_size=20, max_overflow=20, pool_timeout=30000, echo=False,
             )
-        auth_part = f"{db_user}:{db_pass_encoded}@" if db_pass_encoded else f"{db_user}@"
-        sqlstr = f"trino://{auth_part}{db_host}:{db_port}{db_suffix}"
+        # Password/LDAP (and no-auth) path. The password must NOT ride in the
+        # URL: the trino dialect would then pick plain HTTP for any port
+        # other than 443 and send the credentials in cleartext to a TLS-only
+        # coordinator. Both scheme and credentials go through connect_args.
+        trino_args = _trino_connect_args(db, secured=bool(trino_pass))
+        # Raw username via connect_args: the URL slot is decoded twice
+        # (SQLAlchemy unquotes, then the dialect unquote_plus's), which
+        # would turn any '+' in an LDAP identity into a space.
+        trino_args.setdefault('user', db_user)
+        if trino_pass:
+            if trino_args.get('http_scheme') == 'http':
+                logger.warning(
+                    "Trino connection %r sends its password over plain HTTP "
+                    "(scheme explicitly set to http) — credentials are not "
+                    "encrypted in transit.", dbid,
+                )
+            try:
+                from trino.auth import BasicAuthentication
+            except ImportError as exc:
+                raise RuntimeError(
+                    "Trino password auth requires the 'trino' package "
+                    "(pip install jupyterlab-db-explorer[trino])."
+                ) from exc
+            trino_args['auth'] = BasicAuthentication(db_user, trino_pass)
+        sqlstr = f"trino://{quote_plus(db_user)}@{db_host}:{db_port}{db_suffix}"
+        return sqlalchemy.create_engine(
+            sqlstr,
+            connect_args=trino_args,
+            pool_size=20, max_overflow=20, pool_timeout=30000, echo=False,
+        )
 
     elif db['db_type'] == DB_STARROCKS:
         db_port = db.get('db_port', 9030)
@@ -657,18 +922,11 @@ def _getSQL_engine(dbid, db, usedb=None):
             )
             return sqlalchemy.create_engine(
                 sqlstr,
+                connect_args=_pymysql_connect_args(db),
                 pool_size=20, max_overflow=20, pool_timeout=30000, echo=False,
             )
-        if db_user is None:
-            # StarRocks: try temp_pass_store or prompt
-            if dbid not in _temp_pass_store:
-                db_user_hint = db.get('db_user', None)
-                input_passwd(dbid, db_user_hint)
-                return
-            else:
-                db_user = _temp_pass_store[dbid]['user']
-                db_pass_encoded = quote_plus(_temp_pass_store[dbid]['pwd'])
         sqlstr = f"mysql+pymysql://{db_user}:{db_pass_encoded}@{db_host}:{db_port}{db_suffix}"
+        connect_args = _pymysql_connect_args(db)
 
     elif db['db_type'] == DB_SQLSERVER:
         db_port = db.get('db_port', 1433)
@@ -676,18 +934,37 @@ def _getSQL_engine(dbid, db, usedb=None):
         # `master` so the user can list every database they can access.
         sqlserver_db = db_name or 'master'
         driver = 'ODBC+Driver+18+for+SQL+Server'
-        # TrustServerCertificate=yes is the common dev-server default
-        # (self-signed cert). Production users on properly-signed certs can
-        # remove it from the connection without affecting behavior.
+        # ODBC Driver 18 encrypts by default. SSL-mode mapping:
+        #   verify-ca / verify-full → full certificate verification
+        #   disable                 → no encryption
+        #   unset / allow / prefer / require → TrustServerCertificate=yes,
+        #     the historical default (encrypted, self-signed certs accepted).
+        ssl_mode = _get_ssl_mode(db)
+        if ssl_mode in ('verify-ca', 'verify-full'):
+            tls_query = '&Encrypt=yes'
+        elif ssl_mode == 'disable':
+            tls_query = '&Encrypt=no'
+        else:
+            tls_query = '&TrustServerCertificate=yes'
         sqlstr = (
             f"mssql+pyodbc://{db_user}:{db_pass_encoded}@{db_host}:{db_port}"
-            f"/{sqlserver_db}?driver={driver}&TrustServerCertificate=yes"
+            f"/{sqlserver_db}?driver={driver}{tls_query}"
         )
+        # pyodbc's `timeout` kwarg is the login timeout in seconds; extra
+        # options become ODBC connection-string attributes.
+        timeout = _get_conn_timeout(db)
+        if timeout is not None:
+            connect_args['timeout'] = timeout
+        connect_args.update(_get_conn_opts(db))
 
     else:
         raise ValueError("unsupported database type")
 
-    return sqlalchemy.create_engine(sqlstr, pool_size=20, max_overflow=20, pool_timeout=30000, echo=False)
+    return sqlalchemy.create_engine(
+        sqlstr,
+        connect_args=connect_args,
+        pool_size=20, max_overflow=20, pool_timeout=30000, echo=False,
+    )
 
 
 def __gen_krb5_conf(db):
@@ -757,6 +1034,16 @@ def test_connection(dbinfo):
                 isinstance(resolved_user, str) and resolved_user.startswith('vault://')
             ):
                 return False, 'username is required for test'
+        elif db.get('db_type') == DB_TRINO:
+            # A TLS Trino connection with a username is password auth (LDAP);
+            # without a password the engine would only prompt, not connect.
+            resolved_user = _resolve_vault_secret(db.get('db_user', ''))
+            resolved_pass = _resolve_vault_secret(db.get('db_pass', ''))
+            if (
+                resolved_user and not resolved_pass
+                and _trino_scheme(db, secured=False) == 'https'
+            ):
+                return False, 'password is required for test'
 
         eng = _getSQL_engine(dbid, db)
         if eng is None:
@@ -785,7 +1072,21 @@ def check_pass(dbid):
         and dbinfo['db_type'] in (DB_TRINO, DB_STARROCKS)
     )
 
-    if not is_jwt and dbinfo['db_type'] in (DB_HIVE_KERBEROS, DB_SQLITE, DB_TRINO):
+    if not is_jwt and dbinfo['db_type'] in (DB_HIVE_KERBEROS, DB_SQLITE):
+        return (True, None)
+
+    if not is_jwt and dbinfo['db_type'] == DB_TRINO:
+        # Trino can be credential-less, so only insist on a password when
+        # the connection is unambiguously TLS (explicit https scheme or an
+        # SSL mode that implies TLS — LDAP-style setups) and a username is
+        # configured without a stored password.
+        if (
+            _trino_scheme(dbinfo, secured=False) == 'https'
+            and dbinfo.get('db_user')
+            and not dbinfo.get('db_pass')
+            and dbid not in _temp_pass_store
+        ):
+            return (False, dbinfo.get('db_user', ''))
         return (True, None)
 
     if 'db_user' in dbinfo and 'db_pass' in dbinfo:

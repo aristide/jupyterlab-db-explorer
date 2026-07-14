@@ -151,11 +151,6 @@ interface IConnFormState extends Partial<IDBConn> {
   portTouched?: boolean;
   /** Advanced-options disclosure open state. */
   advancedOpen?: boolean;
-  /** UI-only for now (not yet wired through engine.py): captured in state and
-   *  passed through to onSubmit's IDBConn, but the backend ignores them. */
-  db_ssl_mode?: string;
-  db_conn_timeout?: string;
-  db_conn_opts?: string;
 }
 
 export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
@@ -185,10 +180,12 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
       idTouched: !!initial.db_id,
       portTouched: !!initial.db_port,
       advancedOpen: false,
-      db_ssl_mode: 'prefer',
-      db_conn_timeout: '10',
-      db_conn_opts: '',
-      db_http_scheme: initial.db_http_scheme || 'https'
+      db_ssl_mode: initial.db_ssl_mode || 'prefer',
+      db_conn_timeout: initial.db_conn_timeout || '',
+      db_conn_opts: initial.db_conn_opts || '',
+      // Empty = untouched: the rendered value then follows the auth method
+      // (https once a password/JWT is in play, plain http otherwise).
+      db_http_scheme: initial.db_http_scheme || ''
     };
   }
 
@@ -219,6 +216,8 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
     const useVault = !!vaultEnabled && authMode === 'vault';
     const jwtCapable = !!db_type && JWT_CAPABLE_TYPES.has(db_type);
     const useJwt = jwtCapable && authMethod === 'jwt';
+    const isTrino = db_type === String(ConnType.DB_TRINO);
+    const trinoScheme = db_http_scheme || this._inferTrinoScheme();
     const visibleTypes =
       allowedTypes && allowedTypes.length > 0
         ? DB_TYPES.filter(t => allowedTypes.includes(t.value))
@@ -226,6 +225,11 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
     const currentType = findType(db_type);
     const isFilePath = !!currentType.filePath;
     const portPlaceholder = currentType.defaultPort || '';
+    const optsPlaceholder = isTrino
+      ? 'source=jupyterlab\nverify=/path/to/ca.pem'
+      : db_type === String(ConnType.DB_PGSQL)
+        ? 'application_name=jl-dbx\nsslrootcert=/path/to/ca.pem'
+        : 'key=value, one per line';
 
     return (
       <form
@@ -447,6 +451,10 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                         <div className="d4n-field__head">
                           <label htmlFor="cn-ssl" className="d4n-field__label">
                             {trans.__('SSL mode')}
+                            <span className="d4n-field__optional">
+                              {' '}
+                              {trans.__('require = skip cert verify')}
+                            </span>
                           </label>
                         </div>
                         <div className="d4n-select-wrap">
@@ -455,7 +463,10 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                             className="d4n-select"
                             value={db_ssl_mode || 'prefer'}
                             onChange={ev =>
-                              this.setState({ db_ssl_mode: ev.target.value })
+                              this.setState({
+                                db_ssl_mode: ev.target.value,
+                                testState: 'idle'
+                              })
                             }
                           >
                             <option value="disable">disable</option>
@@ -485,12 +496,14 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                           id="cn-timeout"
                           className="d4n-input d4n-mono"
                           value={db_conn_timeout || ''}
+                          placeholder={trans.__('driver default')}
                           inputMode="numeric"
                           onChange={ev =>
                             this.setState({
                               db_conn_timeout: ev.target.value
                                 .replace(/[^\d]/g, '')
-                                .slice(0, 4)
+                                .slice(0, 4),
+                              testState: 'idle'
                             })
                           }
                         />
@@ -511,11 +524,12 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                         className="d4n-input d4n-textarea d4n-mono"
                         rows={3}
                         value={db_conn_opts || ''}
-                        placeholder={
-                          'application_name=jl-dbx\nsearch_path=public,raw'
-                        }
+                        placeholder={optsPlaceholder}
                         onChange={ev =>
-                          this.setState({ db_conn_opts: ev.target.value })
+                          this.setState({
+                            db_conn_opts: ev.target.value,
+                            testState: 'idle'
+                          })
                         }
                       />
                     </div>
@@ -709,14 +723,14 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                 </div>
               )}
 
-              {useJwt && db_type === String(ConnType.DB_TRINO) && (
+              {isTrino && (
                 <div className="d4n-field">
                   <div className="d4n-field__head">
                     <label htmlFor="cn-scheme" className="d4n-field__label">
                       {trans.__('HTTP scheme')}
                       <span className="d4n-field__optional">
                         {' '}
-                        {trans.__('https recommended')}
+                        {trans.__('https required for password/JWT auth')}
                       </span>
                     </label>
                   </div>
@@ -724,7 +738,7 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
                     <select
                       id="cn-scheme"
                       className="d4n-select"
-                      value={db_http_scheme || 'https'}
+                      value={trinoScheme}
                       onChange={ev =>
                         this.setState({
                           db_http_scheme: ev.target.value,
@@ -1013,6 +1027,23 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
     });
   };
 
+  /** Trino scheme shown/submitted when the selector is untouched: https
+   *  whenever credentialed auth is in play (Trino requires TLS for password
+   *  and JWT auth) or the port is a conventional TLS port; plain http
+   *  otherwise (no-auth dev coordinators on 8080). */
+  private _inferTrinoScheme(): string {
+    const { db_type, db_pass, db_port, authMethod } = this.state;
+    const jwt =
+      !!db_type && JWT_CAPABLE_TYPES.has(db_type) && authMethod === 'jwt';
+    if (jwt || db_pass) {
+      return 'https';
+    }
+    if (db_port === '443' || db_port === '8443') {
+      return 'https';
+    }
+    return 'http';
+  }
+
   // ─── Build IDBConn from current state ───────────────────────────────
   private _buildConn(): IDBConn | null {
     const { db_type, db_host, db_name, db_id, name: connName } = this.state;
@@ -1065,31 +1096,32 @@ export class ConnForm extends React.Component<IConnFormProps, IConnFormState> {
     }
     // JWT auth is meaningful only for Trino & StarRocks; for any other type
     // the user can't have flipped the switch anyway, but be defensive.
-    if (JWT_CAPABLE_TYPES.has(db_type) && this.state.authMethod === 'jwt') {
-      conn.db_auth_type = 'jwt';
-      if (db_type === String(ConnType.DB_TRINO)) {
-        const scheme = (this.state.db_http_scheme || 'https').toLowerCase();
-        if (scheme === 'http') {
-          conn.db_http_scheme = 'http';
-        }
-      }
+    const useJwt =
+      JWT_CAPABLE_TYPES.has(db_type) && this.state.authMethod === 'jwt';
+    if (JWT_CAPABLE_TYPES.has(db_type)) {
+      conn.db_auth_type = useJwt ? 'jwt' : 'password';
     }
-    // Advanced options — UI-captured for now; the backend can pick them up
-    // when engine.py is extended to honor these knobs. Only emit non-default
-    // values so unchanged forms produce the same IDBConn shape as before.
-    const advanced = this.state;
-    if (advanced.advancedOpen) {
-      if (advanced.db_ssl_mode && advanced.db_ssl_mode !== 'prefer') {
-        (conn as unknown as Record<string, unknown>).db_ssl_mode =
-          advanced.db_ssl_mode;
+    if (db_type === String(ConnType.DB_TRINO)) {
+      // Persist the effective scheme explicitly — exactly what the selector
+      // displayed at submit time (user choice, or the inferred default).
+      const scheme = (
+        this.state.db_http_scheme || this._inferTrinoScheme()
+      ).toLowerCase();
+      conn.db_http_scheme = scheme === 'http' ? 'http' : 'https';
+    }
+    // Advanced options — honored by engine.py per dialect. Emit only
+    // non-default values (regardless of whether the disclosure is open, so
+    // collapsing the section doesn't silently drop them). SQLite hides the
+    // whole Advanced UI, so don't submit invisible stale values for it.
+    if (!isFilePath) {
+      if (this.state.db_ssl_mode && this.state.db_ssl_mode !== 'prefer') {
+        conn.db_ssl_mode = this.state.db_ssl_mode;
       }
-      if (advanced.db_conn_timeout && advanced.db_conn_timeout !== '10') {
-        (conn as unknown as Record<string, unknown>).db_conn_timeout =
-          advanced.db_conn_timeout;
+      if (this.state.db_conn_timeout) {
+        conn.db_conn_timeout = this.state.db_conn_timeout;
       }
-      if (advanced.db_conn_opts) {
-        (conn as unknown as Record<string, unknown>).db_conn_opts =
-          advanced.db_conn_opts;
+      if (this.state.db_conn_opts) {
+        conn.db_conn_opts = this.state.db_conn_opts;
       }
     }
     return conn;

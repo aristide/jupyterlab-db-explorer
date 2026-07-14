@@ -29,9 +29,18 @@ def _install_fake_trino_module():
         def __repr__(self):
             return f'JWTAuth({captured.get("token")!r})'
 
+    class BasicAuthentication:
+        def __init__(self, username, password):
+            captured['basic_user'] = username
+            captured['basic_pass'] = password
+
+        def __repr__(self):
+            return f'BasicAuth({captured.get("basic_user")!r})'
+
     trino_mod = types.ModuleType('trino')
     auth_mod = types.ModuleType('trino.auth')
     auth_mod.JWTAuthentication = JWTAuthentication
+    auth_mod.BasicAuthentication = BasicAuthentication
     trino_mod.auth = auth_mod
     sys.modules['trino'] = trino_mod
     sys.modules['trino.auth'] = auth_mod
@@ -136,21 +145,28 @@ def test_trino_jwt_resolves_vault_token():
     assert ':' not in url.split('@')[0].split('//')[-1]  # no password in URL
 
 
-def test_trino_password_path_unchanged_without_jwt_flag():
-    """Existing password/no-auth Trino path must not be touched by JWT code."""
+def test_trino_password_path_uses_basic_auth_not_url_password():
+    """The password/LDAP path must never embed the password in the URL: the
+    trino dialect picks plain HTTP for any port other than 443 and ignores
+    ?http_scheme= in the URL query, so URL credentials would ride cleartext
+    to a TLS-only coordinator. See test_trino_ssl.py for the full matrix."""
+    captured = _install_fake_trino_module()
     db = {
         'db_type': engine.DB_TRINO,
         'db_host': 'trino.example.com',
-        'db_port': '8080',
+        'db_port': '8443',
         'db_user': 'analyst',
         'db_pass': 'pw',
     }
     with patch.object(engine.sqlalchemy, 'create_engine') as create_engine:
         engine._getSQL_engine('t5', db)
     url, = create_engine.call_args.args
-    assert url == 'trino://analyst:pw@trino.example.com:8080'
-    # Plain Trino must not pass any connect_args (no auth=JWT).
-    assert 'connect_args' not in create_engine.call_args.kwargs
+    assert url == 'trino://analyst@trino.example.com:8443'
+    connect_args = create_engine.call_args.kwargs['connect_args']
+    # Password auth implies TLS on standard Trino deployments.
+    assert connect_args['http_scheme'] == 'https'
+    assert captured['basic_user'] == 'analyst'
+    assert captured['basic_pass'] == 'pw'
 
 
 # ---------------------------------------------------------------------------

@@ -13,9 +13,19 @@ ENV_DB_PASS = 'DB_PASS'
 ENV_DB_NAME = 'DB_NAME'
 ENV_DB_ID = 'DB_ID'
 # Trino/StarRocks JWT auth. AUTH_TYPE='jwt' makes DB_PASS the bearer token.
-# HTTP_SCHEME is Trino-only ('https' default, 'http' allowed override).
+# HTTP_SCHEME is Trino-only ('http'/'https'; defaults to https whenever
+# credentialed auth is in play, else the client decides by port).
 ENV_DB_AUTH_TYPE = 'DB_AUTH_TYPE'
 ENV_DB_HTTP_SCHEME = 'DB_HTTP_SCHEME'
+
+# Advanced connection options (honored per-dialect, see engine.py):
+# - SSL_MODE: libpq-style mode (disable/allow/prefer/require/verify-ca/verify-full)
+# - CONN_TIMEOUT: connect timeout in seconds
+# - CONN_OPTS: extra DBAPI connect params, 'key=value' pairs separated by
+#   newlines or ';'
+ENV_DB_SSL_MODE = 'DB_SSL_MODE'
+ENV_DB_CONN_TIMEOUT = 'DB_CONN_TIMEOUT'
+ENV_DB_CONN_OPTS = 'DB_CONN_OPTS'
 
 # Environment variable to control reset functionality (default: enabled)
 ENV_ALLOW_RESET = 'DB_EXPLORER_ALLOW_RESET'
@@ -39,6 +49,11 @@ ENV_DB_CONN_SUFFIX_ID = '_ID'
 # bearer token. HTTP_SCHEME is Trino-only.
 ENV_DB_CONN_SUFFIX_AUTH_TYPE = '_AUTH_TYPE'
 ENV_DB_CONN_SUFFIX_HTTP_SCHEME = '_HTTP_SCHEME'
+# Advanced connection options — same semantics as the DB_SSL_MODE /
+# DB_CONN_TIMEOUT / DB_CONN_OPTS singles above.
+ENV_DB_CONN_SUFFIX_SSL_MODE = '_SSL_MODE'
+ENV_DB_CONN_SUFFIX_TIMEOUT = '_TIMEOUT'
+ENV_DB_CONN_SUFFIX_OPTS = '_OPTS'
 
 # Result-cursor session tuning. All optional, sensible defaults below.
 # - QUERY_LIMIT: max rows the streaming cursor will scroll through before

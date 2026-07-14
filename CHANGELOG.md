@@ -2,6 +2,26 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## 0.5.1 (unreleased)
+
+- **Fix Trino LDAP/password connections over TLS.** The password path built the SQLAlchemy URL with the credentials embedded and no `connect_args`; the trino dialect ignores `http_scheme` in the URL query and picks plain HTTP for any port other than 443, so metadata reflection sent cleartext HTTP to TLS-only coordinators and failed with a TLS alert ("load failed"). Credentials now go through `trino.auth.BasicAuthentication` and the scheme through `connect_args`, mirroring the JWT path. Default scheme with a password or JWT is `https`; credential-less connections keep the client's port-based default.
+- Show the Trino **HTTP scheme** selector for all auth methods (it was JWT-only) and default it dynamically: https once a password/JWT is entered or when the port is 443/8443, http otherwise.
+- Wire the Advanced options through `engine.py` — they were captured by the form but ignored:
+  - **SSL mode** (libpq vocabulary) mapped per dialect: PostgreSQL `sslmode` passthrough; Trino `require` → `verify=False` for self-signed certs; MySQL/StarRocks `ssl_disabled` / a truthy `ssl` dict for `require` (pymysql treats an empty dict as "no TLS") and a real `ssl.SSLContext` for `verify-ca`/`verify-full` so hostname verification actually works against the system trust store (pymysql ≥ 1.0, now pinned by the extras); SQL Server `Encrypt`/`TrustServerCertificate`.
+  - **Connect timeout** → `request_timeout` (Trino), `connect_timeout` (PostgreSQL/MySQL/StarRocks), login `timeout` (SQL Server), lock `timeout` (SQLite).
+  - **Extra connection params** (`key=value` lines) merged into the driver `connect_args` last, so they can override any derived value (e.g. `verify=/path/to/ca.pem` for a custom Trino CA).
+  - The values are also persisted/emitted even when the Advanced disclosure is collapsed, and re-loaded when editing a connection.
+- New environment fields for the same options: `DB_CONN_<NAME>_SSL_MODE` / `_TIMEOUT` / `_OPTS` and single-connection `DB_SSL_MODE` / `DB_CONN_TIMEOUT` / `DB_CONN_OPTS`.
+- Trino password prompt flow: an https Trino connection with a username and no stored password now prompts for the password (kept in memory only), like other engines. Credential-less http connections are untouched.
+- Fix the stored-username + prompted-password flow for all engines: the prompt's password is now actually used (previously an empty password was sent) and `input_passwd` — referenced but never defined — no longer raises `NameError` on credential-less engine access.
+- Trino usernames are URL-quoted in the SQLAlchemy URL and passed raw via `connect_args['user']`, so LDAP identities like `user@corp.com` or `dev+ops@corp.com` survive the trino dialect's double URL-decoding.
+- A Trino connection that sends a password over explicitly-chosen plain http logs a cleartext-credentials warning.
+- Extra-connection-param values coerce only `true`/`false` to booleans — ODBC-style `yes`/`no`/`on`/`off` stay strings (e.g. `MultiSubnetFailover=yes` reaches the driver verbatim) — and malformed entries are no longer echoed into the server log (a `;` inside a secret-bearing value used to leak fragments of it).
+- Changing SSL mode / timeout / extra params now invalidates a previous "Connection successful" test badge, and SQLite connections no longer submit invisible stale Advanced values (its UI hides that section).
+- `DB_EXPLORER_*` tuning variables (e.g. `DB_EXPLORER_QUERY_LIMIT`) are excluded from the base64 connection scan as a prefix — previously each one showed up as a phantom connection that crashed the connection list.
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## 0.4.0
 
 - Add dialect-aware SQL autocomplete to the SQL Console editor. Keywords and built-in functions are picked from the active connection's dialect via `@codemirror/lang-sql`; PostgreSQL, MySQL, Oracle, SQLite, and SQL Server use the library's built-in dialects, while Trino, Hive, and StarRocks ship custom `SQLDialect.define(...)` definitions sourced from each engine's documentation.
