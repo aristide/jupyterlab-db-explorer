@@ -2,7 +2,7 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
-## 0.5.1 (unreleased)
+## 0.5.1
 
 - **Fix Trino LDAP/password connections over TLS.** The password path built the SQLAlchemy URL with the credentials embedded and no `connect_args`; the trino dialect ignores `http_scheme` in the URL query and picks plain HTTP for any port other than 443, so metadata reflection sent cleartext HTTP to TLS-only coordinators and failed with a TLS alert ("load failed"). Credentials now go through `trino.auth.BasicAuthentication` and the scheme through `connect_args`, mirroring the JWT path. Default scheme with a password or JWT is `https`; credential-less connections keep the client's port-based default.
 - Show the Trino **HTTP scheme** selector for all auth methods (it was JWT-only) and default it dynamically: https once a password/JWT is entered or when the port is 443/8443, http otherwise.

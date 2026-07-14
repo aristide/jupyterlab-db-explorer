@@ -278,11 +278,11 @@ else → http), which preserves plain-HTTP no-auth dev setups.
 The connection form's **Advanced options** (also available as env vars) are
 honored per dialect:
 
-| Option            | Env field                        | Effect                                                                                                                                                                     |
-| ----------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| SSL mode          | `_SSL_MODE` / `DB_SSL_MODE`      | libpq-style: `disable`, `allow`, `prefer` (default), `require`, `verify-ca`, `verify-full`. See mapping below.                                                             |
-| Connect timeout   | `_TIMEOUT` / `DB_CONN_TIMEOUT`   | Seconds. Trino: `request_timeout` (a per-HTTP-request connect+read deadline, so it also bounds each result-page fetch); PostgreSQL/MySQL/StarRocks: `connect_timeout`; SQL Server: login `timeout`; SQLite: lock `timeout`. |
-| Extra conn params | `_OPTS` / `DB_CONN_OPTS`         | `key=value` pairs (one per line, or `;`-separated in env vars) merged into the driver's `connect_args` last — they override anything derived from the other two options.   |
+| Option            | Env field                      | Effect                                                                                                                                                                                                                      |
+| ----------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SSL mode          | `_SSL_MODE` / `DB_SSL_MODE`    | libpq-style: `disable`, `allow`, `prefer` (default), `require`, `verify-ca`, `verify-full`. See mapping below.                                                                                                              |
+| Connect timeout   | `_TIMEOUT` / `DB_CONN_TIMEOUT` | Seconds. Trino: `request_timeout` (a per-HTTP-request connect+read deadline, so it also bounds each result-page fetch); PostgreSQL/MySQL/StarRocks: `connect_timeout`; SQL Server: login `timeout`; SQLite: lock `timeout`. |
+| Extra conn params | `_OPTS` / `DB_CONN_OPTS`       | `key=value` pairs (one per line, or `;`-separated in env vars) merged into the driver's `connect_args` last — they override anything derived from the other two options.                                                    |
 
 SSL-mode mapping per engine:
 
@@ -382,37 +382,37 @@ The full set of environment variables read by the extension:
 
 **Multi-connection (recommended)** — `DB_CONN_<NAME>_<FIELD>`, one set per connection:
 
-| Field suffix   | Required        | Description                                                              |
-| -------------- | --------------- | ------------------------------------------------------------------------ |
-| `_TYPE`        | yes             | Database type code (see table above).                                    |
-| `_HOST`        | usually         | Host name / address.                                                     |
-| `_PORT`        | usually         | Port number.                                                             |
-| `_USER`        | engine-specific | Username. Optional for Trino+JWT; required for StarRocks+JWT.            |
-| `_PASS`        | engine-specific | Password, or JWT bearer token when `_AUTH_TYPE=jwt`. Accepts `vault://`. |
-| `_NAME`        | no              | Default database / catalog / schema.                                     |
-| `_ID`          | no              | Explicit connection id; defaults to `<NAME>` if omitted.                 |
-| `_AUTH_TYPE`   | no              | `jwt` to use a bearer token (Trino & StarRocks). Default: password auth. |
-| `_HTTP_SCHEME` | no              | Trino only: `https`/`http`. Default: `https` with password/JWT auth, else decided by port. |
+| Field suffix   | Required        | Description                                                                                         |
+| -------------- | --------------- | --------------------------------------------------------------------------------------------------- |
+| `_TYPE`        | yes             | Database type code (see table above).                                                               |
+| `_HOST`        | usually         | Host name / address.                                                                                |
+| `_PORT`        | usually         | Port number.                                                                                        |
+| `_USER`        | engine-specific | Username. Optional for Trino+JWT; required for StarRocks+JWT.                                       |
+| `_PASS`        | engine-specific | Password, or JWT bearer token when `_AUTH_TYPE=jwt`. Accepts `vault://`.                            |
+| `_NAME`        | no              | Default database / catalog / schema.                                                                |
+| `_ID`          | no              | Explicit connection id; defaults to `<NAME>` if omitted.                                            |
+| `_AUTH_TYPE`   | no              | `jwt` to use a bearer token (Trino & StarRocks). Default: password auth.                            |
+| `_HTTP_SCHEME` | no              | Trino only: `https`/`http`. Default: `https` with password/JWT auth, else decided by port.          |
 | `_SSL_MODE`    | no              | `disable`/`allow`/`prefer`/`require`/`verify-ca`/`verify-full` (see "Advanced Connection Options"). |
-| `_TIMEOUT`     | no              | Connect timeout in seconds.                                              |
-| `_OPTS`        | no              | Extra driver connect params, `key=value` pairs separated by `;` or newlines. |
+| `_TIMEOUT`     | no              | Connect timeout in seconds.                                                                         |
+| `_OPTS`        | no              | Extra driver connect params, `key=value` pairs separated by `;` or newlines.                        |
 
 **Single connection (legacy)** — one connection per process:
 
-| Variable         | Required | Description                                                          |
-| ---------------- | -------- | -------------------------------------------------------------------- |
-| `DB_TYPE`        | yes      | Database type code.                                                  |
-| `DB_HOST`        | usually  | Host name / address.                                                 |
-| `DB_PORT`        | usually  | Port number.                                                         |
-| `DB_USER`        | maybe    | Username.                                                            |
-| `DB_PASS`        | maybe    | Password or JWT token (when `DB_AUTH_TYPE=jwt`). Accepts `vault://`. |
-| `DB_NAME`        | no       | Default database / catalog / schema.                                 |
-| `DB_ID`          | no       | Connection id (e.g. `default`).                                      |
-| `DB_AUTH_TYPE`   | no       | `jwt` to use a bearer token. Default: password auth.                 |
-| `DB_HTTP_SCHEME` | no       | Trino only: `https`/`http`. Default: `https` with password/JWT auth, else decided by port. |
-| `DB_SSL_MODE`    | no       | SSL mode (see "Advanced Connection Options").                        |
-| `DB_CONN_TIMEOUT`| no       | Connect timeout in seconds.                                          |
-| `DB_CONN_OPTS`   | no       | Extra driver connect params (`key=value`, `;`- or newline-separated).|
+| Variable          | Required | Description                                                                                |
+| ----------------- | -------- | ------------------------------------------------------------------------------------------ |
+| `DB_TYPE`         | yes      | Database type code.                                                                        |
+| `DB_HOST`         | usually  | Host name / address.                                                                       |
+| `DB_PORT`         | usually  | Port number.                                                                               |
+| `DB_USER`         | maybe    | Username.                                                                                  |
+| `DB_PASS`         | maybe    | Password or JWT token (when `DB_AUTH_TYPE=jwt`). Accepts `vault://`.                       |
+| `DB_NAME`         | no       | Default database / catalog / schema.                                                       |
+| `DB_ID`           | no       | Connection id (e.g. `default`).                                                            |
+| `DB_AUTH_TYPE`    | no       | `jwt` to use a bearer token. Default: password auth.                                       |
+| `DB_HTTP_SCHEME`  | no       | Trino only: `https`/`http`. Default: `https` with password/JWT auth, else decided by port. |
+| `DB_SSL_MODE`     | no       | SSL mode (see "Advanced Connection Options").                                              |
+| `DB_CONN_TIMEOUT` | no       | Connect timeout in seconds.                                                                |
+| `DB_CONN_OPTS`    | no       | Extra driver connect params (`key=value`, `;`- or newline-separated).                      |
 
 **Other:**
 
