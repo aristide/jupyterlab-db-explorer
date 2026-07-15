@@ -2,6 +2,12 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## 0.5.3
+
+- **Fix Trino table preview / "Open Sql Console" returning no data when the connection has no default catalog.** Previewing or opening a console for a table generated `SELECT * FROM "catalog.schema"."table" t LIMIT 200`, quoting the combined `catalog.schema` tree label as a single identifier — an unresolvable 2-part Trino name with no catalog (`MISSING_CATALOG_NAME` / `GENERIC_INTERNAL_ERROR`, so the grid came back empty). The table console now emits a proper three-part `"catalog"."schema"."table"` reference for Trino nodes whose label carries a catalog, splitting on the first dot to mirror the backend drill-down (`db.py`, `schema.split('.', 1)`). Connections that set a default catalog (the schema node is a bare name) are unchanged. This makes click-to-query work in browse-all-catalogs setups where no per-connection default catalog is configured.
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## 0.5.2
 
 - **Hive over TLS (LDAP/password auth).** SSL modes `require`/`verify-ca`/`verify-full` now build a SASL-PLAIN-over-`TSSLSocket` thrift transport (pyhive has no SSL parameters and its `thrift_transport` argument conflicts with the SQLAlchemy dialect's kwargs, so the engine is created with a `creator` that builds a fresh transport per pooled connection). Certificate semantics match the other engines: `require` = TLS without verification, `verify-ca` = system trust store or `ssl_ca=/path` extra param, `verify-full` = plus hostname verification. The connect timeout applies as the thrift socket timeout on this transport. Requires `pyhive[hive]>=0.7` (extra bumped).
