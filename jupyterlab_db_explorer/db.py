@@ -106,6 +106,13 @@ def get_column_info(dbid, db, tbl):
             for r in query(dbid, f"SELECT column_name, column_comment FROM information_schema.columns WHERE table_name = '{tbl}' AND table_schema = '{db}'"):
                 columns.append({'name': r[0], 'desc': r[1], 'type': 'col'})
         elif dbinfo['db_type'] ==engine.DB_PGSQL:
+            # When the connection has no default database, `db` is the picked
+            # database (the tree listed databases and drilled into its public
+            # schema). information_schema is per-database in PostgreSQL, so
+            # the query must run connected to that database.
+            no_default_db = not dbinfo.get('db_name')
+            schema_name = 'public' if no_default_db else db
+            usedb = db if no_default_db else None
             for r in query(dbid, '''
                 SELECT column_name, data_type, description as comment, table_name
                 FROM information_schema.columns
@@ -114,7 +121,7 @@ def get_column_info(dbid, db, tbl):
                           AND pg_description.objsubid = ordinal_position)
                 WHERE table_schema = '%s' and table_name='%s'
                 ORDER BY ordinal_position
-            ''' %(db, tbl)):
+            ''' %(schema_name, tbl), db=usedb):
                 columns.append({'name': r[0], 'desc': r[2], 'type': 'col'})
         elif dbinfo['db_type'] ==engine.DB_ORACLE:
             for r in query(dbid, f"SELECT column_name, comments FROM all_col_comments WHERE table_name = '${tbl}'"):
@@ -159,16 +166,18 @@ def get_column_info(dbid, db, tbl):
                 columns.append({'name': r[0], 'desc': r[1], 'type': 'col'})
         elif dbinfo['db_type'] == engine.DB_SQLSERVER:
             # When the connection has a default database, `db` is the schema
-            # name. When it doesn't, the engine reconnected to `db` (the
-            # chosen database) and we list tables of its dbo schema.
+            # name. When it doesn't, `db` is the picked database and the
+            # columns of its dbo tables live in *its* information_schema —
+            # the query must reconnect to it (each database has its own).
             no_default_db = not dbinfo.get('db_name')
             schema_name = 'dbo' if no_default_db else db
+            usedb = db if no_default_db else None
             col_query = (
                 "SELECT column_name, data_type FROM information_schema.columns "
                 f"WHERE table_schema = '{schema_name}' AND table_name = '{tbl}' "
                 "ORDER BY ordinal_position"
             )
-            for r in query(dbid, col_query):
+            for r in query(dbid, col_query, db=usedb):
                 columns.append({'name': r[0], 'desc': r[1], 'type': 'col'})
     return columns
 

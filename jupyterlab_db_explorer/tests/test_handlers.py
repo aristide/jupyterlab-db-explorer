@@ -15,7 +15,7 @@ async def test_conn(jp_fetch):
     assert response.code == 200
     payload = json.loads(response.body)
     assert payload == {
-        "data": old['data'] + [{'name': 'add', 'desc': '', 'type': 'conn', 'subtype': 6}]
+        "data": old['data'] + [{'name': 'add', 'desc': '', 'type': 'conn', 'subtype': 6, 'has_db': True}]
     }
 
     response = await jp_fetch("jupyterlab-db-explorer", "conns",
@@ -24,8 +24,8 @@ async def test_conn(jp_fetch):
     payload = json.loads(response.body)
     assert payload == {
         "data": old['data'] + [
-            {'name': 'add', 'desc': '', 'type': 'conn', 'subtype': 6},
-            {'name': 'add2', 'desc': '', 'type': 'conn', 'subtype': 6}
+            {'name': 'add', 'desc': '', 'type': 'conn', 'subtype': 6, 'has_db': True},
+            {'name': 'add2', 'desc': '', 'type': 'conn', 'subtype': 6, 'has_db': True}
         ]
     }
 
@@ -37,7 +37,46 @@ async def test_conn(jp_fetch):
     response = await jp_fetch("jupyterlab-db-explorer", "conns", method='DELETE', params={'dbid': 'add'})
     assert response.code == 200
     payload = json.loads(response.body)
-    assert payload == {"data": old['data'] + [{'name': 'add2', 'desc': '', 'type': 'conn', 'subtype': 6}]}
+    assert payload == {"data": old['data'] + [{'name': 'add2', 'desc': '', 'type': 'conn', 'subtype': 6, 'has_db': True}]}
+
+async def test_has_db_flag(jp_fetch):
+    '''`has_db` reflects whether the connection pins a default database.'''
+    response = await jp_fetch("jupyterlab-db-explorer", "conns",
+        method='POST', body=json.dumps({"db_id": "nodefault", "db_host": "192.168.1.100", "db_type": engine.DB_PGSQL}))
+    assert response.code == 200
+    payload = json.loads(response.body)
+    entry = next(c for c in payload['data'] if c['name'] == 'nodefault')
+    assert entry['has_db'] is False
+
+    response = await jp_fetch("jupyterlab-db-explorer", "conns", method='DELETE', params={'dbid': 'nodefault'})
+    assert response.code == 200
+
+async def test_query_db_passthrough(jp_fetch):
+    '''POST /query forwards the optional `db` to the query task (usedb).'''
+    response = await jp_fetch("jupyterlab-db-explorer", "conns",
+        method='POST', body=json.dumps({"db_id": "qpass", "db_name": ":memory:", "db_type": '6'}))
+    assert response.code == 200
+
+    try:
+        with patch("jupyterlab_db_explorer.handlers.task.create_query_task") as mock_task:
+            async def fake_task(dbid, sql, usedb=None):
+                return 'tid-1'
+            mock_task.side_effect = fake_task
+            response = await jp_fetch("jupyterlab-db-explorer", "query",
+                method='POST', body=json.dumps({"dbid": "qpass", "sql": "SELECT 1", "db": "otherdb"}))
+            assert response.code == 200
+            payload = json.loads(response.body)
+            assert payload == {'error': 'RETRY', 'data': 'tid-1'}
+            mock_task.assert_called_once_with('qpass', 'SELECT 1', 'otherdb')
+
+            # Without `db` the task runs against the connection default.
+            mock_task.reset_mock()
+            response = await jp_fetch("jupyterlab-db-explorer", "query",
+                method='POST', body=json.dumps({"dbid": "qpass", "sql": "SELECT 1"}))
+            assert response.code == 200
+            mock_task.assert_called_once_with('qpass', 'SELECT 1', None)
+    finally:
+        await jp_fetch("jupyterlab-db-explorer", "conns", method='DELETE', params={'dbid': 'qpass'})
 
 async def test_err_conn(jp_fetch):
     response = await jp_fetch("jupyterlab-db-explorer", "conns",

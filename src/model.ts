@@ -207,8 +207,8 @@ export class SqlModel {
       }
     }
     return cur_list.map(
-      ({ name, desc, type, subtype, fix }) =>
-        ({ name, desc, type, subtype, fix }) as IDbItem
+      ({ name, desc, type, subtype, fix, has_db }) =>
+        ({ name, desc, type, subtype, fix, has_db }) as IDbItem
     );
   }
 
@@ -221,6 +221,7 @@ export class SqlModel {
         name: db_id,
         desc: name,
         subtype: parseInt(conn.db_type),
+        has_db: !!conn.db_name,
         next: false
       });
       this.conn_changed.emit(conn.db_id);
