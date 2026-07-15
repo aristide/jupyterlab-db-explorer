@@ -170,7 +170,11 @@ class QueryHandler(APIHandler):
                 self.finish(json.dumps({'error': 'NEED-PASS', 'pass_info': {'db_id': qdata['dbid'], 'db_user': db_user}}))
             else:
                 sql = variables.resolve(qdata['sql'])
-                taskid = await task.create_query_task(qdata['dbid'], sql)
+                # Optional `db`: run against this database instead of the
+                # connection default (consoles opened from a picked database
+                # of a no-default-db PostgreSQL/SQL Server connection).
+                taskid = await task.create_query_task(
+                    qdata['dbid'], sql, qdata.get('db') or None)
                 self.finish(json.dumps({'error': 'RETRY', 'data': taskid}))
         except Exception as err:
             self.log.error(err)

@@ -2,6 +2,22 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## 0.5.4
+
+Follow-up to the 0.5.3 Trino fix: an audit of every supported engine for the same class of bug — the table preview / "Open Sql Console" statement being generated with the wrong qualification, quoting, or row-limit syntax for that engine's SQL.
+
+- **SQL Server: fix table preview for connections without a default database.** The tree lists databases (drilling into each one's `dbo` schema), but the preview emitted `[dbname].[table]`, which T-SQL resolves as *schema*.table inside `master`. It now emits a native three-part name — `[dbname].[dbo].[table]`.
+- **SQL Server: use `TOP` instead of `LIMIT`.** The preview statement ended in `LIMIT 200`, which is not T-SQL and made every SQL Server preview a syntax error; it is now `SELECT TOP 200 *`. Oracle likewise gets `FETCH FIRST 200 ROWS ONLY` instead of `LIMIT`.
+- **PostgreSQL: fix table preview for connections without a default database.** The tree lists databases (drilling into each one's `public` schema), but the preview emitted `"dbname"."table"` against the `postgres` maintenance session — and PostgreSQL has no cross-database references, so no qualification could ever work. The console opened from such a table is now pinned to the picked database (a new optional `db` on `POST /query`, threaded to the already-supported `usedb` of the query task) and previews `"public"."table"`. Pinned consoles get their own widget and a `conn · database` title so SQL for one database is never appended into a console connected to another.
+- **Hive: quote identifiers with backticks.** The preview used double quotes, which are string literals in HiveQL — `SELECT * FROM "db"."table"` was a parse error. Both Hive LDAP and Kerberos connections now emit `` `db`.`table` ``.
+- **Fix empty column lists under no-default-database PostgreSQL/SQL Server connections.** `get_column_info` queried `information_schema.columns` of the maintenance/`master` session instead of the picked database (both engines keep a per-database `information_schema`), so expanding a table showed no columns. The lookup now reconnects to the picked database, mirroring what the table listing already did.
+- Connections now expose a `has_db` flag (whether a default database/catalog is pinned) so the frontend can tell "first tree level is databases" from "first tree level is schemas" instead of guessing from label shape; the Trino `catalog.schema` split is additionally gated on it, so a dotted schema name under a pinned catalog is no longer mis-split.
+- The preview builder moved to `src/components/previewSql.ts` with unit coverage for every engine.
+
+Not affected (checked): MySQL/StarRocks (`` `db`.`table` `` is valid cross-database, `information_schema` is server-wide), SQLite (no schema level), Trino (fixed in 0.5.3). Known gaps left as-is: StarRocks external catalogs are not browsable (tree lists only the current catalog's databases), and Oracle tree browsing still relies on `show databases`, which Oracle does not support.
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## 0.5.3
 
 - **Fix Trino table preview / "Open Sql Console" returning no data when the connection has no default catalog.** Previewing or opening a console for a table generated `SELECT * FROM "catalog.schema"."table" t LIMIT 200`, quoting the combined `catalog.schema` tree label as a single identifier — an unresolvable 2-part Trino name with no catalog (`MISSING_CATALOG_NAME` / `GENERIC_INTERNAL_ERROR`, so the grid came back empty). The table console now emits a proper three-part `"catalog"."schema"."table"` reference for Trino nodes whose label carries a catalog, splitting on the first dot to mirror the backend drill-down (`db.py`, `schema.split('.', 1)`). Connections that set a default catalog (the schema node is a bare name) are unchanged. This makes click-to-query work in browse-all-catalogs setups where no per-connection default catalog is configured.

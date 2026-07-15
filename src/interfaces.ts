@@ -16,6 +16,11 @@ export interface IDbItem {
   subtype?: ConnType | string;
   fix?: boolean;
   desc?: string;
+  /** Conn items only: the connection pins a default database/catalog.
+   *  Without one, first-level tree nodes are databases (PG/SQL Server) or
+   *  catalog.schema pairs (Trino) rather than schemas, which changes how a
+   *  table must be qualified in generated SQL. */
+  has_db?: boolean;
   next?: IDbItem[] | false;
 }
 

@@ -392,9 +392,18 @@ export function newSqlConsole(
   init_sql: string,
   jp_services: IJpServices
 ): void {
-  // find Widget by id
+  // find Widget by id — a console pinned to a specific database (qmodel
+  // schema, e.g. a picked database of a no-default-db PostgreSQL connection)
+  // is its own widget, so its SQL never runs against another database's
+  // session.
   const { themeManager } = jp_services;
-  const id = 'jp-sql-explorer:query' + qmodel.dbid;
+  const dbLabel = qmodel.schema
+    ? `${qmodel.dbid} · ${qmodel.schema}`
+    : qmodel.dbid;
+  const id =
+    'jp-sql-explorer:query' +
+    qmodel.dbid +
+    (qmodel.schema ? ':' + qmodel.schema : '');
   let widget = toArray(jp_services.app.shell.widgets()).find(
     widget => widget.id === id
   );
@@ -406,7 +415,7 @@ export function newSqlConsole(
       ).editor.appendText(sql);
     }
   } else {
-    const sql = `-- conn: ${qmodel.dbid}\n\n${init_sql}\n`;
+    const sql = `-- conn: ${dbLabel}\n\n${init_sql}\n`;
     // for 3.6.x const model = new CodeEditor.Model({ value: sql });
     const model = new CodeEditor.Model();
     model.sharedModel.setSource(sql);
@@ -417,7 +426,7 @@ export function newSqlConsole(
     widget.id = id;
     widget.title.icon = queryIcon;
     widget.title.label = qmodel.isConnReadOnly
-      ? qmodel.dbid
+      ? dbLabel
       : jp_services.trans.__('SQL query');
     widget.title.closable = true;
   }

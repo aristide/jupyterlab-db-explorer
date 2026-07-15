@@ -236,7 +236,10 @@ export const query = async (
   schema?: string,
   options?: RequestInit
 ): Promise<IQueryRes> => {
-  return await POST('query', { sql, dbid }, options);
+  // `db` pins the session to a specific database for connections that don't
+  // set a default one (PostgreSQL picked-database consoles); undefined is
+  // dropped by JSON.stringify, keeping the default-session behaviour.
+  return await POST('query', { sql, dbid, db: schema }, options);
 };
 
 export const get_query = async (

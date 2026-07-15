@@ -382,22 +382,30 @@ def getDBlist():
 
     lst = []
 
+    # `has_db` tells the frontend whether the connection pins a default
+    # database/catalog — without one, the tree's first level is databases
+    # (PG/SQL Server) or catalog.schema pairs (Trino), which changes how a
+    # table must be qualified in generated SQL.
+
     # Connections from DB_<NAME> base64 env vars
     for dbid in _getDBlist_from_env():
         info = _getEnvDbInfo(dbid)
         if info:
             subtype = int(info['db_type'])
-            lst.append({'name': dbid, 'desc': '', 'type': 'conn', 'subtype': subtype, 'fix': 1})
+            lst.append({'name': dbid, 'desc': '', 'type': 'conn', 'subtype': subtype, 'fix': 1,
+                        'has_db': bool(info.get('db_name'))})
 
     # Connections from DB_CONN_<NAME>_<FIELD> human-readable env vars
     for dbid, info in _getConns_from_env().items():
         if 'db_type' in info:
             subtype = int(info['db_type'])
-            lst.append({'name': dbid, 'desc': '', 'type': 'conn', 'subtype': subtype, 'fix': 1})
+            lst.append({'name': dbid, 'desc': '', 'type': 'conn', 'subtype': subtype, 'fix': 1,
+                        'has_db': bool(info.get('db_name'))})
 
     # Connections from config file
     for dbid, e in _getCfgEntryList().items():
-        lst.append({'name': dbid, 'desc': e.get('name', ''), 'type': 'conn', 'subtype': int(e['db_type'])})
+        lst.append({'name': dbid, 'desc': e.get('name', ''), 'type': 'conn', 'subtype': int(e['db_type']),
+                    'has_db': bool(e.get('db_name'))})
 
     return lst
 

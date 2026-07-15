@@ -10,6 +10,7 @@ import { IDbItem, ConnType } from '../interfaces';
 import { IJpServices } from '../JpServices';
 import { queryIcon, deleteIcon } from '../icons';
 import { newSqlConsole } from '../sqlConsole';
+import { tablePreviewSql } from './previewSql';
 import { buildVisibleRows, TreeRow, pathKey } from './treeModel';
 
 // Brand-logo SVGs used as masked glyphs on the colored connection swatch.
@@ -1072,8 +1073,8 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
     return null;
   }
 
-  private _openConsole(dbid: string, sql: string): void {
-    const qmodel = new QueryModel({ dbid, conn_readonly: true });
+  private _openConsole(dbid: string, sql: string, usedb?: string): void {
+    const qmodel = new QueryModel({ dbid, schema: usedb, conn_readonly: true });
     newSqlConsole(qmodel, sql, this.props.jp_services);
   }
 
@@ -1085,37 +1086,8 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
     const conn = getSqlModel()
       .get_list([])
       .find(c => c.name === dbid);
-    let qOpen = '"';
-    let qClose = '"';
-    if (
-      conn &&
-      (conn.subtype === ConnType.DB_MYSQL ||
-        conn.subtype === ConnType.DB_STARROCKS)
-    ) {
-      qOpen = '`';
-      qClose = '`';
-    } else if (conn && conn.subtype === ConnType.DB_SQLSERVER) {
-      qOpen = '[';
-      qClose = ']';
-    }
-    // Trino tables live under catalog.schema. When the connection has no
-    // default catalog, the tree's schema node is the combined "catalog.schema"
-    // label (see the backend Trino listing in db.py), so a valid reference
-    // needs three quoted parts — "catalog"."schema"."table". Quoting the whole
-    // label as one identifier yields an unresolvable 2-part name
-    // ("catalog.schema" read as a single schema with no catalog). Split on the
-    // first dot, mirroring the backend drill-down (schema.split('.', 1)).
-    const idents: string[] = [];
-    if (conn && conn.subtype === ConnType.DB_TRINO && schema.includes('.')) {
-      const dot = schema.indexOf('.');
-      idents.push(schema.slice(0, dot), schema.slice(dot + 1));
-    } else if (schema) {
-      idents.push(schema);
-    }
-    idents.push(table);
-    const fq = idents.map(id => `${qOpen}${id}${qClose}`).join('.');
-    const sql = `SELECT *\nFROM ${fq} t LIMIT 200`;
-    this._openConsole(dbid, sql);
+    const { sql, usedb } = tablePreviewSql(conn, schema, table);
+    this._openConsole(dbid, sql, usedb);
   }
 
   private _delConn = async (name: string): Promise<void> => {
