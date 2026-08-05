@@ -44,14 +44,14 @@ So:
 
 ## Services
 
-| Service        | Image                       | Ports      | Profile     | Purpose                     |
-| -------------- | ---------------------------- | ---------- | ----------- | --------------------------- |
+| Service        | Image                          | Ports      | Profile     | Purpose                     |
+| -------------- | ------------------------------ | ---------- | ----------- | --------------------------- |
 | jupyter        | built from `docker/Dockerfile` | 8888, 9999 | (always on) | JupyterLab dev container    |
-| postgres       | postgres:16                 | 5432       | postgres    | PostgreSQL for testing      |
-| trino          | trinodb/trino:latest        | 8080       | trino       | Trino query engine          |
-| starrocks      | starrocks/allin1-ubuntu     | 9030, 8030 | starrocks   | StarRocks OLAP database     |
-| starrocks-init | mariadb:latest              | —          | starrocks   | Seeds StarRocks sample data |
-| vault          | hashicorp/vault:1.17        | 8200       | vault       | HashiCorp Vault for secrets |
+| postgres       | postgres:16                    | 5432       | postgres    | PostgreSQL for testing      |
+| trino          | trinodb/trino:latest           | 8080       | trino       | Trino query engine          |
+| starrocks      | starrocks/allin1-ubuntu        | 9030, 8030 | starrocks   | StarRocks OLAP database     |
+| starrocks-init | mariadb:latest                 | —          | starrocks   | Seeds StarRocks sample data |
+| vault          | hashicorp/vault:1.17           | 8200       | vault       | HashiCorp Vault for secrets |
 
 ## Enable / disable services
 
