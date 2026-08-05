@@ -505,9 +505,14 @@ jupyter labextension list
 
 ## Development
 
-### Devcontainer
+### Docker Compose
 
-The project includes a devcontainer with PostgreSQL, Trino, and StarRocks services for testing. Each database can be enabled or disabled via the `COMPOSE_PROFILES` variable in `.devcontainer/.env`. See [.devcontainer/README.md](.devcontainer/README.md) for details.
+The project includes a `docker-compose.yml` with PostgreSQL, Trino, StarRocks, and Vault services for testing, plus a `jupyter` service that installs dependencies and starts JupyterLab automatically with live reload — no manual setup and no image rebuild on code changes. Each database can be enabled or disabled via the `COMPOSE_PROFILES` variable in `.env`. See [docker/README.md](docker/README.md) for details.
+
+```bash
+cp .env.sample .env
+docker compose up -d
+```
 
 ### Manual Setup
 

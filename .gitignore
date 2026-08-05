@@ -128,3 +128,7 @@ notebooks/
 pygwalker/
 
 .memsearch/*
+
+# Docker dev environment
+docker/ssh-keys/*
+!docker/ssh-keys/.gitkeep

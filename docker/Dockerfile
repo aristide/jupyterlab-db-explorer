@@ -107,7 +107,8 @@ RUN git clone --depth 1 https://github.com/pyenv/pyenv.git .pyenv \
 ENV PATH=/home/jupyter/.local/bin:$PATH
 
 # Install Node via nvm
-ENV NODE_VERSION=18.20.4
+# @jupyterlab/builder (^4.0.0) now requires Node ^20.19.0 || >=22.12.0 to run its webpack build.
+ENV NODE_VERSION=22.23.2
 ENV NVM_DIR=/home/jupyter/.nvm
 ENV PATH=${NVM_DIR}/versions/node/v${NODE_VERSION}/bin/:${PATH}
 
