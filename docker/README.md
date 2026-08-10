@@ -1,6 +1,6 @@
 # Docker dev environment
 
-Development environment with all services needed to build and test the extension, run via plain `docker compose` (no VS Code / Dev Containers required).
+Development environment with all services needed to build and test the extension, run via plain `docker compose` (no VS Code / Dev Containers required) — and no image to build, locally or in CI.
 
 The `docker-compose.yml` lives at the repo root; run all commands below from there.
 
@@ -18,40 +18,44 @@ JupyterLab is served automatically at http://localhost:8888/lab (no token). Open
 docker compose exec jupyter bash
 ```
 
-Stop everything with `docker compose down` (add `-v` to also delete the `pgdata`/`srdata`/`node_modules`/`pyenv` volumes for a clean slate).
+Stop everything with `docker compose down` (add `-v` to also delete the `pgdata`/`srdata`/`node_modules` volumes for a clean slate).
 
-## How live reload works
+## How it works — no build, live reload both ways
 
-The `jupyter` service builds from `docker/Dockerfile`, which only installs OS-level tooling (git, pyenv/Python, nvm/Node, JupyterLab, build tools). It never `COPY`s any project source, so it almost never needs rebuilding.
+The `jupyter` service runs [`nikolaik/python-nodejs:python3.12-nodejs22`](https://github.com/nikolaik/docker-python-nodejs) — a pre-built, off-the-shelf Python 3.12 + Node 22 image pulled straight from Docker Hub, unmodified. There is no `docker/Dockerfile` and `docker compose up` never builds anything; the first run just pulls the image, same as any other public image.
 
-The repo is bind-mounted at `/workspace`. On every `docker compose up`, `docker/entrypoint.sh` runs automatically and:
+The repo is bind-mounted at `/workspace`. On every `docker compose up` / restart, `docker/entrypoint.sh` runs automatically and:
 
-1. `jlpm install` — installs/updates JS dependencies
-2. `pip install -e ".[test,pgsql,trino,starrocks,vault]"` — installs the Python package in editable mode (this also runs the TS/webpack build once via the `hatch-jupyter-builder` hook)
-3. `jupyter labextension develop . --overwrite` — symlinks the extension into JupyterLab
-4. `jupyter server extension enable jupyterlab_db_explorer`
-5. `jlpm watch` in the background — recompiles TypeScript and rebuilds the labextension bundle on every source change
-6. `jupyter lab` in the foreground on `:8888`
+1. `apt-get install postgresql-client mariadb-client` — the CLI clients used below to poke at the DB services (not part of the base image)
+2. `pip install jupyterlab hatchling hatch-jupyter-builder hatch-nodejs-version` — the CLI tooling the project needs (not part of the base image)
+3. `jlpm install` — installs/updates JS dependencies
+4. `pip install -e ".[test,pgsql,trino,starrocks,vault]"` — installs the Python package in editable mode (this also runs the TS/webpack build once via the `hatch-jupyter-builder` hook)
+5. `jupyter labextension develop . --overwrite` — symlinks the extension into JupyterLab
+6. `jupyter server extension enable jupyterlab_db_explorer`
+7. `jlpm watch` in the background — recompiles TypeScript and rebuilds the labextension bundle on every source change
+8. `jupyter lab --autoreload` in the foreground on `:8888`
 
 So:
 
 - **Frontend (`src/`, `style/`)** changes are picked up live by `jlpm watch`; refresh the browser tab to see them.
-- **Backend (`jupyterlab_db_explorer/*.py`)** changes are picked up on the next process restart. Since nothing needs rebuilding, that's just `docker compose restart jupyter` (seconds, not a rebuild).
-- **Dependency changes** (`package.json`, `pyproject.toml`) are picked up automatically on the next `docker compose restart jupyter` / `up`, since steps 1–2 above re-run every start.
-- A **Dockerfile rebuild** (`docker compose up --build`) is only needed when `docker/Dockerfile` itself changes (new OS package, new Node/Python version, etc).
+- **Backend (`jupyterlab_db_explorer/*.py`)** changes are picked up automatically — `--autoreload` makes Jupyter Server watch every imported `.py` file and restart the whole process when one changes. No `docker compose restart` needed. (If autoreload ever misbehaves, `docker compose restart jupyter` is the manual fallback — still just a process restart, no rebuild.)
+- **Dependency changes** (`package.json`, `pyproject.toml`) are picked up automatically on the next `docker compose restart jupyter` / `up`, since steps 3–4 above re-run every start.
+- There is genuinely nothing to rebuild, ever — not even after changing this dev environment's own tooling, since it isn't baked into an image.
 
-`node_modules` and the pyenv install live in named Docker volumes (`node_modules`, `pyenv`) rather than the bind-mounted workspace, so installs stay native to the container's Linux filesystem (avoiding host/container binary mismatches) and persist across `docker compose down` + `up`.
+`node_modules` lives in a named Docker volume (`node_modules`) rather than the bind-mounted workspace, so installs stay native to the container's Linux filesystem (avoiding host/container binary mismatches) and persist across `docker compose down` + `up`.
+
+The container runs as **root** (`user: root`): the base image's default non-root user (`pn`) can't write the root-owned named volume above without `sudo`, which isn't installed in this image. Root is fine for a disposable local dev container; `jupyter lab` is passed `--allow-root` accordingly.
 
 ## Services
 
-| Service        | Image                          | Ports      | Profile     | Purpose                     |
-| -------------- | ------------------------------ | ---------- | ----------- | --------------------------- |
-| jupyter        | built from `docker/Dockerfile` | 8888, 9999 | (always on) | JupyterLab dev container    |
-| postgres       | postgres:16                    | 5432       | postgres    | PostgreSQL for testing      |
-| trino          | trinodb/trino:latest           | 8080       | trino       | Trino query engine          |
-| starrocks      | starrocks/allin1-ubuntu        | 9030, 8030 | starrocks   | StarRocks OLAP database     |
-| starrocks-init | mariadb:latest                 | —          | starrocks   | Seeds StarRocks sample data |
-| vault          | hashicorp/vault:1.17           | 8200       | vault       | HashiCorp Vault for secrets |
+| Service        | Image                                       | Ports      | Profile     | Purpose                      |
+| -------------- | -------------------------------------------- | ---------- | ----------- | ----------------------------- |
+| jupyter        | `nikolaik/python-nodejs:python3.12-nodejs22` | 8888, 9999 | (always on) | JupyterLab dev container     |
+| postgres       | postgres:16                                  | 5432       | postgres    | PostgreSQL for testing       |
+| trino          | trinodb/trino:latest                         | 8080       | trino       | Trino query engine           |
+| starrocks      | starrocks/allin1-ubuntu                      | 9030, 8030 | starrocks   | StarRocks OLAP database      |
+| starrocks-init | mariadb:latest                               | —          | starrocks   | Seeds StarRocks sample data  |
+| vault          | hashicorp/vault:1.17                         | 8200       | vault       | HashiCorp Vault for secrets  |
 
 ## Enable / disable services
 
@@ -128,13 +132,13 @@ vault kv get secret/database/production
 
 ## SSH keys inside the container
 
-`HOST_SSH_DIR` (in `.env`) is bind-mounted read-only to `/home/jupyter/.ssh`. It defaults to the empty, gitignored `docker/ssh-keys/` folder (a no-op). Point it at your real SSH directory to use your own keys for `git` inside the container, e.g. `HOST_SSH_DIR=${HOME}/.ssh` (macOS/Linux/Git Bash) or `HOST_SSH_DIR=C:/Users/you/.ssh` (Windows).
+`HOST_SSH_DIR` (in `.env`) is bind-mounted read-only to `/root/.ssh` (the container runs as root — see above). It defaults to the empty, gitignored `docker/ssh-keys/` folder (a no-op). Point it at your real SSH directory to use your own keys for `git` inside the container, e.g. `HOST_SSH_DIR=${HOME}/.ssh` (macOS/Linux/Git Bash) or `HOST_SSH_DIR=C:/Users/you/.ssh` (Windows).
 
-## Rebuilding the image
+## Updating the base image
 
-Only needed after changing `docker/Dockerfile`:
+There's nothing to rebuild, but you can bump the pinned tag in `docker-compose.yml` (e.g. a newer Node major) and pull it:
 
 ```bash
-docker compose build jupyter
-# or: docker compose up -d --build
+docker compose pull jupyter
+docker compose up -d
 ```

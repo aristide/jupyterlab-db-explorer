@@ -1,13 +1,16 @@
 # Local dev environment. From the repo root:
-#   docker compose up -d          # build (first time) + start everything
+#   docker compose up -d          # pull (first time) + start everything — no image build, ever
 #   docker compose logs -f jupyter
 #   docker compose down           # stop (add -v to also wipe DB data)
 #
 # JupyterLab is served automatically at http://localhost:8888/lab — no token.
-# Editing files under the repo is picked up live in the running container:
-# TypeScript/CSS is rebuilt by a `jlpm watch` process, and the Python package
-# is installed in editable mode, so nothing here ever needs an image rebuild
-# unless docker/Dockerfile itself (system packages) changes.
+# The `jupyter` service runs a pre-built, off-the-shelf Python+Node image
+# (nikolaik/python-nodejs) unmodified — there is no Dockerfile and nothing to
+# build, locally or in CI. Everything project-specific happens at container
+# start via docker/entrypoint.sh: it (re)installs JS and Python dependencies
+# from whatever is currently on disk, then runs `jlpm watch` (frontend) and
+# `jupyter lab --autoreload` (backend) so both sides pick up source changes
+# live, no restart needed.
 #
 # Database services are controlled via Docker Compose profiles.
 # Enable/disable them in .env by editing COMPOSE_PROFILES.
@@ -91,23 +94,26 @@ services:
       - vault
 
   jupyter:
-    build:
-      context: ./docker
-      dockerfile: Dockerfile
-    image: jupyterlab-db-explorer-dev:latest
+    # Pre-built Python 3.12 + Node 22 image (Debian base, so git/build
+    # tooling is already there) — pulled from Docker Hub, never built.
+    # https://github.com/nikolaik/docker-python-nodejs
+    image: nikolaik/python-nodejs:python3.12-nodejs22
+    # The image's default user (`pn`) can't write the root-owned named
+    # volume below without sudo, which isn't installed; running as root
+    # sidesteps that entirely — fine for a disposable local dev container.
+    user: root
     entrypoint: ["bash", "/workspace/docker/entrypoint.sh"]
     volumes:
       - .:/workspace
-      # Named volumes keep node_modules and the Python venv on the
-      # container's own Linux filesystem instead of the bind-mounted (and,
-      # on Windows/macOS, cross-platform) workspace. jlpm/pip populate them
-      # on first start and they persist across `docker compose down` + `up`.
+      # Named volume keeps node_modules on the container's own Linux
+      # filesystem instead of the bind-mounted (and, on Windows/macOS,
+      # cross-platform) workspace. jlpm populates it on first start and it
+      # persists across `docker compose down` + `up`.
       - node_modules:/workspace/node_modules
-      - pyenv:/home/jupyter/.pyenv
       # Optional: point HOST_SSH_DIR (in .env) at your real ~/.ssh to use
       # your own keys for git inside the container. Defaults to an empty,
       # gitignored folder so this is a no-op out of the box.
-      - ${HOST_SSH_DIR}:/home/jupyter/.ssh:ro
+      - ${HOST_SSH_DIR}:/root/.ssh:ro
     working_dir: /workspace
     ports:
       - 0.0.0.0:8888:8888
@@ -127,4 +133,3 @@ volumes:
   pgdata:
   srdata:
   node_modules:
-  pyenv:
