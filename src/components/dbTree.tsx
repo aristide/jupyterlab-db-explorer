@@ -154,9 +154,13 @@ function Glyph({
   };
   switch (name) {
     case 'chev':
+      // Solid drill-in/drill-up triangle rather than a thin outline caret —
+      // reads more clearly as "descend into this container" at a glance.
+      // Points down (drilled in / expanded) by default; the .is-collapsed
+      // CSS rotation (-90deg) turns it to point right (collapsed).
       return (
-        <svg {...common}>
-          <path d="M6 8l4 4 4-4" />
+        <svg {...common} fill="currentColor" stroke="none">
+          <path d="M4 4L16 4L10 16Z" />
         </svg>
       );
     case 'search':
@@ -598,7 +602,7 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
           aria-label={isLeaf ? '' : row.isOpen ? 'Collapse' : 'Expand'}
           tabIndex={-1}
         >
-          <Glyph name="chev" size={12} />
+          <Glyph name="chev" size={13} />
         </button>
 
         {this._renderGlyph(row)}
