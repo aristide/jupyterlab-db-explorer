@@ -410,8 +410,8 @@
 
 /* twisty */
 .d4n-tv__twisty {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   border: 0;
   background: transparent;
   color: var(--tv-fg-3);

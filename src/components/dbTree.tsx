@@ -602,7 +602,7 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
           aria-label={isLeaf ? '' : row.isOpen ? 'Collapse' : 'Expand'}
           tabIndex={-1}
         >
-          <Glyph name="chev" size={15} />
+          <Glyph name="chev" size={18} />
         </button>
 
         {this._renderGlyph(row)}
