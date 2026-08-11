@@ -137,6 +137,15 @@ services:
       VAULT_AUTH_METHOD: token
       VAULT_TOKEN: devtoken
       VAULT_KV_MOUNT: secret
+      # Trino connection, auto-discovered by the explorer at server startup.
+      # No _NAME (default catalog) is set, so it browses every catalog the
+      # dev Trino coordinator exposes (postgresql, tpch, tpcds) rather than
+      # being pinned to one. No password needed — the dev coordinator has
+      # no authentication configured.
+      DB_CONN_TRINO_TYPE: "7"
+      DB_CONN_TRINO_HOST: trino
+      DB_CONN_TRINO_PORT: "8080"
+      DB_CONN_TRINO_USER: trino
     depends_on:
       vault:
         condition: service_started
