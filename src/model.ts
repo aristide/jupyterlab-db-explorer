@@ -132,39 +132,50 @@ export class SqlModel {
       this._item_list = cur_list = res.data as IDbItem[];
     }
 
+    // Walked incrementally as `path` is traversed below, rather than derived
+    // upfront from fixed positions — the tree depth is no longer fixed at
+    // conn/db/table: engines with a catalog concept (Trino, StarRocks,
+    // PostgreSQL/SQL Server without a default database) insert an extra
+    // 'catalog' level, e.g. conn -> catalog -> db -> table -> col.
     let dbid = '';
-    let db = '';
+    let catalog = '';
+    // `qualifier` is what's sent to `dbtables`/`columns` as the `db` param —
+    // a bare schema name, or (once a catalog node has been walked) a
+    // `catalog.schema` dotted qualifier. Mirrors the backend's existing
+    // convention (db.py).
+    let qualifier = '';
     let tbl = '';
-
-    if (path.length > 0) {
-      dbid = path[0].name;
-    }
-    if (path.length > 1) {
-      if (path[1].type === 'db') {
-        db = path[1].name;
-        if (path.length > 2) {
-          tbl = path[2].name;
-        }
-      } else {
-        db = '';
-        tbl = path[1].name;
-      }
-    }
 
     for (const p of path) {
       for (let i = 0; i < cur_list.length; i++) {
         if (cur_list[i].name === p.name) {
-          if (cur_list[i].next === false || !('next' in cur_list[i])) {
-            let res!: ITreeCmdRes;
-            if (p.type === 'conn') {
+          const needsFetch =
+            cur_list[i].next === false || !('next' in cur_list[i]);
+          let res: ITreeCmdRes | undefined;
+
+          if (p.type === 'conn') {
+            dbid = p.name;
+            if (needsFetch) {
               res = await load_tree_db_node(dbid);
             }
-            if (p.type === 'db') {
-              res = await load_tree_table_node(dbid, db);
+          } else if (p.type === 'catalog') {
+            catalog = p.name;
+            if (needsFetch) {
+              res = await load_tree_table_node(dbid, catalog);
             }
-            if (p.type === 'table') {
-              res = await load_tree_col_node(dbid, db, tbl);
+          } else if (p.type === 'db') {
+            qualifier = catalog ? `${catalog}.${p.name}` : p.name;
+            if (needsFetch) {
+              res = await load_tree_table_node(dbid, qualifier);
             }
+          } else if (p.type === 'table') {
+            tbl = p.name;
+            if (needsFetch) {
+              res = await load_tree_col_node(dbid, qualifier, tbl);
+            }
+          }
+
+          if (res) {
             if (res.status === 'NEED-PASS') {
               cur_list[i].next = false;
               this._need_passwd.emit(res.pass_info as IPass);

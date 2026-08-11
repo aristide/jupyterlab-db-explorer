@@ -17,9 +17,10 @@ export interface IDbItem {
   fix?: boolean;
   desc?: string;
   /** Conn items only: the connection pins a default database/catalog.
-   *  Without one, first-level tree nodes are databases (PG/SQL Server) or
-   *  catalog.schema pairs (Trino) rather than schemas, which changes how a
-   *  table must be qualified in generated SQL. */
+   *  Without one, the tree gets an explicit extra 'catalog' level above
+   *  'db' (schema) — catalogs for Trino/StarRocks, databases for
+   *  PostgreSQL/SQL Server — which changes how a table must be qualified
+   *  in generated SQL. */
   has_db?: boolean;
   next?: IDbItem[] | false;
 }

@@ -702,7 +702,7 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
         </span>
       );
     }
-    if (item.type === 'db') {
+    if (item.type === 'db' || item.type === 'catalog') {
       return (
         <span className="d4n-tv__hover">
           <button
@@ -755,11 +755,9 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
         return;
       }
       const dbid = row.ancestors[0]?.name || '';
-      const schemaItem =
-        row.ancestors.length >= 2 ? row.ancestors[1] : undefined;
-      const schema =
-        schemaItem && schemaItem.type === 'db' ? schemaItem.name : '';
-      this._openConsoleForTable(dbid, schema, row.item.name);
+      const schema = row.ancestors.find(a => a.type === 'db')?.name || '';
+      const catalog = row.ancestors.find(a => a.type === 'catalog')?.name;
+      this._openConsoleForTable(dbid, schema, row.item.name, catalog);
     };
 
   private _onHoverCopyTable =
@@ -768,11 +766,9 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
       if (!row.item) {
         return;
       }
-      const schemaItem =
-        row.ancestors.length >= 2 ? row.ancestors[1] : undefined;
-      const schema =
-        schemaItem && schemaItem.type === 'db' ? schemaItem.name : '';
-      const fq = schema ? `${schema}.${row.item.name}` : row.item.name;
+      const schema = row.ancestors.find(a => a.type === 'db')?.name;
+      const catalog = row.ancestors.find(a => a.type === 'catalog')?.name;
+      const fq = [catalog, schema, row.item.name].filter(Boolean).join('.');
       Clipboard.copyToSystem(fq);
     };
 
@@ -801,6 +797,8 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
     switch (row.item.type) {
       case 'conn':
         return 'conn';
+      case 'catalog':
+        return 'catalog';
       case 'db':
         return 'schema';
       case 'table':
@@ -841,6 +839,13 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
           ) : (
             <span className="d4n-tv__conn-mono">{cat?.mono || '??'}</span>
           )}
+        </span>
+      );
+    }
+    if (item.type === 'catalog') {
+      return (
+        <span className="d4n-tv__nicon d4n-tv__nicon--catalog">
+          <Glyph name="folder" size={15} />
         </span>
       );
     }
@@ -1023,7 +1028,7 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
       return menu;
     }
 
-    if (item.type === 'db') {
+    if (item.type === 'catalog' || item.type === 'db') {
       const dbid = ancestors[0]?.name || '';
       commands.addCommand('open-console', {
         label: trans.__('Open Sql Console'),
@@ -1042,14 +1047,14 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
 
     if (item.type === 'table') {
       const dbid = ancestors[0]?.name || '';
-      const schemaItem = ancestors.length >= 2 ? ancestors[1] : undefined;
-      const schema =
-        schemaItem && schemaItem.type === 'db' ? schemaItem.name : '';
-      const fqName = schema ? `${schema}.${item.name}` : item.name;
+      const schema = ancestors.find(a => a.type === 'db')?.name || '';
+      const catalog = ancestors.find(a => a.type === 'catalog')?.name;
+      const fqName = [catalog, schema, item.name].filter(Boolean).join('.');
       commands.addCommand('open-console', {
         label: trans.__('Open Sql Console'),
         icon: queryIcon.bindprops({ stylesheet: 'menuItem' }),
-        execute: () => this._openConsoleForTable(dbid, schema, item.name)
+        execute: () =>
+          this._openConsoleForTable(dbid, schema, item.name, catalog)
       });
       commands.addCommand('copy-name', {
         label: trans.__('Copy Table Name'),
@@ -1081,12 +1086,13 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
   private _openConsoleForTable(
     dbid: string,
     schema: string,
-    table: string
+    table: string,
+    catalog?: string
   ): void {
     const conn = getSqlModel()
       .get_list([])
       .find(c => c.name === dbid);
-    const { sql, usedb } = tablePreviewSql(conn, schema, table);
+    const { sql, usedb } = tablePreviewSql(conn, catalog, schema, table);
     this._openConsole(dbid, sql, usedb);
   }
 

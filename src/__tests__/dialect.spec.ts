@@ -105,6 +105,40 @@ describe('schemaForDbid', () => {
     expect(ns.public.orders).toEqual([]);
   });
 
+  it('walks conn → catalog → db → tables → cols', () => {
+    seedTree([
+      conn('C1', ConnType.DB_TRINO, [
+        {
+          type: 'catalog',
+          name: 'hive',
+          next: [
+            {
+              type: 'db',
+              name: 'default',
+              next: [
+                {
+                  type: 'table',
+                  name: 'events',
+                  next: [
+                    { type: 'col', name: 'id', next: false },
+                    { type: 'col', name: 'ts', next: false }
+                  ]
+                },
+                { type: 'table', name: 'raw', next: false }
+              ]
+            }
+          ]
+        }
+      ])
+    ]);
+    const ns = schemaForDbid('C1') as Record<
+      string,
+      Record<string, Record<string, string[]>>
+    >;
+    expect(ns.hive.default.events).toEqual(['id', 'ts']);
+    expect(ns.hive.default.raw).toEqual([]);
+  });
+
   it('handles conn → tables (no db layer)', () => {
     seedTree([
       conn('C1', ConnType.DB_SQLITE, [

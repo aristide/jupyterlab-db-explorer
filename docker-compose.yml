@@ -146,6 +146,26 @@ services:
       DB_CONN_TRINO_HOST: trino
       DB_CONN_TRINO_PORT: "8080"
       DB_CONN_TRINO_USER: trino
+      # PostgreSQL connection, auto-discovered the same way. No _NAME is
+      # set either, so it connects to the `postgres` maintenance DB by
+      # default and lets you browse every other DB testuser has CONNECT
+      # on (just `testdb` in this dev setup).
+      DB_CONN_POSTGRES_TYPE: "2"
+      DB_CONN_POSTGRES_HOST: postgres
+      DB_CONN_POSTGRES_PORT: "5432"
+      DB_CONN_POSTGRES_USER: testuser
+      DB_CONN_POSTGRES_PASS: testpass
+      # StarRocks connection, auto-discovered the same way. No _NAME is set,
+      # so it browses by catalog (this dev instance only has the built-in
+      # default_catalog — no external catalog is configured). The dev
+      # instance has no authentication configured, but PASS must still be
+      # set (even empty) so the explorer treats the connection as having
+      # stored credentials rather than prompting for a password.
+      DB_CONN_STARROCKS_TYPE: "8"
+      DB_CONN_STARROCKS_HOST: starrocks
+      DB_CONN_STARROCKS_PORT: "9030"
+      DB_CONN_STARROCKS_USER: root
+      DB_CONN_STARROCKS_PASS: ""
     depends_on:
       vault:
         condition: service_started

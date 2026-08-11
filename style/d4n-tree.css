@@ -472,7 +472,10 @@
   letter-spacing: 0.04em;
 }
 
-/* schema / table glyph tints */
+/* catalog / schema / table glyph tints */
+.d4n-tv__nicon--catalog {
+  color: var(--tv-accent);
+}
 .d4n-tv__nicon--schema {
   color: var(--tv-accent);
 }
@@ -511,6 +514,7 @@
   letter-spacing: -0.005em;
   color: var(--tv-fg);
 }
+.d4n-tv__row.is-catalog .d4n-tv__label,
 .d4n-tv__row.is-schema .d4n-tv__label {
   font-weight: 600;
 }

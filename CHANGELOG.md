@@ -2,6 +2,17 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## 0.6.0
+
+**Explicit catalog level in the tree, for every engine that has one.** Trino, StarRocks, PostgreSQL, and SQL Server connections without a pinned default database/catalog now get a real, independently-expandable "catalog" node in the tree, instead of the catalog being flattened into (or hidden from) the schema level:
+
+- **Trino:** the tree used to eagerly loop every catalog up front and flatten the result into single nodes labeled `"catalog.schema"` — a design that already caused a real bug (0.5.3: quoting the combined label as one identifier produced an unresolvable 2-part name). Catalogs are now their own lazily-expanded tree level, and clicking one lists its schemas as plain, unqualified names.
+- **StarRocks:** previously had no catalog handling at all — it was aliased straight onto MySQL's flat `SHOW DATABASES`, even though StarRocks supports external catalogs via `SHOW CATALOGS` the same way Trino does. It now gets the same catalog → database → table tree as Trino (connections with a pinned default database are unaffected).
+- **PostgreSQL / SQL Server:** browsing without a default database already listed every database (the catalog-equivalent level) but then jumped straight to a **hardcoded** `public` / `dbo` schema, hiding every other schema those databases actually have. Clicking a database now lists its real schemas.
+- Table preview / "Open Sql Console" and the SQL editor's autocomplete namespace both consume the real catalog/schema ancestors from the tree now, instead of re-deriving them by splitting a dotted label — removing the class of bug that caused the original Trino fix, and fixing autocomplete for catalog-having connections (it previously produced no schema items at all for them).
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## 0.5.4
 
 Follow-up to the 0.5.3 Trino fix: an audit of every supported engine for the same class of bug — the table preview / "Open Sql Console" statement being generated with the wrong qualification, quoting, or row-limit syntax for that engine's SQL.

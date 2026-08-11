@@ -86,11 +86,16 @@ export function resolveDialect(dbid: string): IResolvedDialect {
  * Build the namespace `schemaCompletionSource` expects, from whatever portion
  * of the SqlModel tree has been loaded for this connection. Shape:
  *   { dbName: { tableName: [colName, ...] } }
+ * or, for connections with an explicit catalog level (Trino, StarRocks,
+ * PostgreSQL/SQL Server without a default database):
+ *   { catalogName: { dbName: { tableName: [colName, ...] } } }
  * or, when the connection has no explicit db layer, a flat:
  *   { tableName: [colName, ...] }
  *
  * Returns {} when nothing has been loaded yet — the completer still works,
- * just without schema items.
+ * just without schema items. Likewise, only catalogs/schemas the user has
+ * actually expanded in the tree contribute entries, since deeper levels are
+ * fetched lazily.
  */
 export function schemaForDbid(dbid: string): SQLNamespace {
   const sqlModel = getSqlModel();
@@ -99,30 +104,56 @@ export function schemaForDbid(dbid: string): SQLNamespace {
     return {};
   }
   const out: SQLNamespace = {};
+  const hasCatalogLayer = conn.next.some(c => c.type === 'catalog');
   const hasDbLayer = conn.next.some(c => c.type === 'db');
 
-  if (hasDbLayer) {
+  const buildDbEntry = (path: IDbItem[]): Record<string, string[]> => {
+    const tables = sqlModel.get_list(path);
+    const dbEntry: Record<string, string[]> = {};
+    for (const tbl of tables) {
+      if (tbl.type !== 'table') {
+        continue;
+      }
+      const cols = sqlModel.get_list([
+        ...path,
+        { name: tbl.name, type: 'table' } as IDbItem
+      ]);
+      dbEntry[tbl.name] = cols.filter(c => c.type === 'col').map(c => c.name);
+    }
+    return dbEntry;
+  };
+
+  if (hasCatalogLayer) {
+    for (const catNode of conn.next) {
+      if (catNode.type !== 'catalog') {
+        continue;
+      }
+      const catPath = [
+        { name: conn.name, type: 'conn' } as IDbItem,
+        { name: catNode.name, type: 'catalog' } as IDbItem
+      ];
+      const dbNodes = sqlModel.get_list(catPath);
+      const catEntry: Record<string, unknown> = {};
+      for (const dbNode of dbNodes) {
+        if (dbNode.type !== 'db') {
+          continue;
+        }
+        catEntry[dbNode.name] = buildDbEntry([
+          ...catPath,
+          { name: dbNode.name, type: 'db' } as IDbItem
+        ]);
+      }
+      (out as Record<string, unknown>)[catNode.name] = catEntry;
+    }
+  } else if (hasDbLayer) {
     for (const dbNode of conn.next) {
       if (dbNode.type !== 'db') {
         continue;
       }
-      const tables = sqlModel.get_list([
+      (out as Record<string, unknown>)[dbNode.name] = buildDbEntry([
         { name: conn.name, type: 'conn' } as IDbItem,
         { name: dbNode.name, type: 'db' } as IDbItem
       ]);
-      const dbEntry: Record<string, string[]> = {};
-      for (const tbl of tables) {
-        if (tbl.type !== 'table') {
-          continue;
-        }
-        const cols = sqlModel.get_list([
-          { name: conn.name, type: 'conn' } as IDbItem,
-          { name: dbNode.name, type: 'db' } as IDbItem,
-          { name: tbl.name, type: 'table' } as IDbItem
-        ]);
-        dbEntry[tbl.name] = cols.filter(c => c.type === 'col').map(c => c.name);
-      }
-      (out as Record<string, unknown>)[dbNode.name] = dbEntry;
     }
   } else {
     for (const tbl of conn.next) {

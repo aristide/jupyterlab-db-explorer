@@ -89,6 +89,63 @@ describe('buildVisibleRows', () => {
     expect(rows[1].depth).toBe(1);
   });
 
+  const trinoConn: IDbItem = {
+    type: 'conn',
+    name: 'TRINOCONN',
+    desc: 'Trino, no default catalog',
+    subtype: ConnType.DB_TRINO,
+    next: [
+      {
+        type: 'catalog',
+        name: 'hive',
+        next: [
+          {
+            type: 'db',
+            name: 'default',
+            next: [
+              { type: 'table', name: 'events', subtype: 'T', next: false }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+
+  it('inserts a synthetic Catalogs group under a connection whose children are catalogs', () => {
+    const model = new SqlModel([trinoConn]);
+    const { expanded, loading, errorKeys } = emptySets();
+    expanded.add(pathKey([{ type: 'conn', name: 'TRINOCONN' }]));
+    const rows = buildVisibleRows(model, expanded, loading, errorKeys, '');
+    // [conn, Catalogs group] — Catalogs group is not expanded yet
+    expect(rows.map(r => r.kind)).toEqual(['real', 'group']);
+    expect(rows[1].label).toBe('Catalogs');
+    expect(rows[1].depth).toBe(1);
+  });
+
+  it('walks conn -> Catalogs -> catalog -> Databases -> db -> Tables -> table', () => {
+    const model = new SqlModel([trinoConn]);
+    const { expanded, loading, errorKeys } = emptySets();
+    const connItem: IDbItem = { type: 'conn', name: 'TRINOCONN' };
+    const catItem: IDbItem = { type: 'catalog', name: 'hive' };
+    const dbItem: IDbItem = { type: 'db', name: 'default' };
+    expanded.add(pathKey([connItem]));
+    expanded.add(pathKey([connItem], 'group:Catalogs'));
+    expanded.add(pathKey([connItem, catItem]));
+    expanded.add(pathKey([connItem, catItem], 'group:Databases'));
+    expanded.add(pathKey([connItem, catItem, dbItem]));
+    expanded.add(pathKey([connItem, catItem, dbItem], 'group:Tables'));
+    const rows = buildVisibleRows(model, expanded, loading, errorKeys, '');
+    expect(rows.map(r => r.label || r.item?.name)).toEqual([
+      'TRINOCONN',
+      'Catalogs',
+      'hive',
+      'Databases',
+      'default',
+      'Tables',
+      'events'
+    ]);
+  });
+
   it('renders Tables and Views groups under a schema, partitioning by subtype', () => {
     const model = new SqlModel([mysqlConn]);
     const { expanded, loading, errorKeys } = emptySets();

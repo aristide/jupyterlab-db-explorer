@@ -102,17 +102,19 @@ def get_column_info(dbid, db, tbl):
         if dbinfo['db_type'] ==engine.DB_SQLITE:
             for r in query(dbid, f"PRAGMA table_info('{tbl}')"):
                 columns.append({'name': r[1], 'desc': r[2], 'type': 'col'})
-        elif dbinfo['db_type'] in [engine.DB_MYSQL, engine.DB_STARROCKS]:
+        elif dbinfo['db_type'] == engine.DB_MYSQL:
             for r in query(dbid, f"SELECT column_name, column_comment FROM information_schema.columns WHERE table_name = '{tbl}' AND table_schema = '{db}'"):
                 columns.append({'name': r[0], 'desc': r[1], 'type': 'col'})
         elif dbinfo['db_type'] ==engine.DB_PGSQL:
-            # When the connection has no default database, `db` is the picked
-            # database (the tree listed databases and drilled into its public
-            # schema). information_schema is per-database in PostgreSQL, so
-            # the query must run connected to that database.
+            # When the connection has no default database, `db` is a
+            # `database.schema` qualifier (the tree listed databases, then
+            # that database's schemas). information_schema is per-database in
+            # PostgreSQL, so the query must run connected to that database.
             no_default_db = not dbinfo.get('db_name')
-            schema_name = 'public' if no_default_db else db
-            usedb = db if no_default_db else None
+            if no_default_db and '.' in db:
+                usedb, schema_name = db.split('.', 1)
+            else:
+                usedb, schema_name = None, db
             for r in query(dbid, '''
                 SELECT column_name, data_type, description as comment, table_name
                 FROM information_schema.columns
@@ -162,16 +164,30 @@ def get_column_info(dbid, db, tbl):
             for r in query(dbid, col_query):
                 columns.append({'name': r[0], 'desc': r[1], 'type': 'col'})
         elif dbinfo['db_type'] ==engine.DB_STARROCKS:
-            for r in query(dbid, f"SELECT column_name, column_comment FROM information_schema.columns WHERE table_name = '{tbl}' AND table_schema = '{db}'"):
-                columns.append({'name': r[0], 'desc': r[1], 'type': 'col'})
+            # Flat-name path: `db` is `catalog.database` when the connection
+            # has no default catalog. External catalogs aren't guaranteed to
+            # expose a per-catalog information_schema the way Trino's do, so
+            # use DESCRIBE (works uniformly across internal/external
+            # catalogs) and report the column type as `desc`, mirroring
+            # Trino's catalog-qualified column listing.
+            no_catalog = not dbinfo.get('db_name')
+            if no_catalog and '.' in db:
+                catalog, database = db.split('.', 1)
+                for r in query(dbid, f"DESCRIBE `{catalog}`.`{database}`.`{tbl}`"):
+                    columns.append({'name': r[0], 'desc': r[1], 'type': 'col'})
+            else:
+                for r in query(dbid, f"SELECT column_name, column_comment FROM information_schema.columns WHERE table_name = '{tbl}' AND table_schema = '{db}'"):
+                    columns.append({'name': r[0], 'desc': r[1], 'type': 'col'})
         elif dbinfo['db_type'] == engine.DB_SQLSERVER:
             # When the connection has a default database, `db` is the schema
-            # name. When it doesn't, `db` is the picked database and the
-            # columns of its dbo tables live in *its* information_schema —
-            # the query must reconnect to it (each database has its own).
+            # name. When it doesn't, `db` is a `database.schema` qualifier and
+            # the columns live in *that* database's information_schema — the
+            # query must reconnect to it (each database has its own).
             no_default_db = not dbinfo.get('db_name')
-            schema_name = 'dbo' if no_default_db else db
-            usedb = db if no_default_db else None
+            if no_default_db and '.' in db:
+                usedb, schema_name = db.split('.', 1)
+            else:
+                usedb, schema_name = None, db
             col_query = (
                 "SELECT column_name, data_type FROM information_schema.columns "
                 f"WHERE table_schema = '{schema_name}' AND table_name = '{tbl}' "
@@ -206,38 +222,12 @@ def get_schema_or_table(dbid, schema):
     elif dbinfo['db_type'] ==engine.DB_PGSQL:
         # When `db_name` is empty in the saved connection, the engine connects
         # to the `postgres` maintenance DB. Top-level then lists every database
-        # the user can CONNECT to, and clicking one reconnects (via `usedb`)
-        # and lists tables of its `public` schema.
+        # the user can CONNECT to (the catalog level); drilling into one
+        # reconnects (via `usedb`) and lists its schemas; a `database.schema`
+        # qualifier reconnects and lists that schema's tables.
         no_default_db = not dbinfo.get('db_name')
-        if schema is None:
-            schemas=[]
-            if no_default_db:
-                for r in query(dbid, "SELECT datname FROM pg_database WHERE NOT datistemplate AND has_database_privilege(current_user, datname, 'CONNECT') ORDER BY datname"):
-                    schemas.append({'name': r[0], 'desc': '', 'type': 'db'})
-            else:
-                for r in query(dbid, "select schema_name from information_schema.schemata where schema_name='public' or schema_owner!='gpadmin'"):
-                    schemas.append({'name': r[0], 'desc': '', 'type': 'db'})
-            return schemas
-        else:
-            tables=[]
-            if no_default_db:
-                # `schema` is the chosen database name; reconnect to it and
-                # list tables of its `public` schema.
-                tbl_query = '''
-                SELECT
-                    t.table_name,
-                    CASE t.table_type
-                        WHEN 'BASE TABLE' THEN 'T'
-                        ELSE 'V'
-                    END,
-                    obj_description((t.table_schema || '.' || t.table_name)::regclass, 'pg_class') as comment
-                FROM information_schema.tables t
-                WHERE t.table_schema='public'
-                '''
-                for r in query(dbid, tbl_query, db=schema):
-                    tables.append({'name': r[0], 'desc': r[2], 'type': 'table', 'subtype': r[1]})
-            else:
-                for r in query(dbid, '''
+        SCHEMA_QUERY = "select schema_name from information_schema.schemata where schema_name='public' or schema_owner!='gpadmin'"
+        TBL_QUERY = '''
                 SELECT
                     t.table_name,
                     CASE t.table_type
@@ -247,11 +237,35 @@ def get_schema_or_table(dbid, schema):
                     obj_description((t.table_schema || '.' || t.table_name)::regclass, 'pg_class') as comment
                 FROM information_schema.tables t
                 WHERE t.table_schema='%s'
-                ''' % schema):
+                '''
+        if schema is None:
+            schemas=[]
+            if no_default_db:
+                for r in query(dbid, "SELECT datname FROM pg_database WHERE NOT datistemplate AND has_database_privilege(current_user, datname, 'CONNECT') ORDER BY datname"):
+                    schemas.append({'name': r[0], 'desc': '', 'type': 'catalog'})
+            else:
+                for r in query(dbid, SCHEMA_QUERY):
+                    schemas.append({'name': r[0], 'desc': '', 'type': 'db'})
+            return schemas
+        elif no_default_db and '.' not in schema:
+            # `schema` is the chosen database name; reconnect to it and list
+            # its schemas.
+            dbs=[]
+            for r in query(dbid, SCHEMA_QUERY, db=schema):
+                dbs.append({'name': r[0], 'desc': '', 'type': 'db'})
+            return dbs
+        else:
+            tables=[]
+            if no_default_db and '.' in schema:
+                database, sch = schema.split('.', 1)
+                for r in query(dbid, TBL_QUERY % sch, db=database):
+                    tables.append({'name': r[0], 'desc': r[2], 'type': 'table', 'subtype': r[1]})
+            else:
+                for r in query(dbid, TBL_QUERY % schema):
                     tables.append({'name': r[0], 'desc': r[2], 'type': 'table', 'subtype': r[1]})
             return tables
 
-    elif dbinfo['db_type'] in [engine.DB_MYSQL, engine.DB_STARROCKS]:
+    elif dbinfo['db_type'] == engine.DB_MYSQL:
         if schema is None:
             schemas=[]
             for r in query(dbid, "show databases"):
@@ -273,29 +287,73 @@ def get_schema_or_table(dbid, schema):
                 tables.append({'name': r[0], 'desc': r[1], 'type': 'table', 'subtype': r[2]})
             return tables
 
-    elif dbinfo['db_type'] ==engine.DB_TRINO:
-        # When no catalog is configured, top-level returns flat
-        # `catalog.schema` entries spanning every catalog the user can list.
-        # Drill-down then runs catalog-qualified `SHOW TABLES`.
+    elif dbinfo['db_type'] == engine.DB_STARROCKS:
+        # When no catalog is configured, the tree has an extra level,
+        # mirroring Trino below: top returns catalogs, drilling into one
+        # returns its databases, and a `catalog.database` qualifier returns
+        # tables. When a default database is pinned, behaves like MySQL.
         no_catalog = not dbinfo.get('db_name')
         if schema is None:
             schemas=[]
             if no_catalog:
-                catalogs = [r[0] for r in query(dbid, "SHOW CATALOGS")]
-                for catalog in catalogs:
-                    try:
-                        for r in query(dbid, f'SHOW SCHEMAS FROM "{catalog}"'):
-                            sch = r[0]
-                            if catalog == 'system' and sch in ('information_schema', 'metadata'):
-                                continue
-                            schemas.append({'name': f'{catalog}.{sch}', 'desc': '', 'type': 'db'})
-                    except Exception:
-                        # A catalog the connector can't reach (auth/config) shouldn't break browse
-                        continue
+                for r in query(dbid, "SHOW CATALOGS"):
+                    schemas.append({'name': r[0], 'desc': '', 'type': 'catalog'})
+            else:
+                for r in query(dbid, "show databases"):
+                    schemas.append({'name': r[0], 'desc': '', 'type': 'db'})
+            return schemas
+        elif no_catalog and '.' not in schema:
+            # `schema` is a catalog name — list its databases.
+            dbs=[]
+            for r in query(dbid, f"SHOW DATABASES FROM `{schema}`"):
+                dbs.append({'name': r[0], 'desc': '', 'type': 'db'})
+            return dbs
+        elif no_catalog and '.' in schema:
+            catalog, sch = schema.split('.', 1)
+            tables=[]
+            for r in query(dbid, f"SHOW TABLES FROM `{catalog}`.`{sch}`"):
+                tables.append({'name': r[0], 'desc': '', 'type': 'table', 'subtype': 'T'})
+            return tables
+        else:
+            tables=[]
+            for r in query(dbid, '''
+                SELECT
+                    table_name,
+                    table_comment,
+                    CASE table_type
+                        WHEN 'VIEW' THEN 'V'
+                        ELSE 'T'
+                    END
+                FROM information_schema.tables
+                WHERE table_schema = '%s'
+            ''' % schema):
+                tables.append({'name': r[0], 'desc': r[1], 'type': 'table', 'subtype': r[2]})
+            return tables
+
+    elif dbinfo['db_type'] ==engine.DB_TRINO:
+        # When no catalog is configured, the tree has an extra level: top
+        # returns catalogs, drilling into one returns its schemas, and a
+        # `catalog.schema` qualifier (passed back by the frontend from those
+        # two ancestor nodes) returns tables.
+        no_catalog = not dbinfo.get('db_name')
+        if schema is None:
+            schemas=[]
+            if no_catalog:
+                for r in query(dbid, "SHOW CATALOGS"):
+                    schemas.append({'name': r[0], 'desc': '', 'type': 'catalog'})
             else:
                 for r in query(dbid, "SHOW SCHEMAS"):
                     schemas.append({'name': r[0], 'desc': '', 'type': 'db'})
             return schemas
+        elif no_catalog and '.' not in schema:
+            # `schema` is a catalog name — list its schemas.
+            dbs=[]
+            for r in query(dbid, f'SHOW SCHEMAS FROM "{schema}"'):
+                sch = r[0]
+                if schema == 'system' and sch in ('information_schema', 'metadata'):
+                    continue
+                dbs.append({'name': sch, 'desc': '', 'type': 'db'})
+            return dbs
         else:
             tables=[]
             if no_catalog and '.' in schema:
@@ -310,20 +368,29 @@ def get_schema_or_table(dbid, schema):
     elif dbinfo['db_type'] == engine.DB_SQLSERVER:
         # Mirrors the PG flow: when no default DB is configured the engine
         # connects to `master`; top-level then lists every database the user
-        # can see. Clicking a database reconnects via `usedb` and lists tables
-        # of its dbo schema. When a default DB is set, top-level lists user
-        # schemas of that database.
+        # can see (the catalog level); drilling into one reconnects via
+        # `usedb` and lists its schemas; a `database.schema` qualifier
+        # reconnects and lists that schema's tables. When a default DB is
+        # set, top-level lists user schemas of that database directly.
         no_default_db = not dbinfo.get('db_name')
+        SCHEMA_QUERY = "SELECT name FROM sys.schemas WHERE name NOT IN ('sys','INFORMATION_SCHEMA','guest','db_owner','db_accessadmin','db_securityadmin','db_ddladmin','db_backupoperator','db_datareader','db_datawriter','db_denydatareader','db_denydatawriter') ORDER BY name"
         if schema is None:
             schemas = []
             if no_default_db:
                 # database_id > 4 skips master, tempdb, model, msdb (system DBs).
                 for r in query(dbid, "SELECT name FROM sys.databases WHERE database_id > 4 ORDER BY name"):
-                    schemas.append({'name': r[0], 'desc': '', 'type': 'db'})
+                    schemas.append({'name': r[0], 'desc': '', 'type': 'catalog'})
             else:
-                for r in query(dbid, "SELECT name FROM sys.schemas WHERE name NOT IN ('sys','INFORMATION_SCHEMA','guest','db_owner','db_accessadmin','db_securityadmin','db_ddladmin','db_backupoperator','db_datareader','db_datawriter','db_denydatareader','db_denydatawriter') ORDER BY name"):
+                for r in query(dbid, SCHEMA_QUERY):
                     schemas.append({'name': r[0], 'desc': '', 'type': 'db'})
             return schemas
+        elif no_default_db and '.' not in schema:
+            # `schema` is the chosen database; reconnect to it and list its
+            # schemas.
+            dbs = []
+            for r in query(dbid, SCHEMA_QUERY, db=schema):
+                dbs.append({'name': r[0], 'desc': '', 'type': 'db'})
+            return dbs
         else:
             tables = []
             tbl_query_template = (
@@ -332,9 +399,9 @@ def get_schema_or_table(dbid, schema):
                 "FROM information_schema.tables "
                 "WHERE table_schema = '%s' ORDER BY table_name"
             )
-            if no_default_db:
-                # `schema` is the chosen database; list tables of dbo.
-                for r in query(dbid, tbl_query_template % 'dbo', db=schema):
+            if no_default_db and '.' in schema:
+                database, sch = schema.split('.', 1)
+                for r in query(dbid, tbl_query_template % sch, db=database):
                     tables.append({'name': r[0], 'desc': '', 'type': 'table', 'subtype': r[1]})
             else:
                 for r in query(dbid, tbl_query_template % schema):
