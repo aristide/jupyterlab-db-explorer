@@ -160,7 +160,7 @@ function Glyph({
       // CSS rotation (-90deg) turns it to point right (collapsed).
       return (
         <svg {...common} fill="currentColor" stroke="none">
-          <path d="M4 4L16 4L10 16Z" />
+          <path d="M3 3L17 3L10 17Z" />
         </svg>
       );
     case 'search':
@@ -602,7 +602,7 @@ export class DbTree extends React.Component<IDbTreeProps, IDbTreeState> {
           aria-label={isLeaf ? '' : row.isOpen ? 'Collapse' : 'Expand'}
           tabIndex={-1}
         >
-          <Glyph name="chev" size={13} />
+          <Glyph name="chev" size={14} />
         </button>
 
         {this._renderGlyph(row)}
