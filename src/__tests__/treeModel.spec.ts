@@ -102,9 +102,7 @@ describe('buildVisibleRows', () => {
           {
             type: 'db',
             name: 'default',
-            next: [
-              { type: 'table', name: 'events', subtype: 'T', next: false }
-            ]
+            next: [{ type: 'table', name: 'events', subtype: 'T', next: false }]
           }
         ]
       }
