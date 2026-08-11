@@ -18,7 +18,7 @@ JupyterLab is served automatically at http://localhost:8888/lab (no token). Open
 docker compose exec jupyter bash
 ```
 
-Stop everything with `docker compose down` (add `-v` to also delete the `pgdata`/`srdata`/`node_modules` volumes for a clean slate).
+Stop everything with `docker compose down` (add `-v` to also delete the `pgdata`/`srdata`/`node_modules`/`python-local` volumes for a clean slate).
 
 ## How it works — no build, live reload both ways
 
@@ -42,9 +42,11 @@ So:
 - **Dependency changes** (`package.json`, `pyproject.toml`) are picked up automatically on the next `docker compose restart jupyter` / `up`, since steps 3–4 above re-run every start.
 - There is genuinely nothing to rebuild, ever — not even after changing this dev environment's own tooling, since it isn't baked into an image.
 
-`node_modules` lives in a named Docker volume (`node_modules`) rather than the bind-mounted workspace, so installs stay native to the container's Linux filesystem (avoiding host/container binary mismatches) and persist across `docker compose down` + `up`.
+`node_modules` and the whole Python install prefix (`/usr/local` — site-packages, console scripts, ...) live in named Docker volumes (`node_modules`, `python-local`) rather than the bind-mounted workspace or the container's disposable writable layer. That means installs stay native to the container's Linux filesystem (avoiding host/container binary mismatches) *and* survive a full `docker compose down` + `up`, not just a `restart`: once a package is already installed, `pip install`/`jlpm install` just verify it's there instead of re-downloading and rebuilding it (e.g. compiling `psycopg2`) from scratch every time.
 
-The container runs as **root** (`user: root`): the base image's default non-root user (`pn`) can't write the root-owned named volume above without `sudo`, which isn't installed in this image. Root is fine for a disposable local dev container; `jupyter lab` is passed `--allow-root` accordingly.
+One directory is deliberately excluded from that persistence: `/usr/local/share/jupyter/labextensions` is mounted as `tmpfs` (always empty on a fresh container), so `jupyter labextension develop --overwrite` always symlinks it fresh. Persisting it caused pip's editable-install uninstall/reinstall dance to collide with a stale symlink there on a second full recreate when this was tried in the sibling `jupyterlab-airflow` project; tmpfs sidesteps that, and there's nothing worth persisting in a directory that's fully rebuilt every start anyway.
+
+The container runs as **root** (`user: root`): the base image's default non-root user (`pn`) can't write the root-owned named volumes above without `sudo`, which isn't installed in this image. Root is fine for a disposable local dev container; `jupyter lab` is passed `--allow-root` accordingly.
 
 ## Services
 

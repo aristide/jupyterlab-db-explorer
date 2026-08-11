@@ -110,10 +110,23 @@ services:
       # cross-platform) workspace. jlpm populates it on first start and it
       # persists across `docker compose down` + `up`.
       - node_modules:/workspace/node_modules
+      # Named volume keeps the whole Python install prefix (site-packages,
+      # console scripts, ...) so `pip install` on later starts just
+      # verifies already-installed packages instead of re-downloading and
+      # rebuilding them (e.g. compiling psycopg2) from scratch every time.
+      - python-local:/usr/local
       # Optional: point HOST_SSH_DIR (in .env) at your real ~/.ssh to use
       # your own keys for git inside the container. Defaults to an empty,
       # gitignored folder so this is a no-op out of the box.
       - ${HOST_SSH_DIR}:/root/.ssh:ro
+    tmpfs:
+      # `jupyter labextension develop --overwrite` re-symlinks this dir
+      # into place every start anyway, so there's nothing worth persisting
+      # here — and persisting it (as part of python-local above) caused
+      # pip's editable-install dance to collide with a stale symlink on a
+      # later `down`+`up`. tmpfs keeps it empty (and writable) on every
+      # fresh container, shadowing that one path out of that volume.
+      - /usr/local/share/jupyter/labextensions
     working_dir: /workspace
     ports:
       - 0.0.0.0:8888:8888
@@ -133,3 +146,4 @@ volumes:
   pgdata:
   srdata:
   node_modules:
+  python-local:
