@@ -154,13 +154,13 @@ function Glyph({
   };
   switch (name) {
     case 'chev':
-      // Solid drill-in/drill-up triangle rather than a thin outline caret —
-      // reads more clearly as "descend into this container" at a glance.
-      // Points down (drilled in / expanded) by default; the .is-collapsed
-      // CSS rotation (-90deg) turns it to point right (collapsed).
+      // Thin outline chevron matching DBeaver's navigator tree twisty (a
+      // simple ">" / "⌄" arrow, not a solid triangle). Points down
+      // (drilled in / expanded) by default; the .is-collapsed CSS rotation
+      // (-90deg) turns it to point right (collapsed).
       return (
-        <svg {...common} fill="currentColor" stroke="none">
-          <path d="M2 2L18 2L10 18Z" />
+        <svg {...common} strokeWidth={2.2}>
+          <path d="M5 7L10 13L15 7" />
         </svg>
       );
     case 'search':
